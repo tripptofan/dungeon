@@ -1,7 +1,8 @@
 import { create } from 'zustand';
 
 const useGameStore = create((set) => ({
-  playerPosition: { x: 0, y: 0, z: 0 },
+  // Initial state
+  playerPosition: { x: 2, z: 1 },
   playerHealth: 100,
   playerMana: 100,
   playerLevel: 1,
@@ -13,8 +14,8 @@ const useGameStore = create((set) => ({
   wallLocations: [],
   doorLocations: [],
   projectiles: [],
-  
-  // Magic System
+  godMode: false,
+  inBattle: false,
   learnedMagic: {
     fireball: {
       name: "Fireball",
@@ -45,36 +46,46 @@ const useGameStore = create((set) => ({
     },
   },
 
-  // Dungeon Properties
+  // Dungeon properties
   gridSize: 5,
   tileSize: 5,
   wallThickness: 1,
+  currentRoom: { position: { x: 0, y: 0, z: 0 }, size: 5 },
+  spawnPoints: { player: { x: 0, y: 1.5, z: 0 }, enemy: { x: 0, y: 1.5, z: 0 } },
+  playerSpawnPoint: { x: 2, z: 1 },
+  dungeon: [
+    [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+    [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+    [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+    [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+    [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+  ],
 
-  currentRoom: {
-    position: { x: 0, y: 0, z: 0 },
-    size: 5,
-  },
+  // New isMobile state for detecting mobile devices
+  isMobile: true,
 
-  spawnPoints: {
-    player: { x: 0, y: 1.5, z: 0 },
-    enemy: { x: 0, y: 1.5, z: 0 },
-  },
+  // Movement States
+  moveUp: false,
+  moveDown: false,
+  moveLeft: false,
+  moveRight: false,
 
-  // Store Mutations
+  // Store mutations for movement
+  setMoveUp: (value) => set({ moveUp: value }),
+  setMoveDown: (value) => set({ moveDown: value }),
+  setMoveLeft: (value) => set({ moveLeft: value }),
+  setMoveRight: (value) => set({ moveRight: value }),
+
+  // Store mutations
   setPlayerPosition: (position) => set({ playerPosition: position }),
   setTileLocations: (tiles) => set({ tileLocations: tiles }),
   setWallLocations: (walls) => set({ wallLocations: walls }),
-  setEnemySpawnPoint: (spawnPoint) =>
-    set((state) => ({
-      spawnPoints: { ...state.spawnPoints, enemy: spawnPoint },
-    })),
-  setPlayerSpawnPoint: (spawnPoint) =>
-    set((state) => ({
-      spawnPoints: { ...state.spawnPoints, player: spawnPoint },
-    })),
   setEquippedMagic: (magic) => set({ equippedMagic: magic }),
   addProjectile: (projectile) => set((state) => ({ projectiles: [...state.projectiles, projectile] })),
   removeProjectile: (id) => set((state) => ({ projectiles: state.projectiles.filter(p => p.id !== id) })),
+  setGodMode: (value) => set({ godMode: value }),
+  setInBattle: (value) => set({ inBattle: value }),
+  setIsMobile: (value) => set({ isMobile: value }),
 }));
 
 export default useGameStore;
