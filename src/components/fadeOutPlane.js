@@ -1,59 +1,115 @@
-import { useEffect, useRef, useState } from "react";
-import { useFrame } from "@react-three/fiber";
+import React, { useRef, useEffect, useState } from "react";
+import { useThree, useFrame } from "@react-three/fiber";
+import * as THREE from "three";
 import useGameStore from "../store";
 
-export default function FadeOutPlane() {
+const FadeOutPlane = () => {
+  const { camera } = useThree();
   const { sceneLoaded, loadingFade, setLoadingFade } = useGameStore();
+  const [opacity, setOpacity] = useState(1.0);
   const materialRef = useRef();
-  const opacityRef = useRef(1);
-  const shouldFadeRef = useRef(false);
   
-  const fadeSpeed = 0.5; // Adjust this value to control the fade speed
-  const fadeDelay = 1; // Delay in seconds before fading starts
-
+  // Keep track of animation progress
+  const startTimeRef = useRef(null);
+  const fadeInProgress = useRef(false);
+  const hasSetupFade = useRef(false);
+  
+  // Configuration
+  const fadeDuration = 2.5; // Total fade duration in seconds
+  const fadeDelay = 0.5; // Delay before starting fade
+  
+  // Ensure we start with full opacity
   useEffect(() => {
-    let timeoutId;
-    if (sceneLoaded && loadingFade) {
-      timeoutId = setTimeout(() => {
-        shouldFadeRef.current = true;
+    if (materialRef.current) {
+      materialRef.current.opacity = 1.0;
+    }
+  }, []);
+  
+  // Handle starting the fade
+  useEffect(() => {
+    if (sceneLoaded && loadingFade && !hasSetupFade.current) {
+      // Mark that we've set up the fade to prevent duplicate setups
+      hasSetupFade.current = true;
+      console.log("Fade setup initiated");
+      
+      // Record when we start the fade (after delay)
+      setTimeout(() => {
+        console.log("Starting fade animation");
+        startTimeRef.current = Date.now();
+        fadeInProgress.current = true;
       }, fadeDelay * 1000);
     }
-    
-    return () => {
-      if (timeoutId) clearTimeout(timeoutId);
-    };
   }, [sceneLoaded, loadingFade]);
-
-  useFrame((_, delta) => {
-    if (shouldFadeRef.current && materialRef.current) {
-      opacityRef.current = Math.max(0, opacityRef.current - delta * fadeSpeed);
+  
+  // Handle the fade animation using absolute time instead of delta
+  useFrame(() => {
+    if (!materialRef.current) return;
+    
+    // Always ensure the plane is in front of the camera
+    const planePosition = new THREE.Vector3(0, 0, -1);
+    planePosition.applyMatrix4(camera.matrixWorld);
+    
+    // Make sure opacity is set correctly
+    materialRef.current.opacity = opacity;
+    
+    // Handle the fade animation
+    if (fadeInProgress.current && startTimeRef.current !== null) {
+      // Calculate progress based on elapsed time
+      const elapsedTime = (Date.now() - startTimeRef.current) / 1000; // convert to seconds
+      const progress = Math.min(elapsedTime / fadeDuration, 1.0);
       
-      if (materialRef.current) {
-        materialRef.current.opacity = opacityRef.current;
+      // Calculate new opacity (1.0 -> 0.0)
+      const newOpacity = Math.max(0, 1.0 - progress);
+      
+      // Log progress for debugging
+      if (progress % 0.1 < 0.01) {
+        console.log(`Fade progress: ${(progress * 100).toFixed(0)}%, opacity: ${newOpacity.toFixed(2)}`);
       }
-
-      if (opacityRef.current === 0) {
-        shouldFadeRef.current = false;
+      
+      // Update state (this will trigger a re-render)
+      setOpacity(newOpacity);
+      
+      // Check if fade is complete
+      if (progress >= 1.0) {
+        console.log("Fade complete");
+        fadeInProgress.current = false;
         setLoadingFade(false);
       }
     }
   });
-
-  // Only render if opacity is greater than 0
-  if (opacityRef.current <= 0) {
-    return null;
-  }
-
+  
+  // Full-screen plane that covers the entire camera view
   return (
-    <mesh position={[5, 2, 6]}>
-      <planeGeometry args={[10, 10]} />
-      <meshBasicMaterial 
-        ref={materialRef} 
-        color="black" 
-        side={2} 
-        transparent 
-        opacity={opacityRef.current} 
-      />
-    </mesh>
+    <>
+      {/* Create a plane that's always in front of the camera */}
+      <mesh position={[0, 0, -0.5]} renderOrder={9999}>
+        {/* Use a larger plane to ensure coverage */}
+        <planeGeometry args={[5, 5]} />
+        <meshBasicMaterial 
+          ref={materialRef} 
+          color="black" 
+          transparent={true} 
+          opacity={opacity}
+          side={THREE.DoubleSide}
+          depthTest={false}
+          depthWrite={false}
+        />
+      </mesh>
+      
+      {/* Add a second plane with fixed position as backup */}
+      <mesh position={[5, 2, 0]} rotation={[0, -Math.PI / 2, 0]} renderOrder={9998}>
+        <planeGeometry args={[20, 20]} />
+        <meshBasicMaterial 
+          color="black" 
+          transparent={true} 
+          opacity={opacity}
+          side={THREE.DoubleSide}
+          depthTest={false}
+          depthWrite={false}
+        />
+      </mesh>
+    </>
   );
-}
+};
+
+export default FadeOutPlane;
