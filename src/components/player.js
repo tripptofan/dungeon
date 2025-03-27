@@ -8,9 +8,14 @@ const Player = () => {
   const playerRef = useRef();
   const [initialized, setInitialized] = useState(false);
   
+  // Get state from the store
   const tileSize = useGameStore(state => state.tileSize);
   const setPlayerPosition = useGameStore(state => state.setPlayerPosition);
   const sceneLoaded = useGameStore(state => state.sceneLoaded);
+  const isMovingCamera = useGameStore(state => state.isMovingCamera);
+  const targetCameraPosition = useGameStore(state => state.targetCameraPosition);
+  const moveSpeed = useGameStore(state => state.moveSpeed);
+  const stopCameraMovement = useGameStore(state => state.stopCameraMovement);
   
   // Set up initial position
   useEffect(() => {
@@ -54,12 +59,62 @@ const Player = () => {
     }
   }, [sceneLoaded, initialized, gl, scene, camera, invalidate]);
   
-  // Keep camera synchronized with player position
+  // Handle camera movement
   useFrame(() => {
     if (!playerRef.current || !initialized) return;
     
     // Sync camera position with player
     camera.position.copy(playerRef.current.position);
+    
+    // Handle camera movement to target position
+    if (isMovingCamera && targetCameraPosition) {
+      const currentPos = playerRef.current.position.clone();
+      const targetPos = new THREE.Vector3(
+        targetCameraPosition.x,
+        targetCameraPosition.y,
+        targetCameraPosition.z
+      );
+      
+      // Calculate direction and distance
+      const direction = targetPos.clone().sub(currentPos).normalize();
+      const distance = currentPos.distanceTo(targetPos);
+      
+      // Move if not at destination
+      if (distance > 0.1) {
+        // Calculate movement with smooth easing as we approach target
+        const step = Math.min(moveSpeed * (1 + distance * 0.05), distance);
+        
+        // Apply movement
+        const movement = direction.multiplyScalar(step);
+        playerRef.current.position.add(movement);
+        
+        // Update position in store
+        setPlayerPosition({
+          x: playerRef.current.position.x,
+          y: playerRef.current.position.y,
+          z: playerRef.current.position.z
+        });
+        
+        // Force a render
+        invalidate();
+      } else {
+        // Snap to exact position when close enough
+        playerRef.current.position.copy(targetPos);
+        
+        // Update position in store
+        setPlayerPosition({
+          x: targetPos.x,
+          y: targetPos.y,
+          z: targetPos.z
+        });
+        
+        // Stop movement
+        stopCameraMovement();
+        
+        // Force a render
+        invalidate();
+      }
+    }
   });
 
   return (
@@ -69,7 +124,7 @@ const Player = () => {
       onUpdate={() => invalidate()}
     >
       <boxGeometry args={[1, 2, 1]} />
-      <meshStandardMaterial color="orange" transparent opacity={0.7} />
+      <meshStandardMaterial color="orange" transparent opacity={0.0} /> {/* Make player invisible */}
     </mesh>
   );
 };

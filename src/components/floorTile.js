@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useMemo } from "react";
 import { useLoader } from "@react-three/fiber";
 import * as THREE from "three";
 
@@ -10,12 +10,14 @@ const FloorTile = ({ position, tileSize }) => {
   const roughnessTexture = useLoader(THREE.TextureLoader, "/textures/medieval_wall_02_rough_4k.jpg");
   const displacementTexture = useLoader(THREE.TextureLoader, "/textures/medieval_wall_02_disp_4k.jpg");
 
-  // Set texture properties
-  aoTexture.wrapS = aoTexture.wrapT = THREE.RepeatWrapping;
-  diffuseTexture.wrapS = diffuseTexture.wrapT = THREE.RepeatWrapping;
-  normalTexture.wrapS = normalTexture.wrapT = THREE.RepeatWrapping;
-  roughnessTexture.wrapS = roughnessTexture.wrapT = THREE.RepeatWrapping;
-  displacementTexture.wrapS = displacementTexture.wrapT = THREE.RepeatWrapping;
+  // Set texture properties once - optimize with useMemo
+  useMemo(() => {
+    aoTexture.wrapS = aoTexture.wrapT = THREE.RepeatWrapping;
+    diffuseTexture.wrapS = diffuseTexture.wrapT = THREE.RepeatWrapping;
+    normalTexture.wrapS = normalTexture.wrapT = THREE.RepeatWrapping;
+    roughnessTexture.wrapS = roughnessTexture.wrapT = THREE.RepeatWrapping;
+    displacementTexture.wrapS = displacementTexture.wrapT = THREE.RepeatWrapping;
+  }, [aoTexture, diffuseTexture, normalTexture, roughnessTexture, displacementTexture]);
 
   return (
     <mesh position={position} rotation={[-Math.PI / 2, 0, 0]}>
@@ -26,12 +28,12 @@ const FloorTile = ({ position, tileSize }) => {
         roughnessMap={roughnessTexture}
         aoMap={aoTexture}
         displacementMap={displacementTexture}
-        displacementScale={0.1} // Adjust as necessary
-        displacementBias={-0.05} // Optional
+        displacementScale={0.1}
+        displacementBias={-0.05}
         transparent
       />
     </mesh>
   );
 };
 
-export default FloorTile;
+export default React.memo(FloorTile);
