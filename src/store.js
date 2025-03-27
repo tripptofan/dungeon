@@ -34,7 +34,7 @@ const useGameStore = create((set, get) => ({
   
   // Experience timing constants
   initialExperienceDelay: 1000, // ms
-  moveSpeed: 0.1, // units per frame for camera movement
+  moveSpeed: 0.05, // units per frame for camera movement
   
   // World configuration
   tileSize: 5,
@@ -264,7 +264,7 @@ const useGameStore = create((set, get) => ({
             currentMessage: nextExperience.text,
             typingInProgress: true
           });
-        }, state.initialExperienceDelay + (Math.abs(targetPosition.z - state.playerPosition.z) / state.moveSpeed) * 16); // Approximate time to reach destination
+        }, state.initialExperienceDelay + (Math.abs(targetPosition.z - state.playerPosition.z) / state.moveSpeed) * 15); // Approximate time to reach destination
       }
     }
   }
