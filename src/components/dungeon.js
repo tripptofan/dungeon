@@ -1,6 +1,11 @@
 import React, { useEffect } from "react";
 import useGameStore from "../store";
 
+import FlickeringLight from "./flickeringLight";
+import FloorTile from "./floorTile";
+import Wall from "./wall";
+import Ceiling from "./ceiling";
+
 const Dungeon = () => {
   const tileSize = useGameStore((state) => state.tileSize);
   const dungeon = useGameStore((state) => state.dungeon);
@@ -16,37 +21,38 @@ const Dungeon = () => {
   const dungeonDepth = dungeon[0].length * tileSize;
   const roofHeight = tileSize; // Roof should sit exactly at the top of the walls
 
-  // Light configuration
-  const lightRange = 0.3; // Light bulb size (sphere radius)
 
   // Create sphere light sources with pointLight inside each sphere
   const lightSpheres = [];
 
   // Loop over the dungeon's columns (z axis) to place lights
-  for (let z = 2; z < dungeon[0].length - 2; z += 4) {
-    const lightZ = z * tileSize; // Light positions at each column (z axis)
-    const lightX = dungeon.length * tileSize / 2; // Center the lights along the x axis (middle of the hallway)
-
-    lightSpheres.push(
-      <group key={`light-${z}`} position={[lightX - tileSize / 2, roofHeight, lightZ]}>
-        {/* Sphere representing the light bulb */}
-        <mesh>
-          <sphereGeometry args={[lightRange, 8, 8]} /> {/* Smaller 1x1 light bulb */}
-          <meshStandardMaterial emissive="yellow" emissiveIntensity={15} transparent={true} opacity={0.5} />
-        </mesh>
-
-        {/* Point light inside the sphere */}
-        <pointLight
-          position={[0, 0, 0]} // Position the light at the center of the sphere
-          intensity={15} // Increased intensity
-          color="white"
-          distance={lightRange * 30} // Adjust distance to represent the radius of the light
-          decay={1.2} // Light decay
-          castShadow
+  for (let z = 4; z < dungeon[0].length - 2; z += 4) {
+    const lightZ = z * tileSize;
+    const lightX = dungeon.length * tileSize / 2;
+    const isFlickering = Math.random() < 0.8;
+  
+    if (isFlickering) {
+      lightSpheres.push(
+        <FlickeringLight
+          key={`flicker-light-${z}`}
+          position={[lightX - tileSize / 2, roofHeight - 2, lightZ]}
+          randomizer={Math.random()} // Unique randomizer for each light
         />
-      </group>
-    );
+      );
+    } else {
+      // Steady light
+      lightSpheres.push(
+        <group key={`steady-light-${z}`} position={[lightX - tileSize / 2, roofHeight - 2, lightZ]}>
+          <mesh>
+            <sphereGeometry args={[0.3, 8, 8]} />
+            <meshStandardMaterial emissive="yellow" emissiveIntensity={15} transparent opacity={0.5} />
+          </mesh>
+          <pointLight intensity={15} color="white" distance={9} decay={1.2} castShadow />
+        </group>
+      );
+    }
   }
+  
 
   dungeon.forEach((row, x) => {
     row.forEach((tile, z) => {
@@ -56,18 +62,13 @@ const Dungeon = () => {
       if (tile === 0) {
         tileLocations.push({ x: worldX, z: worldZ });
         tiles.push(
-          <mesh key={`tile-${x}-${z}`} position={[worldX, 0, worldZ]} rotation={[-Math.PI / 2, 0, 0]}>
-            <planeGeometry args={[tileSize, tileSize]} />
-            <meshStandardMaterial color={(x + z) % 2 === 0 ? "lightgray" : "darkgray"} />
-          </mesh>
+          <FloorTile key={`floor-${x}-${z}`} position={[worldX, 0, worldZ]} tileSize={tileSize} />
+
         );
       } else {
         wallLocations.push({ x: worldX, z: worldZ });
         walls.push(
-          <mesh key={`wall-${x}-${z}`} position={[worldX, tileSize / 2, worldZ]}>
-            <boxGeometry args={[tileSize, tileSize, tileSize]} />
-            <meshStandardMaterial color="gray" />
-          </mesh>
+          <Wall key={`wall-${x}-${z}`} position={[worldX, tileSize / 2, worldZ]} tileSize={tileSize} />
         );
       }
     });
@@ -82,12 +83,12 @@ const Dungeon = () => {
     <>
       {tiles}
       {walls}
-
+      <Ceiling position={[dungeonWidth / 2 - tileSize / 2, roofHeight, dungeonDepth / 2 - tileSize / 2]} tileSize={tileSize}/>
       {/* Roof positioned exactly at the top of the walls */}
-      <mesh position={[dungeonWidth / 2 - tileSize / 2, roofHeight, dungeonDepth / 2 - tileSize / 2]} rotation={[-Math.PI / 2, 0, 0]}>
+      {/* <mesh position={[dungeonWidth / 2 - tileSize / 2, roofHeight, dungeonDepth / 2 - tileSize / 2]} rotation={[-Math.PI / 2, 0, 0]}>
         <planeGeometry args={[dungeonWidth, dungeonDepth]} />
-        <meshStandardMaterial color="black" side={2} /> {/* side=2 makes it double-sided */}
-      </mesh>
+        <meshStandardMaterial color="black" side={2} /> 
+      </mesh> */}
 
       {/* Add the sphere light sources */}
       {lightSpheres}
