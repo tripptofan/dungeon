@@ -135,18 +135,6 @@ const Overlay = () => {
       </PlayerPositionContainer>
 
       <OverlayContainer>
-        {/* Health bar in the bottom-left corner */}
-        {/* <HealthBarContainer>
-          <HealthBarFill health={healthPercentage} />
-        </HealthBarContainer> */}
-
-        {/* Magic indicator in the bottom-right corner */}
-        {/* <MagicIndicatorContainer>
-          <MagicIndicatorCircle>
-            <MagicIndicatorInnerCircle color={magicColor} />
-          </MagicIndicatorCircle>
-          <MagicNameText>{equippedMagic || 'No Magic Equipped'}</MagicNameText>
-        </MagicIndicatorContainer> */}
       </OverlayContainer>
     </>
   );
