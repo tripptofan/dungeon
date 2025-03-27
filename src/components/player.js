@@ -8,6 +8,12 @@ const Player = () => {
   const playerRef = useRef();
   const [initialized, setInitialized] = useState(false);
   
+  // Head bobbing state
+  const headBobRef = useRef({
+    timer: 0,
+    bobHeight: 0,
+  });
+  
   // Get state from the store
   const tileSize = useGameStore(state => state.tileSize);
   const setPlayerPosition = useGameStore(state => state.setPlayerPosition);
@@ -59,12 +65,9 @@ const Player = () => {
     }
   }, [sceneLoaded, initialized, gl, scene, camera, invalidate]);
   
-  // Handle camera movement
-  useFrame(() => {
+  // Handle camera movement and head bobbing
+  useFrame((state, delta) => {
     if (!playerRef.current || !initialized) return;
-    
-    // Sync camera position with player
-    camera.position.copy(playerRef.current.position);
     
     // Handle camera movement to target position
     if (isMovingCamera && targetCameraPosition) {
@@ -81,14 +84,29 @@ const Player = () => {
       
       // Move if not at destination
       if (distance > 0.1) {
+        // Update the head bob timer when moving
+        headBobRef.current.timer += delta * 10; // Control bob speed
+        
+        // Calculate the bobbing using a sine wave (0.05 for subtle effect)
+        const bobAmount = Math.sin(headBobRef.current.timer) * 0.05;
+        headBobRef.current.bobHeight = bobAmount;
+        
         // Calculate movement with smooth easing as we approach target
+        // Slower movement
         const step = Math.min(moveSpeed * (1 + distance * 0.05), distance);
         
-        // Apply movement
+        // Apply movement to the player
         const movement = direction.multiplyScalar(step);
         playerRef.current.position.add(movement);
         
-        // Update position in store
+        // Apply position to camera with head bob offset
+        camera.position.set(
+          playerRef.current.position.x,
+          playerRef.current.position.y + bobAmount,
+          playerRef.current.position.z
+        );
+        
+        // Update position in store (without the bob height)
         setPlayerPosition({
           x: playerRef.current.position.x,
           y: playerRef.current.position.y,
@@ -100,6 +118,10 @@ const Player = () => {
       } else {
         // Snap to exact position when close enough
         playerRef.current.position.copy(targetPos);
+        camera.position.copy(targetPos);
+        
+        // Reset head bob
+        headBobRef.current.bobHeight = 0;
         
         // Update position in store
         setPlayerPosition({
@@ -113,6 +135,28 @@ const Player = () => {
         
         // Force a render
         invalidate();
+      }
+    } else {
+      // When not moving, smoothly reset any remaining head bob
+      if (Math.abs(headBobRef.current.bobHeight) > 0.001) {
+        // Reduce bob height gradually
+        headBobRef.current.bobHeight *= 0.8;
+        
+        // Apply diminishing head bob to camera only
+        camera.position.y = playerRef.current.position.y + headBobRef.current.bobHeight;
+        
+        // Force a render
+        invalidate();
+      } else if (headBobRef.current.bobHeight !== 0) {
+        // Reset to exactly zero when very small
+        headBobRef.current.bobHeight = 0;
+        camera.position.y = playerRef.current.position.y;
+        
+        // Force a render
+        invalidate();
+      } else {
+        // Ensure camera and player are in sync
+        camera.position.copy(playerRef.current.position);
       }
     }
   });

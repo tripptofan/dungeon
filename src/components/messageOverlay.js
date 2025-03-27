@@ -104,26 +104,29 @@ const MessageOverlay = () => {
       
       // Only reset the typing animation if it's explicitly triggered
       if (typingInProgress) {
+        // Make sure to start with a clean state
+        clearTimeout(typingIntervalRef.current);
         charIndexRef.current = 0;
-        setDisplayedText('');
+        setDisplayedText(''); // Start with empty string
         
-        // Clear any existing interval first
-        if (typingIntervalRef.current) {
-          clearInterval(typingIntervalRef.current);
-        }
-        
-        // Set up new typing interval
-        typingIntervalRef.current = setInterval(() => {
-          if (charIndexRef.current < fullTextRef.current.length) {
-            setDisplayedText(prev => prev + fullTextRef.current.charAt(charIndexRef.current));
-            charIndexRef.current++;
-          } else {
-            // Text animation completed
-            clearInterval(typingIntervalRef.current);
-            typingIntervalRef.current = null;
-            setTypingInProgress(false);
-          }
-        }, typingSpeedRef.current);
+        // Important: Add a small delay before starting typing to ensure proper initialization
+        setTimeout(() => {
+          // Set up new typing interval with proper closure
+          typingIntervalRef.current = setInterval(() => {
+            if (charIndexRef.current < fullTextRef.current.length) {
+              setDisplayedText(prev => {
+                // Ensure we're adding the correct character
+                return fullTextRef.current.substring(0, charIndexRef.current + 1);
+              });
+              charIndexRef.current++;
+            } else {
+              // Text animation completed
+              clearInterval(typingIntervalRef.current);
+              typingIntervalRef.current = null;
+              setTypingInProgress(false);
+            }
+          }, typingSpeedRef.current);
+        }, 50); // Small delay to ensure state is ready
       }
     }
     
