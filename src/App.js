@@ -7,7 +7,9 @@ import Dungeon from './components/dungeon';
 import Player from './components/player';
 import FadeOutPlane from './components/fadeOutPlane';
 import ForceRender from './components/forceRender';
-// import MessageOverlay from './components/messageOverlay';
+import MessageOverlay from './components/messageOverlay';
+import ActionOverlay from './components/actionOverlay';
+import StaticItems from './components/staticItems'; // Changed from Item to StaticItems
 import DeviceDetection from './DeviceDetection';
 
 const CanvasWrapper = styled.div`
@@ -56,6 +58,7 @@ function App() {
   const loadingFade = useGameStore((state) => state.loadingFade);
   const setLoadingFade = useGameStore((state) => state.setLoadingFade);
   const setSceneLoaded = useGameStore((state) => state.setSceneLoaded);
+  const startExperience = useGameStore((state) => state.startExperience);
   
   const [canvasKey, setCanvasKey] = useState(0);
   const [overlayVisible, setOverlayVisible] = useState(true);
@@ -84,6 +87,13 @@ function App() {
         const readyTimer = setTimeout(() => {
           console.log("Scene fully ready");
           setSceneReady(true);
+          
+          // Start the experience after a brief pause
+          const experienceTimer = setTimeout(() => {
+            startExperience();
+          }, 1000);
+          
+          return () => clearTimeout(experienceTimer);
         }, 3000);
         
         return () => clearTimeout(readyTimer);
@@ -93,7 +103,7 @@ function App() {
     }, 1500);
     
     return () => clearTimeout(loadTimer);
-  }, [setSceneLoaded, setLoadingFade]);
+  }, [setSceneLoaded, setLoadingFade, startExperience]);
   
   // Force Canvas remount when component loads
   useEffect(() => {
@@ -130,7 +140,7 @@ function App() {
             <ambientLight intensity={0.2} />
             <Dungeon />
             <Player />
-            {/* Only render FadeOutPlane when needed */}
+            <StaticItems /> {/* Changed from Item to StaticItems */}
             {loadingFade && <FadeOutPlane />}
             <ForceRender />
           </Suspense>
@@ -145,10 +155,15 @@ function App() {
             Loading Experience...
           </LoadingIndicator>
         )}
+        
+        {/* Show UI components when scene is ready */}
+        {sceneReady && (
+          <>
+            <MessageOverlay />
+            <ActionOverlay />
+          </>
+        )}
       </StyledCanvasWrapper>
-      
-      {/* Add message overlay later */}
-      {/* {sceneReady && <MessageOverlay />} */}
     </>
   );
 }

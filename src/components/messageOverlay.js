@@ -78,32 +78,24 @@ const ContinueButton = styled.button`
 `;
 
 const MessageOverlay = () => {
-  const { 
-    showMessageOverlay,
-    setShowMessageOverlay,
-    messageBoxVisible,
-    setMessageBoxVisible,
-    currentMessage,
-    setCurrentMessage,
-    typingInProgress,
-    setTypingInProgress,
-    progressExperience
-  } = useGameStore(state => ({
-    showMessageOverlay: state.showMessageOverlay,
-    setShowMessageOverlay: state.setShowMessageOverlay,
-    messageBoxVisible: state.messageBoxVisible,
-    setMessageBoxVisible: state.setMessageBoxVisible,
-    currentMessage: state.currentMessage,
-    setCurrentMessage: state.setCurrentMessage,
-    typingInProgress: state.typingInProgress,
-    setTypingInProgress: state.setTypingInProgress,
-    progressExperience: state.progressExperience
-  }));
+  // Use selectors to optimize re-renders
+  const showMessageOverlay = useGameStore(state => state.showMessageOverlay);
+  const messageBoxVisible = useGameStore(state => state.messageBoxVisible);
+  const currentMessage = useGameStore(state => state.currentMessage);
+  const typingInProgress = useGameStore(state => state.typingInProgress);
+  
+  // Use separate action getters to avoid unnecessary re-renders
+  const setShowMessageOverlay = useGameStore(state => state.setShowMessageOverlay);
+  const setMessageBoxVisible = useGameStore(state => state.setMessageBoxVisible);
+  const setCurrentMessage = useGameStore(state => state.setCurrentMessage);
+  const setTypingInProgress = useGameStore(state => state.setTypingInProgress);
+  const progressExperience = useGameStore(state => state.progressExperience);
   
   const [displayedText, setDisplayedText] = useState('');
   const fullTextRef = useRef('');
   const charIndexRef = useRef(0);
   const typingSpeedRef = useRef(40); // milliseconds per character
+  const typingIntervalRef = useRef(null);
   
   // Reset the typing animation when the current message changes
   useEffect(() => {
@@ -114,32 +106,43 @@ const MessageOverlay = () => {
       if (typingInProgress) {
         charIndexRef.current = 0;
         setDisplayedText('');
+        
+        // Clear any existing interval first
+        if (typingIntervalRef.current) {
+          clearInterval(typingIntervalRef.current);
+        }
+        
+        // Set up new typing interval
+        typingIntervalRef.current = setInterval(() => {
+          if (charIndexRef.current < fullTextRef.current.length) {
+            setDisplayedText(prev => prev + fullTextRef.current.charAt(charIndexRef.current));
+            charIndexRef.current++;
+          } else {
+            // Text animation completed
+            clearInterval(typingIntervalRef.current);
+            typingIntervalRef.current = null;
+            setTypingInProgress(false);
+          }
+        }, typingSpeedRef.current);
       }
     }
-  }, [currentMessage, typingInProgress]);
-  
-  // Text typing animation effect
-  useEffect(() => {
-    if (!typingInProgress || !fullTextRef.current) return;
     
-    const typingInterval = setInterval(() => {
-      if (charIndexRef.current < fullTextRef.current.length) {
-        setDisplayedText(prev => prev + fullTextRef.current.charAt(charIndexRef.current));
-        charIndexRef.current++;
-      } else {
-        // Text animation completed
-        clearInterval(typingInterval);
-        setTypingInProgress(false);
+    // Clean up interval on unmount or when dependencies change
+    return () => {
+      if (typingIntervalRef.current) {
+        clearInterval(typingIntervalRef.current);
       }
-    }, typingSpeedRef.current);
-    
-    return () => clearInterval(typingInterval);
-  }, [typingInProgress, setTypingInProgress]);
+    };
+  }, [currentMessage, typingInProgress, setTypingInProgress]);
   
   // Handle the continue button click
   const handleContinue = () => {
     // If typing is still in progress, instantly complete it
     if (typingInProgress) {
+      if (typingIntervalRef.current) {
+        clearInterval(typingIntervalRef.current);
+        typingIntervalRef.current = null;
+      }
       setDisplayedText(fullTextRef.current);
       setTypingInProgress(false);
       return;
@@ -178,4 +181,4 @@ const MessageOverlay = () => {
   );
 };
 
-export default MessageOverlay;
+export default React.memo(MessageOverlay);
