@@ -15,6 +15,7 @@ const ItemObject = ({ experience, isActive, isInteractive }) => {
   // Get animation state from store
   const itemAnimationPhase = useGameStore(state => state.itemAnimationPhase);
   const handleItemClick = useGameStore(state => state.handleItemClick);
+  const showMessageOverlay = useGameStore(state => state.showMessageOverlay);
   
   // Item height
   const floatingHeight = 2;
@@ -88,8 +89,9 @@ const ItemObject = ({ experience, isActive, isInteractive }) => {
     }
   });
   
-  // Determine if the item should be visible
-  const isVisible = !(isActive && itemAnimationPhase === 'acquired');
+  // FIX: Modified visibility logic to keep sword visible during message overlay
+  const isSwordItem = itemType === 'Toy Wooden Sword';
+  const isVisible = isSwordItem ? true : !(isActive && itemAnimationPhase === 'acquired');
   
   // For glow effect when hovered and clickable
   const glowScale = (hovered && isInteractive) ? 1.1 : 1.0;
@@ -102,14 +104,11 @@ const ItemObject = ({ experience, isActive, isInteractive }) => {
         return (
           <group position={[0, .2, 0]} scale={[modelScale, modelScale, modelScale]}>
             <Lantern />
-            {/* Replace static light with flickering flame */}
-{/* Use the revised flame effect that matches flickeringLight.js */}
-<FlickeringFlame 
+            <FlickeringFlame 
               position={[0, 0.2, 0]}
               color="#ffcc77"
               randomizer={0.42} // Different seed for variety
             />
-            {/* Additional always-on ambient light for the lantern */}
             <pointLight 
               color="#ffcc77" 
               intensity={5} 
@@ -118,7 +117,6 @@ const ItemObject = ({ experience, isActive, isInteractive }) => {
               position={[0, 0.2, 0]}
             />
             
-            {/* Add a visible glass effect manually - keep this */}
             <mesh position={[0, 0, 0]}>
               <meshPhysicalMaterial
                 color="#ffcc88"
@@ -203,6 +201,21 @@ const StaticItems = () => {
   const itemAnimationPhase = useGameStore(state => state.itemAnimationPhase);
   const inventory = useGameStore(state => state.inventory);
   
+  // FIX: Add special handling for the sword experience
+  const currentExperience = currentExperienceIndex >= 0 && currentExperienceIndex < experiences.length 
+    ? experiences[currentExperienceIndex] 
+    : null;
+  const isSwordExperience = currentExperience?.type === 'item' && 
+    currentExperience?.item?.name === 'Toy Wooden Sword';
+  
+  // FIX: Force the sword to display when it's the current experience
+  useEffect(() => {
+    if (isSwordExperience) {
+      useGameStore.getState().setForceItemsVisible(true);
+      useGameStore.getState().setShowItemDisplay(true);
+    }
+  }, [isSwordExperience, currentExperienceIndex]);
+  
   return (
     <>
       {/* Render all items for experiences of type 'item' */}
@@ -218,10 +231,12 @@ const StaticItems = () => {
         // If the item is already in inventory, skip rendering it in the world
         if (isInInventory) return null;
 
-        // Item is active if it's the current experience and showItemDisplay is true,
-        // but not during movement - this ensures items remain visible during transit
+        // FIX: Modified active experience logic to handle the sword special case
         const isActiveExperience = index === currentExperienceIndex;
-        const isActive = isActiveExperience && showItemDisplay && !isMovingCamera;
+        const isSword = experience.item.name === 'Toy Wooden Sword';
+        
+        // FIX: Force the sword to be active during its experience
+        const isActive = isActiveExperience && (isSword || (showItemDisplay && !isMovingCamera));
         
         // Item is only interactive if it's active, not showing message, and in clickable phase
         const isInteractive = isActive && !showMessageOverlay && itemAnimationPhase === 'clickable';

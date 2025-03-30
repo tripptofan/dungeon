@@ -48,10 +48,6 @@ const FlickeringFlame = ({
 
   return (
     <group position={position}>
-      <mesh ref={glowRef}>
-        <sphereGeometry args={[0.3, 8, 8]} />
-        <meshBasicMaterial color={color} transparent opacity={0.5} />
-      </mesh>
       <pointLight
         ref={lightRef}
         color={color}

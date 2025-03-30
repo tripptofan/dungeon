@@ -90,7 +90,7 @@ const useGameStore = create((set, get) => ({
       },
       {
         "experience": 3,
-        "position": { x: 5, y: 0, z: 75 }, // First shake event position
+        "position": { x: 5, y: 0, z: 55 }, // First shake event position
         "type": "shake",
         "shakeConfig": {
           "intensity": 0.8,
@@ -100,7 +100,7 @@ const useGameStore = create((set, get) => ({
       },
       {
         "experience": 4,
-        "position": { x: 5, y: 0, z: 100 }, // Second shake event position
+        "position": { x: 5, y: 0, z: 65 }, // Second shake event position
         "type": "shake",
         "shakeConfig": {
           "intensity": 1.0,
@@ -113,9 +113,9 @@ const useGameStore = create((set, get) => ({
   
   // Dungeon layout - expanded for longer corridor
   dungeon: [
-    [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-    [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-    [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+    [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+    [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2],
+    [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
   ],
   
   // Core action dispatchers
@@ -170,14 +170,31 @@ const useGameStore = create((set, get) => ({
     // When showing message overlay, ensure items remain visible if they're already visible
     const currentShowItemDisplay = get().showItemDisplay;
     const currentForceItemsVisible = get().forceItemsVisible;
+    const currentExperienceIndex = get().currentExperienceIndex;
+    const experiences = get().experienceScript.experiences;
     
-    set({ 
-      showMessageOverlay: value,
-      // Keep item display on if it was already on
-      showItemDisplay: value ? currentShowItemDisplay : get().showItemDisplay,
-      // Preserve force items visible setting
-      forceItemsVisible: currentForceItemsVisible
-    });
+    // FIX: Check if we're in the sword experience
+    const isSwordExperience = currentExperienceIndex >= 0 && 
+      currentExperienceIndex < experiences.length &&
+      experiences[currentExperienceIndex].type === 'item' && 
+      experiences[currentExperienceIndex].item?.name === "Toy Wooden Sword";
+    
+    // Keep sword visible regardless of other state
+    if (isSwordExperience) {
+      set({ 
+        showMessageOverlay: value,
+        showItemDisplay: true,
+        forceItemsVisible: true
+      });
+    } else {
+      set({ 
+        showMessageOverlay: value,
+        // Keep item display on if it was already on
+        showItemDisplay: value ? currentShowItemDisplay : get().showItemDisplay,
+        // Preserve force items visible setting
+        forceItemsVisible: currentForceItemsVisible
+      });
+    }
   },
   
   setMessageBoxVisible: (value) => set({ messageBoxVisible: value }),
@@ -303,6 +320,20 @@ const useGameStore = create((set, get) => ({
     // Check if we have the sword in inventory for special handling
     const hasSword = inventory.some(item => item.name === "Toy Wooden Sword");
     
+    // FIX: Check if current experience is sword related
+    const isSwordExperience = currentExperienceIndex >= 0 && 
+      currentExperienceIndex < experienceScript.experiences.length &&
+      experienceScript.experiences[currentExperienceIndex].type === 'item' && 
+      experienceScript.experiences[currentExperienceIndex].item?.name === "Toy Wooden Sword";
+    
+    // If we're in the sword experience, always force visibility on
+    if (isSwordExperience) {
+      set({
+        showItemDisplay: true,
+        forceItemsVisible: true
+      });
+    }
+    
     // Handle different stages of progression
     if (currentExperienceIndex === -1) {
       // Prologue finished, show the action overlay to move forward
@@ -315,7 +346,7 @@ const useGameStore = create((set, get) => ({
         // Keep items visible if we have any
         showItemDisplay: hasAcquiredItems ? true : state.showItemDisplay,
         // Preserve force flag if it was set
-        forceItemsVisible: forceItemsVisible || hasSword
+        forceItemsVisible: forceItemsVisible || hasSword || isSwordExperience
       });
     } else {
       // Within an experience, check what's displayed
@@ -338,7 +369,7 @@ const useGameStore = create((set, get) => ({
             // Keep items visible if we have any
             showItemDisplay: hasAcquiredItems ? true : state.showItemDisplay,
             // Preserve force flag if it was set or we have the sword
-            forceItemsVisible: forceItemsVisible || hasSword
+            forceItemsVisible: forceItemsVisible || hasSword || isSwordExperience
           });
         } 
         else if (experience.type === 'item' && state.currentMessage === experience.item.text) {
@@ -375,10 +406,9 @@ const useGameStore = create((set, get) => ({
           z: nextExperience.position.z
         };
         
-        // Special case for moving to sword experience
+        // FIX: Special case for moving to sword experience - improved detection
         const isSwordExperience = nextExperience.type === 'item' && 
-                                 nextExperience.item && 
-                                 nextExperience.item.name === "Toy Wooden Sword";
+                                 nextExperience.item?.name === "Toy Wooden Sword";
         
         // Check if we have any items in inventory
         const hasItems = state.inventory.length > 0;
@@ -387,15 +417,24 @@ const useGameStore = create((set, get) => ({
         // Keep item display enabled if moving to another item experience
         const keepItemDisplay = nextExperience.type === 'item' || hasItems;
         
-        // We'll handle the experience triggering in the Player component's update
-        // Set the current experience index, but don't trigger the events yet
-        set({ 
-          currentExperienceIndex: targetIndex,
-          // Important: Don't turn off showItemDisplay when moving to another item experience
-          showItemDisplay: keepItemDisplay,
-          // Preserve force items visible, but force it on for sword experience or if we have the sword
-          forceItemsVisible: forceItemsVisible || isSwordExperience || hasSword
-        });
+        // For sword experience, always keep things visible
+        if (isSwordExperience) {
+          set({ 
+            currentExperienceIndex: targetIndex,
+            showItemDisplay: true,
+            forceItemsVisible: true
+          });
+        } else {
+          // We'll handle the experience triggering in the Player component's update
+          // Set the current experience index, but don't trigger the events yet
+          set({ 
+            currentExperienceIndex: targetIndex,
+            // Important: Don't turn off showItemDisplay when moving to another item experience
+            showItemDisplay: keepItemDisplay,
+            // Preserve force items visible, but force it on for sword experience or if we have the sword
+            forceItemsVisible: forceItemsVisible || hasSword
+          });
+        }
         
         // Start camera movement
         state.startCameraMovement(targetPosition);
