@@ -139,7 +139,7 @@ function App() {
           resize={{ scroll: false, debounce: { scroll: 50, resize: 0 } }}
         >
           <Suspense fallback={null}>
-            <ambientLight intensity={0.2} />
+            <ambientLight intensity={0.8} />
             <Dungeon />
             <Player />
             <StaticItems />
