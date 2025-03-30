@@ -30,11 +30,9 @@ const FadeOutPlane = () => {
     if (sceneLoaded && loadingFade && !hasSetupFade.current) {
       // Mark that we've set up the fade to prevent duplicate setups
       hasSetupFade.current = true;
-      console.log("Fade setup initiated");
       
       // Record when we start the fade (after delay)
       setTimeout(() => {
-        console.log("Starting fade animation");
         startTimeRef.current = Date.now();
         fadeInProgress.current = true;
       }, fadeDelay * 1000);
@@ -61,17 +59,11 @@ const FadeOutPlane = () => {
       // Calculate new opacity (1.0 -> 0.0)
       const newOpacity = Math.max(0, 1.0 - progress);
       
-      // Log progress for debugging
-      if (progress % 0.1 < 0.01) {
-        console.log(`Fade progress: ${(progress * 100).toFixed(0)}%, opacity: ${newOpacity.toFixed(2)}`);
-      }
-      
       // Update state (this will trigger a re-render)
       setOpacity(newOpacity);
       
       // Check if fade is complete
       if (progress >= 1.0) {
-        console.log("Fade complete");
         fadeInProgress.current = false;
         setLoadingFade(false);
       }
