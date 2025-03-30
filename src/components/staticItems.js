@@ -202,31 +202,30 @@ const StaticItems = () => {
         // Skip if not an item experience type
         if (experience.type !== 'item') return null;
         
-        // Check if this item is already in the inventory
+        // Only render in-world items that haven't been acquired yet
         const isInInventory = inventory.some(item => 
           item.name === experience.item.name
         );
         
-        // Always render if not in inventory, regardless of current experience
-        if (!isInInventory) {
-          // Item is active if it's the current experience and showItemDisplay is true,
-          // but not during movement - this ensures items remain visible during transit
-          const isActiveExperience = index === currentExperienceIndex;
-          const isActive = isActiveExperience && showItemDisplay && !isMovingCamera;
-          
-          // Item is only interactive if it's active, not showing message, and in clickable phase
-          const isInteractive = isActive && !showMessageOverlay && itemAnimationPhase === 'clickable';
-          
-          return (
-            <ItemObject 
-              key={`item-${index}`}
-              experience={experience}
-              isActive={isActive}
-              isInteractive={isInteractive}
-            />
-          );
-        }
-        return null;
+        // If the item is already in inventory, skip rendering it in the world
+        if (isInInventory) return null;
+
+        // Item is active if it's the current experience and showItemDisplay is true,
+        // but not during movement - this ensures items remain visible during transit
+        const isActiveExperience = index === currentExperienceIndex;
+        const isActive = isActiveExperience && showItemDisplay && !isMovingCamera;
+        
+        // Item is only interactive if it's active, not showing message, and in clickable phase
+        const isInteractive = isActive && !showMessageOverlay && itemAnimationPhase === 'clickable';
+        
+        return (
+          <ItemObject 
+            key={`item-${index}`}
+            experience={experience}
+            isActive={isActive}
+            isInteractive={isInteractive}
+          />
+        );
       })}
     </>
   );

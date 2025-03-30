@@ -10,7 +10,8 @@ import ForceRender from './components/forceRender';
 import MessageOverlay from './components/messageOverlay';
 import ActionOverlay from './components/actionOverlay';
 import StaticItems from './components/staticItems';
-import CameraShake from './components/cameraShake'; // Import the new camera shake component
+import AcquiredItems from './components/acquiredItems'; // Import the new component
+import CameraShake from './components/cameraShake';
 import DeviceDetection from './DeviceDetection';
 
 const CanvasWrapper = styled.div`
@@ -142,10 +143,14 @@ function App() {
             <Dungeon />
             <Player />
             <StaticItems />
+            {/* Move AcquiredItems to after everything else */}
             {loadingFade && <FadeOutPlane />}
             <ForceRender />
-            <CameraShake /> {/* Add the camera shake component */}
+            <CameraShake />
+            {/* Add AcquiredItems as the last component to ensure it's on top */}
+            <AcquiredItems />
           </Suspense>
+
         </Canvas>
         
         {/* CSS-based black overlay - provides a backup fade mechanism */}

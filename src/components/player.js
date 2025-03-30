@@ -145,7 +145,6 @@ const Player = () => {
           
           console.log(`Triggering experience ${experienceIndex} of type ${currentExperience.type}`);
           
-          // Handle different experience types immediately when reaching the position
           if (currentExperience.type === 'item') {
             // For item experiences, show the item text
             setTimeout(() => {
@@ -154,28 +153,43 @@ const Player = () => {
               useGameStore.getState().setCurrentMessage(currentExperience.item.text);
               useGameStore.getState().setTypingInProgress(true);
               // Keep item display enabled for item experiences during message overlay
-              // This ensures the item remains visible
               useGameStore.getState().setShowItemDisplay(true);
             }, 100); // Very short delay for better feel
-          } 
-          else if (currentExperience.type === 'shake') {
-            // For shake experiences, immediately trigger the camera shake
-            console.log(`Starting shake event for experience ${experienceIndex}`);
+          }
+          
+          // Replace it with this enhanced version:
+          if (currentExperience.type === 'item') {
+            // IMPORTANT: Force acquired items to remain visible at all times
+            const inventory = useGameStore.getState().inventory;
+            const isSwordExperience = currentExperience.item.name === "Toy Wooden Sword";
             
-            // Define callback to show message after shake
-            const onShakeComplete = () => {
-              console.log(`Shake completed for experience ${experienceIndex}, showing message`);
+            // For the sword experience, pre-check if lantern is in inventory and ensure it stays visible
+            // This ensures the lantern stays visible during the sword message
+            const hasLantern = inventory.some(item => item.name === "Lantern");
+            
+            // First, ensure that current items in inventory remain visible
+            if (hasLantern || inventory.length > 0) {
+              // Force inventory items to be visible before showing the overlay
+              console.log(`Experience ${experienceIndex}: ensuring items remain visible`);
+            }
+            
+            // For item experiences, show the item text
+            setTimeout(() => {
+              // Even more aggressive approach to ensure items stay visible
+              if (isSwordExperience) {
+                console.log("Sword experience: forcing special rendering mode");
+                // Special handling for sword experience
+                useGameStore.getState().setForceItemsVisible(true);
+              }
+              
+              // Regular overlay display
               useGameStore.getState().setShowMessageOverlay(true);
               useGameStore.getState().setMessageBoxVisible(true);
-              useGameStore.getState().setCurrentMessage(currentExperience.shakeConfig.message);
+              useGameStore.getState().setCurrentMessage(currentExperience.item.text);
               useGameStore.getState().setTypingInProgress(true);
-            };
-            
-            // Trigger camera shake immediately
-            useGameStore.getState().startCameraShake({
-              intensity: currentExperience.shakeConfig.intensity,
-              duration: currentExperience.shakeConfig.duration
-            }, onShakeComplete);
+              // Multiple item visibility flags to be super safe
+              useGameStore.getState().setShowItemDisplay(true);
+            }, 100); // Very short delay for better feel
           }
         }
         

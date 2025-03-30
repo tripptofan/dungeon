@@ -27,6 +27,14 @@ const useGameStore = create((set, get) => ({
   showItemDisplay: false,
   currentItem: null,
   itemAnimationPhase: 'hidden', // 'hidden', 'clickable', 'acquiring', 'acquired'
+  forceItemsVisible: false, // Force items to be visible regardless of other state
+  
+  // Viewport dimensions for responsive positioning
+  viewportSize: {
+    width: window.innerWidth,
+    height: window.innerHeight,
+    aspectRatio: window.innerWidth / window.innerHeight
+  },
   
   // Camera movement state
   isMovingCamera: false,
@@ -118,6 +126,12 @@ const useGameStore = create((set, get) => ({
   setWallLocations: (walls) => set({ wallLocations: walls }),
   setIsMobile: (value) => set({ isMobile: value }),
   
+  // Viewport size management
+  updateViewportSize: (dimensions) => set({ viewportSize: dimensions }),
+  
+  // Force items visibility control
+  setForceItemsVisible: (value) => set({ forceItemsVisible: value }),
+  
   // Inventory management
   addToInventory: (item) => {
     const state = get();
@@ -131,7 +145,11 @@ const useGameStore = create((set, get) => ({
       
       set({ 
         inventory: updatedInventory,
-        itemAnimationPhase: 'acquired'
+        itemAnimationPhase: 'acquired',
+        // Always ensure item display is enabled when item is acquired
+        showItemDisplay: true,
+        // Force items to be visible when acquired
+        forceItemsVisible: true
       });
       
       // Show action overlay after a delay
@@ -141,7 +159,10 @@ const useGameStore = create((set, get) => ({
           set({
             showActionOverlay: true,
             actionType: 'move',
-            actionDirection: 'forward'
+            actionDirection: 'forward',
+            // Make sure items stay visible during action overlay
+            showItemDisplay: true,
+            forceItemsVisible: true
           });
         } else {
           console.log("All experiences completed");
@@ -151,17 +172,41 @@ const useGameStore = create((set, get) => ({
   },
   
   // Message overlay actions
-  setShowMessageOverlay: (value) => set({ showMessageOverlay: value }),
+  setShowMessageOverlay: (value) => {
+    // When showing message overlay, ensure items remain visible if they're already visible
+    const currentShowItemDisplay = get().showItemDisplay;
+    const currentForceItemsVisible = get().forceItemsVisible;
+    
+    set({ 
+      showMessageOverlay: value,
+      // Keep item display on if it was already on
+      showItemDisplay: value ? currentShowItemDisplay : get().showItemDisplay,
+      // Preserve force items visible setting
+      forceItemsVisible: currentForceItemsVisible
+    });
+  },
+  
   setMessageBoxVisible: (value) => set({ messageBoxVisible: value }),
   setCurrentMessage: (message) => set({ currentMessage: message }),
   setTypingInProgress: (value) => set({ typingInProgress: value }),
   
   // Action overlay controls
-  setShowActionOverlay: (value, type = null, direction = null) => set({ 
-    showActionOverlay: value,
-    actionType: type,
-    actionDirection: direction
-  }),
+  setShowActionOverlay: (value, type = null, direction = null) => {
+    // Preserve item visibility when showing action overlay
+    const currentShowItemDisplay = get().showItemDisplay;
+    const currentForceItemsVisible = get().forceItemsVisible;
+    const hasItems = get().inventory.length > 0;
+    
+    set({ 
+      showActionOverlay: value,
+      actionType: type,
+      actionDirection: direction,
+      // Keep item display on if we have items
+      showItemDisplay: hasItems ? true : currentShowItemDisplay,
+      // Preserve force items visible setting
+      forceItemsVisible: currentForceItemsVisible
+    });
+  },
   
   // Item display controls
   setShowItemDisplay: (value) => set({ showItemDisplay: value }),
@@ -234,9 +279,12 @@ const useGameStore = create((set, get) => ({
   // Progress to the next step in the experience
   progressExperience: () => {
     const state = get();
-    const { currentExperienceIndex, experienceScript } = state;
+    const { currentExperienceIndex, experienceScript, inventory, forceItemsVisible } = state;
     
     console.log(`Progressing experience from index ${currentExperienceIndex}`);
+    
+    // Always preserve item visibility if we have items
+    const hasAcquiredItems = inventory.length > 0;
     
     // Handle different stages of progression
     if (currentExperienceIndex === -1) {
@@ -247,13 +295,21 @@ const useGameStore = create((set, get) => ({
         messageBoxVisible: false,
         showActionOverlay: true,
         actionType: 'move',
-        actionDirection: 'forward'
+        actionDirection: 'forward',
+        // Keep items visible if we have any
+        showItemDisplay: hasAcquiredItems ? true : state.showItemDisplay,
+        // Preserve force flag if it was set
+        forceItemsVisible: forceItemsVisible
       });
     } else {
       // Within an experience, check what's displayed
       if (state.showMessageOverlay) {
         // Get the current experience
         const experience = experienceScript.experiences[currentExperienceIndex];
+        
+        // Special case for Toy Wooden Sword
+        const isSwordExperience = experience.type === 'item' && 
+                                 experience.item.name === "Toy Wooden Sword";
         
         if (experience.type === 'shake' && state.currentMessage === experience.shakeConfig.message) {
           // After shake message is dismissed, show move forward action
@@ -263,7 +319,11 @@ const useGameStore = create((set, get) => ({
             messageBoxVisible: false,
             showActionOverlay: true,
             actionType: 'move',
-            actionDirection: 'forward'
+            actionDirection: 'forward',
+            // Keep items visible if we have any
+            showItemDisplay: hasAcquiredItems ? true : state.showItemDisplay,
+            // Preserve force flag if it was set
+            forceItemsVisible: forceItemsVisible
           });
         } 
         else if (experience.type === 'item' && state.currentMessage === experience.item.text) {
@@ -272,8 +332,10 @@ const useGameStore = create((set, get) => ({
           set({
             showMessageOverlay: false,
             messageBoxVisible: false,
-            showItemDisplay: true,
-            itemAnimationPhase: 'clickable'
+            showItemDisplay: true, // Always keep this true for items
+            itemAnimationPhase: 'clickable',
+            // Preserve force flag if it was set
+            forceItemsVisible: forceItemsVisible || isSwordExperience
           });
         }
       }
@@ -283,7 +345,7 @@ const useGameStore = create((set, get) => ({
   // Handle action overlay interactions
   handleAction: () => {
     const state = get();
-    const { actionType, actionDirection, currentExperienceIndex } = state;
+    const { actionType, actionDirection, currentExperienceIndex, forceItemsVisible } = state;
     
     console.log(`Handling action: ${actionType} ${actionDirection}`);
     
@@ -303,15 +365,22 @@ const useGameStore = create((set, get) => ({
         
         console.log(`Moving to experience ${targetIndex} at position`, targetPosition);
         
+        // Special case for moving to sword experience
+        const isSwordExperience = nextExperience.type === 'item' && 
+                                 nextExperience.item && 
+                                 nextExperience.item.name === "Toy Wooden Sword";
+        
         // Keep item display enabled if moving to another item experience
-        const keepItemDisplay = nextExperience.type === 'item';
+        const keepItemDisplay = nextExperience.type === 'item' || state.inventory.length > 0;
         
         // We'll handle the experience triggering in the Player component's update
         // Set the current experience index, but don't trigger the events yet
         set({ 
           currentExperienceIndex: targetIndex,
           // Important: Don't turn off showItemDisplay when moving to another item experience
-          showItemDisplay: keepItemDisplay
+          showItemDisplay: keepItemDisplay,
+          // Preserve force items visible, but force it on for sword experience
+          forceItemsVisible: forceItemsVisible || isSwordExperience
         });
         
         // Start camera movement

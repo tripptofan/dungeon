@@ -9,7 +9,7 @@ const OverlayBackground = styled.div`
   left: 0;
   width: 100%;
   height: 100%;
-  background-color: rgba(0, 0, 0, 0.7);
+  background-color: rgba(0, 0, 0, 0.4);
   opacity: ${props => props.visible ? 1 : 0};
   transition: opacity 1s ease;
   z-index: 1000;
@@ -79,7 +79,10 @@ const ContinueButton = styled.button`
 
 const MessageOverlay = () => {
   // Use selectors to optimize re-renders
-  const showMessageOverlay = useGameStore(state => state.showMessageOverlay);
+  const currentExperienceIndex = useGameStore(state => state.currentExperienceIndex);
+  const experiences = useGameStore(state => state.experienceScript.experiences);
+
+const showMessageOverlay = useGameStore(state => state.showMessageOverlay);
   const messageBoxVisible = useGameStore(state => state.messageBoxVisible);
   const currentMessage = useGameStore(state => state.currentMessage);
   const typingInProgress = useGameStore(state => state.typingInProgress);
@@ -97,6 +100,23 @@ const MessageOverlay = () => {
   const typingSpeedRef = useRef(40); // milliseconds per character
   const typingIntervalRef = useRef(null);
   
+  const isSwordExperience = React.useMemo(() => {
+    if (currentExperienceIndex >= 0 && currentExperienceIndex < experiences.length) {
+      const experience = experiences[currentExperienceIndex];
+      return experience.type === 'item' && experience.item.name === 'Toy Wooden Sword';
+    }
+    return false;
+  }, [currentExperienceIndex, experiences]);
+
+    // Add this effect to force items visible when showing sword message
+    React.useEffect(() => {
+      if (showMessageOverlay && isSwordExperience) {
+        console.log("MessageOverlay: Forcing items visible for sword experience");
+        useGameStore.getState().setForceItemsVisible(true);
+        useGameStore.getState().setShowItemDisplay(true);
+      }
+    }, [showMessageOverlay, isSwordExperience]);
+
   // Reset the typing animation when the current message changes
   useEffect(() => {
     if (currentMessage) {
@@ -138,22 +158,43 @@ const MessageOverlay = () => {
     };
   }, [currentMessage, typingInProgress, setTypingInProgress]);
   
-  // Handle the continue button click
-  const handleContinue = () => {
-    // If typing is still in progress, instantly complete it
-    if (typingInProgress) {
-      if (typingIntervalRef.current) {
-        clearInterval(typingIntervalRef.current);
-        typingIntervalRef.current = null;
-      }
-      setDisplayedText(fullTextRef.current);
-      setTypingInProgress(false);
-      return;
+// In the messageOverlay.js component, find the handleContinue function 
+// And update it as follows:
+
+React.useEffect(() => {
+  if (!showMessageOverlay && useGameStore.getState().forceItemsVisible) {
+    // Delay clearing the force flag to ensure smooth transitions
+    setTimeout(() => {
+      useGameStore.getState().setForceItemsVisible(false);
+    }, 500);
+  }
+}, [showMessageOverlay]);
+const handleContinue = () => {
+  // If typing is still in progress, instantly complete it
+  if (typingInProgress) {
+    if (typingIntervalRef.current) {
+      clearInterval(typingIntervalRef.current);
+      typingIntervalRef.current = null;
     }
-    
-    // Otherwise progress to the next experience step
-    progressExperience();
-  };
+    setDisplayedText(fullTextRef.current);
+    setTypingInProgress(false);
+    return;
+  }
+  
+  // IMPORTANT: Make sure showItemDisplay stays true when progressing
+  const currentShowItemDisplay = useGameStore.getState().showItemDisplay;
+  
+  // Otherwise progress to the next experience step
+  progressExperience();
+  
+  // If items were already displayed, ensure they stay displayed
+  if (currentShowItemDisplay) {
+    // Small timeout to ensure it happens after the state update
+    setTimeout(() => {
+      useGameStore.getState().setShowItemDisplay(true);
+    }, 50);
+  }
+};
   
   // Skip showing the component if there's no overlay
   if (!showMessageOverlay) return null;
