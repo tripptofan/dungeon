@@ -96,7 +96,7 @@ const Dungeon = () => {
         position={[dungeonWidth / 2 - tileSize / 2, roofHeight, dungeonDepth / 2 - tileSize / 2]} 
         tileSize={tileSize}
       />
-      {lightSpheres}
+      {/* {lightSpheres} */}
     </>
   );
 };
