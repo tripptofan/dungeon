@@ -100,22 +100,23 @@ const MessageOverlay = () => {
   const typingSpeedRef = useRef(40); // milliseconds per character
   const typingIntervalRef = useRef(null);
   
+  // FIX: Enhanced isSwordExperience detection
   const isSwordExperience = React.useMemo(() => {
     if (currentExperienceIndex >= 0 && currentExperienceIndex < experiences.length) {
       const experience = experiences[currentExperienceIndex];
-      return experience.type === 'item' && experience.item.name === 'Toy Wooden Sword';
+      return experience.type === 'item' && experience.item?.name === 'Toy Wooden Sword';
     }
     return false;
   }, [currentExperienceIndex, experiences]);
 
-  // Add this effect to force items visible when showing sword message
+  // FIX: Always force items visible when showing sword message
   React.useEffect(() => {
-    if (showMessageOverlay && isSwordExperience) {
+    if (isSwordExperience) {
       console.log("MessageOverlay: Forcing items visible for sword experience");
       useGameStore.getState().setForceItemsVisible(true);
       useGameStore.getState().setShowItemDisplay(true);
     }
-  }, [showMessageOverlay, isSwordExperience]);
+  }, [showMessageOverlay, isSwordExperience, currentExperienceIndex]);
 
   // Reset the typing animation when the current message changes
   useEffect(() => {
@@ -158,14 +159,28 @@ const MessageOverlay = () => {
     };
   }, [currentMessage, typingInProgress, setTypingInProgress]);
 
-  // Effect to clean up force items visible flag when overlay closes
+  // FIX: Improved cleanup logic for sword visibility
   React.useEffect(() => {
+    // FIX: Always ensure sword remains visible when it's the current experience
+    if (isSwordExperience) {
+      useGameStore.getState().setForceItemsVisible(true);
+      useGameStore.getState().setShowItemDisplay(true);
+    }
+    
+    // Effect to clean up force items visible flag when overlay closes
     if (!showMessageOverlay && useGameStore.getState().forceItemsVisible) {
       // Delay clearing the force flag to ensure smooth transitions
       setTimeout(() => {
         // Only clear force flag if we don't have the sword experience active
         if (!isSwordExperience) {
-          useGameStore.getState().setForceItemsVisible(false);
+          // Check if we have the sword in inventory before clearing the force flag
+          const hasSword = useGameStore.getState().inventory.some(
+            item => item.name === "Toy Wooden Sword"
+          );
+          
+          if (!hasSword) {
+            useGameStore.getState().setForceItemsVisible(false);
+          }
         }
       }, 500);
     }
@@ -199,6 +214,12 @@ const MessageOverlay = () => {
     // Check if we have the sword in inventory
     const hasSword = currentInventory.some(item => item.name === "Toy Wooden Sword");
     const hasLantern = currentInventory.some(item => item.name === "Lantern");
+    
+    // FIX: If we're in the sword experience, ensure the sword stays visible
+    if (isSwordExperience) {
+      useGameStore.getState().setForceItemsVisible(true);
+      useGameStore.getState().setShowItemDisplay(true);
+    }
     
     // Progress to the next experience step
     progressExperience();
