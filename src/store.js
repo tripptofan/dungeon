@@ -64,8 +64,8 @@ const useGameStore = create((set, get) => ({
         "itemPosition": { x: 5, y: 0, z: 17 }, // Item 2 units ahead of player position
         "type": "item",
         "item": {
-          "name": "Candle",
-          "text": "This candle holds a quiet flame. Sometimes, even the smallest light is enough.",
+          "name": "Lantern", // Changed from "Candle" to "Lantern"
+          "text": "An old lantern with a flickering flame. Its warm glow will help guide your way through the darkness.",
           "color": "yellow"
         }
       },

@@ -1,25 +1,43 @@
-import React, { useRef, useState } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import useGameStore from '../store';
 import * as THREE from 'three';
+import { Model as Lantern } from './lantern'; // Import Lantern model
+import { Model as WoodenSword } from './woodenSword'; // Import WoodenSword model
 
 // Individual item component that handles both static display and animation
 const ItemObject = ({ experience, isActive, isInteractive }) => {
   const { camera } = useThree();
-  const meshRef = useRef();
+  const groupRef = useRef();
   const [hovered, setHovered] = useState(false);
   
   // Get animation state from store
   const itemAnimationPhase = useGameStore(state => state.itemAnimationPhase);
   const handleItemClick = useGameStore(state => state.handleItemClick);
   
-  // Item size and height
-  const itemSize = 0.5;
+  // Item height
   const floatingHeight = 2;
+  
+  // Determine which model to show based on item name
+  const itemType = experience.item?.name || '';
+  
+  // Calculate appropriate scale based on item type
+  const getModelScale = () => {
+    switch(itemType) {
+      case 'Lantern':
+        return 0.2;
+      case 'Toy Wooden Sword':
+        return 0.3;
+      default:
+        return 1.0;
+    }
+  };
+  
+  const modelScale = getModelScale();
   
   // Animation for all items
   useFrame((state, delta) => {
-    if (!meshRef.current) return;
+    if (!groupRef.current) return;
     
     // Consistent rotation speed for all non-acquiring items
     const baseRotationSpeed = 0.005;
@@ -28,10 +46,10 @@ const ItemObject = ({ experience, isActive, isInteractive }) => {
     if (itemAnimationPhase !== 'acquiring') {
       // Calculate a consistent floating effect based on time
       const floatOffset = Math.sin(state.clock.elapsedTime + (experience.experience * 0.5)) * 0.1;
-      meshRef.current.position.y = floatingHeight + floatOffset;
+      groupRef.current.position.y = floatingHeight + floatOffset;
       
       // Consistent rotation for all visible items
-      meshRef.current.rotation.y += baseRotationSpeed;
+      groupRef.current.rotation.y += baseRotationSpeed;
     }
     
     // Special animation only during acquisition
@@ -43,25 +61,25 @@ const ItemObject = ({ experience, isActive, isInteractive }) => {
       
       // Smoothly move toward the player position with a slight downward arc
       const distanceToPlayer = new THREE.Vector3(playerX, playerY, playerZ)
-        .distanceTo(meshRef.current.position);
+        .distanceTo(groupRef.current.position);
       
       // Add a downward arc as it approaches the player
       const downwardArc = Math.max(0, Math.min(0.5, distanceToPlayer * 0.2)) * Math.sin(state.clock.elapsedTime * 2);
       
-      meshRef.current.position.x += (playerX - meshRef.current.position.x) * 0.1;
-      meshRef.current.position.y += ((playerY - downwardArc) - meshRef.current.position.y) * 0.1;
-      meshRef.current.position.z += (playerZ - meshRef.current.position.z) * 0.1;
+      groupRef.current.position.x += (playerX - groupRef.current.position.x) * 0.1;
+      groupRef.current.position.y += ((playerY - downwardArc) - groupRef.current.position.y) * 0.1;
+      groupRef.current.position.z += (playerZ - groupRef.current.position.z) * 0.1;
       
       // Scale down as it approaches the player
-      meshRef.current.scale.x = Math.max(0.01, meshRef.current.scale.x - 0.02);
-      meshRef.current.scale.y = Math.max(0.01, meshRef.current.scale.y - 0.02);
-      meshRef.current.scale.z = Math.max(0.01, meshRef.current.scale.z - 0.02);
+      groupRef.current.scale.x = Math.max(0.01, groupRef.current.scale.x - 0.02);
+      groupRef.current.scale.y = Math.max(0.01, groupRef.current.scale.y - 0.02);
+      groupRef.current.scale.z = Math.max(0.01, groupRef.current.scale.z - 0.02);
       
       // Increase rotation speed
-      meshRef.current.rotation.y += 0.1;
+      groupRef.current.rotation.y += 0.1;
       
       // Check if item has reached player
-      if (distanceToPlayer < 0.3 || meshRef.current.scale.x <= 0.01) {
+      if (distanceToPlayer < 0.3 || groupRef.current.scale.x <= 0.01) {
         // Item has been fully acquired
         const addToInventory = useGameStore.getState().addToInventory;
         addToInventory(experience.item);
@@ -69,22 +87,73 @@ const ItemObject = ({ experience, isActive, isInteractive }) => {
     }
   });
   
-  // Determine color from item data or use default
-  const itemColor = experience.item?.color || 'white';
-  
   // Determine if the item should be visible
   const isVisible = !(isActive && itemAnimationPhase === 'acquired');
   
-  // Create a glow effect when hovered and clickable
-  const emissiveIntensity = (hovered && isInteractive) ? 0.8 : 0.3;
+  // For glow effect when hovered and clickable
   const glowScale = (hovered && isInteractive) ? 1.1 : 1.0;
+  const glowIntensity = (hovered && isInteractive) ? 0.8 : 0.3;
   
+  // Render the 3D model based on item type
+  const renderItemModel = () => {
+    switch(itemType) {
+      case 'Lantern':
+        return (
+          <group position={[0, .2, 0]} scale={[modelScale, modelScale, modelScale]}>
+            <Lantern />
+            {/* Add a subtle light inside the lantern */}
+            <pointLight 
+              color="orange" 
+              intensity={15} 
+              distance={10} 
+              decay={2} 
+              position={[0, 0.2, 0]} 
+            />
+            
+            {/* Add a visible glass effect manually */}
+            <mesh position={[0, 0, 0]}>
+              <meshPhysicalMaterial
+                color="#ffcc88"
+                transparent={true}
+                opacity={0.5}
+                transmission={0.5}
+                roughness={0.1}
+                clearcoat={0.5}
+                emissive="#ffcc77"
+                emissiveIntensity={0.2}
+                side={THREE.DoubleSide}
+              />
+            </mesh>
+          </group>
+        );
+      case 'Toy Wooden Sword':
+        return (
+          <group scale={[modelScale, modelScale, modelScale]} rotation={[0, 0, Math.PI / 4]}>
+            <WoodenSword />
+          </group>
+        );
+      default:
+        // Fallback to box for unknown items
+        return (
+          <mesh>
+            <boxGeometry args={[0.5, 0.5, 0.5]} />
+            <meshStandardMaterial 
+              color={experience.item?.color || 'white'}
+              emissive={experience.item?.color || 'white'}
+              emissiveIntensity={glowIntensity}
+            />
+          </mesh>
+        );
+    }
+  };
+  
+  // Create the scene graph for this item
   return (
-    <mesh 
-      ref={meshRef}
+    <group 
+      ref={groupRef}
       position={[
         experience.itemPosition.x, 
-        floatingHeight, // Floating at eye level
+        floatingHeight, 
         experience.itemPosition.z
       ]}
       visible={isVisible}
@@ -99,13 +168,20 @@ const ItemObject = ({ experience, isActive, isInteractive }) => {
       onPointerOut={() => setHovered(false)}
       scale={[glowScale, glowScale, glowScale]} // Grow slightly when hovered
     >
-      <boxGeometry args={[itemSize, itemSize, itemSize]} />
-      <meshStandardMaterial 
-        color={itemColor}
-        emissive={itemColor}
-        emissiveIntensity={emissiveIntensity}
-      />
-    </mesh>
+      {renderItemModel()}
+      
+      {/* Add a glow effect when hovered */}
+      {hovered && isInteractive && (
+        <mesh>
+          <sphereGeometry args={[0.8, 16, 16]} />
+          <meshBasicMaterial 
+            color={experience.item?.color || 'white'} 
+            transparent 
+            opacity={0.2} 
+          />
+        </mesh>
+      )}
+    </group>
   );
 };
 
