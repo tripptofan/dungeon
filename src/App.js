@@ -10,7 +10,7 @@ import ForceRender from './components/forceRender';
 import MessageOverlay from './components/messageOverlay';
 import ActionOverlay from './components/actionOverlay';
 import StaticItems from './components/staticItems';
-import AcquiredItems from './components/acquiredItems'; // Import the new component
+import AcquiredItems from './components/acquiredItems';
 import CameraShake from './components/cameraShake';
 import DeviceDetection from './DeviceDetection';
 
@@ -68,8 +68,6 @@ function App() {
   
   // Initialize scene loading sequence
   useEffect(() => {
-    console.log("App mounted, initializing loading sequence");
-    
     // Show loading indicator initially
     setSceneLoaded(false);
     setLoadingFade(true);
@@ -77,17 +75,14 @@ function App() {
     
     // After a delay, mark scene as loaded to remove loading indicator
     const loadTimer = setTimeout(() => {
-      console.log("Scene marked as loaded");
       setSceneLoaded(true);
       
       // After another delay, start the fade effect
       const fadeTimer = setTimeout(() => {
-        console.log("Starting fade effect");
         setOverlayVisible(false);
         
         // After fade completes, mark scene as ready
         const readyTimer = setTimeout(() => {
-          console.log("Scene fully ready");
           setSceneReady(true);
           
           // Start the experience after a brief pause
@@ -143,11 +138,9 @@ function App() {
             <Dungeon />
             <Player />
             <StaticItems />
-            {/* Move AcquiredItems to after everything else */}
             {loadingFade && <FadeOutPlane />}
             <ForceRender />
             <CameraShake />
-            {/* Add AcquiredItems as the last component to ensure it's on top */}
             <AcquiredItems />
           </Suspense>
 

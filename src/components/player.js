@@ -28,7 +28,6 @@ const Player = () => {
   useEffect(() => {
     if (!playerRef.current || initialized) return;
     
-    console.log("Initializing player position");
     const initialPosition = 1 * tileSize;
     
     // Set player position and rotation
@@ -60,7 +59,6 @@ const Player = () => {
   // Force render when scene is loaded
   useEffect(() => {
     if (sceneLoaded && initialized) {
-      console.log("Scene loaded, forcing render");
       gl.render(scene, camera);
       invalidate();
     }
@@ -134,8 +132,6 @@ const Player = () => {
           z: targetPos.z
         });
         
-
-        
         // Get current experience data
         const experienceIndex = useGameStore.getState().currentExperienceIndex;
         const experiences = useGameStore.getState().experienceScript.experiences;
@@ -143,46 +139,16 @@ const Player = () => {
         if (experienceIndex >= 0 && experienceIndex < experiences.length) {
           const currentExperience = experiences[experienceIndex];
           
-          console.log(`Triggering experience ${experienceIndex} of type ${currentExperience.type}`);
-          
- // Handle different experience types
- if (currentExperience.type === 'item') {
-  // For item experiences, show the item text
-  setTimeout(() => {
-    // Force all items to be visible before showing the overlay
-    useGameStore.getState().setForceItemsVisible(true);
-    
-    // Regular overlay display
-    useGameStore.getState().setShowMessageOverlay(true);
-    useGameStore.getState().setMessageBoxVisible(true);
-    useGameStore.getState().setCurrentMessage(currentExperience.item.text);
-    useGameStore.getState().setTypingInProgress(true);
-    // Keep item display enabled for item experiences during message overlay
-    useGameStore.getState().setShowItemDisplay(true);
-  }, 100); // Very short delay for better feel
-} 
-          
-          // Replace it with this enhanced version:
+          // Handle different experience types
           if (currentExperience.type === 'item') {
             // IMPORTANT: Force acquired items to remain visible at all times
             const inventory = useGameStore.getState().inventory;
             const isSwordExperience = currentExperience.item.name === "Toy Wooden Sword";
             
-            // For the sword experience, pre-check if lantern is in inventory and ensure it stays visible
-            // This ensures the lantern stays visible during the sword message
-            const hasLantern = inventory.some(item => item.name === "Lantern");
-            
-            // First, ensure that current items in inventory remain visible
-            if (hasLantern || inventory.length > 0) {
-              // Force inventory items to be visible before showing the overlay
-              console.log(`Experience ${experienceIndex}: ensuring items remain visible`);
-            }
-            
             // For item experiences, show the item text
             setTimeout(() => {
               // Even more aggressive approach to ensure items stay visible
               if (isSwordExperience) {
-                console.log("Sword experience: forcing special rendering mode");
                 // Special handling for sword experience
                 useGameStore.getState().setForceItemsVisible(true);
               }
@@ -195,8 +161,21 @@ const Player = () => {
               // Multiple item visibility flags to be super safe
               useGameStore.getState().setShowItemDisplay(true);
             }, 100); // Very short delay for better feel
+          } else if (currentExperience.type === 'shake') {
+            // Start the camera shake
+            useGameStore.getState().startCameraShake(
+              currentExperience.shakeConfig,
+              () => {
+                // After shake completes, show the message
+                setTimeout(() => {
+                  useGameStore.getState().setShowMessageOverlay(true);
+                  useGameStore.getState().setMessageBoxVisible(true);
+                  useGameStore.getState().setCurrentMessage(currentExperience.shakeConfig.message);
+                  useGameStore.getState().setTypingInProgress(true);
+                }, 500); // Short delay after shake completes
+              }
+            );
           }
-            
         }
         
         // Force a render

@@ -36,8 +36,6 @@ const CameraShake = () => {
         isActive: true,
         onComplete: cameraShaking.onComplete
       };
-      
-      console.log("Starting camera shake effect", shakeConfig.current);
     }
   }, [cameraShaking, camera]);
 
@@ -91,8 +89,6 @@ const CameraShake = () => {
         if (typeof shakeConfig.current.onComplete === 'function') {
           shakeConfig.current.onComplete();
         }
-        
-        console.log("Camera shake completed");
       }
     }
   });

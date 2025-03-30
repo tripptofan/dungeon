@@ -109,15 +109,8 @@ const AcquiredItem = ({ item }) => {
       );
     }
     
-    console.log(`Adjusted ${item.name} position for aspect ratio ${aspectRatio.toFixed(2)}: X=${newConfig.position.x.toFixed(2)}`);
-    
     setAdjustedConfig(newConfig);
   }, [size.width, size.height, baseConfig, item.name]);
-
-  // Log when item is rendered
-  useEffect(() => {
-    console.log(`Acquired item ${item.name} mounted`);
-  }, [item.name]);
 
   // useFrame must NOT be called conditionally - this is a React hooks rule
   useFrame((state, delta) => {
@@ -125,13 +118,11 @@ const AcquiredItem = ({ item }) => {
 
     // IMPORTANT: Ensure visibility during message overlay and when forceVisible is true
     if (forceVisible && !groupRef.current.visible) {
-      console.log(`Forcing ${item.name} to be visible`);
       groupRef.current.visible = true;
     }
 
     // If during camera shake, update pause status
     if (cameraShaking && !headBobRef.current.bobPaused) {
-      console.log(`Pausing bob for ${item.name} due to camera shake`);
       headBobRef.current.bobPaused = true;
       headBobRef.current.pauseTimer = 0;
     } 
@@ -139,7 +130,6 @@ const AcquiredItem = ({ item }) => {
       // Add a pause timer to gradually resume bobbing after shake
       headBobRef.current.pauseTimer += delta;
       if (headBobRef.current.pauseTimer > 1.0) { // 1 second delay
-        console.log(`Resuming bob for ${item.name} after camera shake`);
         headBobRef.current.bobPaused = false;
       }
     }
@@ -284,16 +274,6 @@ const AcquiredItems = () => {
   const showItemDisplay = useGameStore(state => state.showItemDisplay);
   const showMessageOverlay = useGameStore(state => state.showMessageOverlay);
   const { size } = useThree();
-  
-  // Log component rendering for debugging
-  useEffect(() => {
-    console.log(`AcquiredItems rendering: Inventory size ${inventory.length}, Force visible: ${forceItemsVisible}, Show display: ${showItemDisplay}, Message overlay: ${showMessageOverlay}`);
-    
-    // For debugging, list all items in inventory
-    if (inventory.length > 0) {
-      console.log(`Inventory contains: ${inventory.map(item => item.name).join(', ')}`);
-    }
-  }, [inventory, forceItemsVisible, showItemDisplay, showMessageOverlay]);
   
   // Update viewport size in store if needed
   useEffect(() => {

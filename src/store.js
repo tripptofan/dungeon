@@ -72,7 +72,7 @@ const useGameStore = create((set, get) => ({
         "itemPosition": { x: 5, y: 0, z: 17 }, // Item 2 units ahead of player position
         "type": "item",
         "item": {
-          "name": "Lantern", // Changed from "Candle" to "Lantern"
+          "name": "Lantern", 
           "text": "An old lantern with a flickering flame. Its warm glow will help guide your way through the darkness.",
           "color": "yellow"
         }
@@ -140,9 +140,6 @@ const useGameStore = create((set, get) => ({
       // Create new inventory with the added item
       const updatedInventory = [...state.inventory, item];
       
-      console.log(`Item "${item.name}" added to inventory`);
-      console.log("Updated inventory:", updatedInventory.map(i => i.name).join(", "));
-      
       set({ 
         inventory: updatedInventory,
         itemAnimationPhase: 'acquired',
@@ -155,7 +152,6 @@ const useGameStore = create((set, get) => ({
       // Show action overlay after a delay
       setTimeout(() => {
         if (state.currentExperienceIndex < state.experienceScript.experiences.length - 1) {
-          console.log("Showing action overlay to move to next experience");
           set({
             showActionOverlay: true,
             actionType: 'move',
@@ -164,8 +160,6 @@ const useGameStore = create((set, get) => ({
             showItemDisplay: true,
             forceItemsVisible: true
           });
-        } else {
-          console.log("All experiences completed");
         }
       }, 1000);
     }
@@ -241,9 +235,6 @@ const useGameStore = create((set, get) => ({
       onComplete: typeof onComplete === 'function' ? onComplete : null 
     };
     
-    console.log("Starting camera shake with config:", fullConfig);
-    console.log("onComplete callback provided:", !!fullConfig.onComplete);
-    
     // Double check we're actually setting isShaking to true
     const newCameraShaking = {
       ...fullConfig,
@@ -251,9 +242,6 @@ const useGameStore = create((set, get) => ({
     };
     
     set({ cameraShaking: newCameraShaking });
-    
-    // For debugging - log active state after setting
-    console.log("Camera shake state after setting:", get().cameraShaking);
   },
   
   stopCameraShake: () => {
@@ -267,14 +255,12 @@ const useGameStore = create((set, get) => ({
     
     // Call the onComplete callback if provided
     if (typeof onComplete === 'function') {
-      console.log("Camera shake stopped, calling onComplete callback");
       onComplete();
     }
   },
   
   // Initialize the experience flow
   startExperience: () => {
-    console.log("Starting experience flow - showing prologue");
     // Display prologue first
     set({
       showMessageOverlay: true,
@@ -296,7 +282,6 @@ const useGameStore = create((set, get) => ({
       const experience = experienceScript.experiences[currentExperienceIndex];
       
       if (experience.type === 'item') {
-        console.log(`Item "${experience.item.name}" clicked, starting acquisition`);
         set({
           showMessageOverlay: false,
           messageBoxVisible: false,
@@ -312,8 +297,6 @@ const useGameStore = create((set, get) => ({
     const state = get();
     const { currentExperienceIndex, experienceScript, inventory, forceItemsVisible } = state;
     
-    console.log(`Progressing experience from index ${currentExperienceIndex}`);
-    
     // Always preserve item visibility if we have items
     const hasAcquiredItems = inventory.length > 0;
     
@@ -323,7 +306,6 @@ const useGameStore = create((set, get) => ({
     // Handle different stages of progression
     if (currentExperienceIndex === -1) {
       // Prologue finished, show the action overlay to move forward
-      console.log("Prologue finished, showing action overlay");
       set({
         showMessageOverlay: false,
         messageBoxVisible: false,
@@ -347,7 +329,6 @@ const useGameStore = create((set, get) => ({
         
         if (experience.type === 'shake' && state.currentMessage === experience.shakeConfig.message) {
           // After shake message is dismissed, show move forward action
-          console.log(`Shake message for experience ${currentExperienceIndex} dismissed, showing move action`);
           set({
             showMessageOverlay: false,
             messageBoxVisible: false,
@@ -362,7 +343,6 @@ const useGameStore = create((set, get) => ({
         } 
         else if (experience.type === 'item' && state.currentMessage === experience.item.text) {
           // Item text dismissed, make item clickable
-          console.log(`Item text for "${experience.item.name}" dismissed, making item clickable`);
           set({
             showMessageOverlay: false,
             messageBoxVisible: false,
@@ -381,8 +361,6 @@ const useGameStore = create((set, get) => ({
     const state = get();
     const { actionType, actionDirection, currentExperienceIndex, forceItemsVisible } = state;
     
-    console.log(`Handling action: ${actionType} ${actionDirection}`);
-    
     if (actionType === 'move' && actionDirection === 'forward') {
       // Hide the action overlay
       set({ showActionOverlay: false });
@@ -396,8 +374,6 @@ const useGameStore = create((set, get) => ({
           y: state.playerPosition.y, // Keep current height
           z: nextExperience.position.z
         };
-        
-        console.log(`Moving to experience ${targetIndex} at position`, targetPosition);
         
         // Special case for moving to sword experience
         const isSwordExperience = nextExperience.type === 'item' && 
