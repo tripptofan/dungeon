@@ -22,6 +22,7 @@ const Player = () => {
   const targetCameraPosition = useGameStore(state => state.targetCameraPosition);
   const moveSpeed = useGameStore(state => state.moveSpeed);
   const stopCameraMovement = useGameStore(state => state.stopCameraMovement);
+  const cameraShaking = useGameStore(state => state.cameraShaking);
   
   // Set up initial position
   useEffect(() => {
@@ -69,6 +70,9 @@ const Player = () => {
   useFrame((state, delta) => {
     if (!playerRef.current || !initialized) return;
     
+    // Don't process movement if camera is shaking
+    if (cameraShaking.isShaking) return;
+    
     // Handle camera movement to target position
     if (isMovingCamera && targetCameraPosition) {
       const currentPos = playerRef.current.position.clone();
@@ -91,9 +95,8 @@ const Player = () => {
         const bobAmount = Math.sin(headBobRef.current.timer) * 0.05;
         headBobRef.current.bobHeight = bobAmount;
         
-        // Calculate movement with smooth easing as we approach target
-        // Slower movement
-        const step = Math.min(moveSpeed * (1 + distance * 0.05), distance);
+        // Use constant movement speed regardless of distance
+        const step = Math.min(moveSpeed, distance);
         
         // Apply movement to the player
         const movement = direction.multiplyScalar(step);
@@ -133,6 +136,49 @@ const Player = () => {
         // Stop movement
         stopCameraMovement();
         
+        // Get current experience data
+        const experienceIndex = useGameStore.getState().currentExperienceIndex;
+        const experiences = useGameStore.getState().experienceScript.experiences;
+        
+        if (experienceIndex >= 0 && experienceIndex < experiences.length) {
+          const currentExperience = experiences[experienceIndex];
+          
+          console.log(`Triggering experience ${experienceIndex} of type ${currentExperience.type}`);
+          
+          // Handle different experience types immediately when reaching the position
+          if (currentExperience.type === 'item') {
+            // For item experiences, show the item text
+            setTimeout(() => {
+              useGameStore.getState().setShowMessageOverlay(true);
+              useGameStore.getState().setMessageBoxVisible(true);
+              useGameStore.getState().setCurrentMessage(currentExperience.item.text);
+              useGameStore.getState().setTypingInProgress(true);
+              // Keep item display enabled for item experiences during message overlay
+              // This ensures the item remains visible
+              useGameStore.getState().setShowItemDisplay(true);
+            }, 100); // Very short delay for better feel
+          } 
+          else if (currentExperience.type === 'shake') {
+            // For shake experiences, immediately trigger the camera shake
+            console.log(`Starting shake event for experience ${experienceIndex}`);
+            
+            // Define callback to show message after shake
+            const onShakeComplete = () => {
+              console.log(`Shake completed for experience ${experienceIndex}, showing message`);
+              useGameStore.getState().setShowMessageOverlay(true);
+              useGameStore.getState().setMessageBoxVisible(true);
+              useGameStore.getState().setCurrentMessage(currentExperience.shakeConfig.message);
+              useGameStore.getState().setTypingInProgress(true);
+            };
+            
+            // Trigger camera shake immediately
+            useGameStore.getState().startCameraShake({
+              intensity: currentExperience.shakeConfig.intensity,
+              duration: currentExperience.shakeConfig.duration
+            }, onShakeComplete);
+          }
+        }
+        
         // Force a render
         invalidate();
       }
@@ -155,8 +201,10 @@ const Player = () => {
         // Force a render
         invalidate();
       } else {
-        // Ensure camera and player are in sync
-        camera.position.copy(playerRef.current.position);
+        // Ensure camera and player are in sync when not shaking
+        if (!cameraShaking.isShaking) {
+          camera.position.copy(playerRef.current.position);
+        }
       }
     }
   });

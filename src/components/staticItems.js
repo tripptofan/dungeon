@@ -21,58 +21,56 @@ const ItemObject = ({ experience, isActive, isInteractive }) => {
   useFrame((state, delta) => {
     if (!meshRef.current) return;
     
-    // Basic floating animation for all items
-    if (!isActive || itemAnimationPhase === 'hidden') {
-      // Calculate a floating effect based on time
+    // Consistent rotation speed for all non-acquiring items
+    const baseRotationSpeed = 0.005;
+    
+    // Basic floating animation for all visible items (inactive or not hidden)
+    if (itemAnimationPhase !== 'acquiring') {
+      // Calculate a consistent floating effect based on time
       const floatOffset = Math.sin(state.clock.elapsedTime + (experience.experience * 0.5)) * 0.1;
       meshRef.current.position.y = floatingHeight + floatOffset;
       
-      // Slow rotation for all items
-      meshRef.current.rotation.y += 0.002;
+      // Consistent rotation for all visible items
+      meshRef.current.rotation.y += baseRotationSpeed;
     }
-    else if (isActive) {
-      if (itemAnimationPhase === 'clickable') {
-        // Keep position the same but add a more noticeable floating animation
-        const floatOffset = Math.sin(state.clock.elapsedTime * 3) * 0.15;
-        meshRef.current.position.y = floatingHeight + floatOffset;
-        
-        // Slightly faster rotation to draw attention
-        meshRef.current.rotation.y += 0.01;
-      }
-      else if (itemAnimationPhase === 'acquiring') {
-        // Move toward player
-        const playerX = camera.position.x;
-        const playerY = camera.position.y;
-        const playerZ = camera.position.z;
-        
-        // Smoothly move toward the player position
-        meshRef.current.position.x += (playerX - meshRef.current.position.x) * 0.1;
-        meshRef.current.position.y += (playerY - meshRef.current.position.y) * 0.1;
-        meshRef.current.position.z += (playerZ - meshRef.current.position.z) * 0.1;
-        
-        // Scale down as it approaches the player
-        meshRef.current.scale.x = Math.max(0.01, meshRef.current.scale.x - 0.02);
-        meshRef.current.scale.y = Math.max(0.01, meshRef.current.scale.y - 0.02);
-        meshRef.current.scale.z = Math.max(0.01, meshRef.current.scale.z - 0.02);
-        
-        // Increase rotation speed
-        meshRef.current.rotation.y += 0.1;
-        
-        // Check if item has reached player
-        const distanceToPlayer = new THREE.Vector3(playerX, playerY, playerZ)
-          .distanceTo(meshRef.current.position);
-          
-        if (distanceToPlayer < 0.3 || meshRef.current.scale.x <= 0.01) {
-          // Item has been fully acquired
-          const addToInventory = useGameStore.getState().addToInventory;
-          addToInventory(experience.item);
-        }
+    
+    // Special animation only during acquisition
+    if (isActive && itemAnimationPhase === 'acquiring') {
+      // Move toward player
+      const playerX = camera.position.x;
+      const playerY = camera.position.y - 0.5; // Target slightly below player's center for better effect
+      const playerZ = camera.position.z;
+      
+      // Smoothly move toward the player position with a slight downward arc
+      const distanceToPlayer = new THREE.Vector3(playerX, playerY, playerZ)
+        .distanceTo(meshRef.current.position);
+      
+      // Add a downward arc as it approaches the player
+      const downwardArc = Math.max(0, Math.min(0.5, distanceToPlayer * 0.2)) * Math.sin(state.clock.elapsedTime * 2);
+      
+      meshRef.current.position.x += (playerX - meshRef.current.position.x) * 0.1;
+      meshRef.current.position.y += ((playerY - downwardArc) - meshRef.current.position.y) * 0.1;
+      meshRef.current.position.z += (playerZ - meshRef.current.position.z) * 0.1;
+      
+      // Scale down as it approaches the player
+      meshRef.current.scale.x = Math.max(0.01, meshRef.current.scale.x - 0.02);
+      meshRef.current.scale.y = Math.max(0.01, meshRef.current.scale.y - 0.02);
+      meshRef.current.scale.z = Math.max(0.01, meshRef.current.scale.z - 0.02);
+      
+      // Increase rotation speed
+      meshRef.current.rotation.y += 0.1;
+      
+      // Check if item has reached player
+      if (distanceToPlayer < 0.3 || meshRef.current.scale.x <= 0.01) {
+        // Item has been fully acquired
+        const addToInventory = useGameStore.getState().addToInventory;
+        addToInventory(experience.item);
       }
     }
   });
   
   // Determine color from item data or use default
-  const itemColor = experience.item.color || 'white';
+  const itemColor = experience.item?.color || 'white';
   
   // Determine if the item should be visible
   const isVisible = !(isActive && itemAnimationPhase === 'acquired');
@@ -115,26 +113,33 @@ const ItemObject = ({ experience, isActive, isInteractive }) => {
 const StaticItems = () => {
   const experiences = useGameStore(state => state.experienceScript.experiences);
   const currentExperienceIndex = useGameStore(state => state.currentExperienceIndex);
+  const showMessageOverlay = useGameStore(state => state.showMessageOverlay);
+  const isMovingCamera = useGameStore(state => state.isMovingCamera);
   const showItemDisplay = useGameStore(state => state.showItemDisplay);
   const itemAnimationPhase = useGameStore(state => state.itemAnimationPhase);
   const inventory = useGameStore(state => state.inventory);
   
   return (
     <>
-      {/* Render all experience items at their positions if they're not in inventory */}
+      {/* Render all items for experiences of type 'item' */}
       {experiences.map((experience, index) => {
+        // Skip if not an item experience type
+        if (experience.type !== 'item') return null;
+        
         // Check if this item is already in the inventory
         const isInInventory = inventory.some(item => 
           item.name === experience.item.name
         );
         
-        // Only render if not in inventory
+        // Always render if not in inventory, regardless of current experience
         if (!isInInventory) {
-          // Determine if item is active and interactive
-          const isActive = index === currentExperienceIndex && showItemDisplay;
+          // Item is active if it's the current experience and showItemDisplay is true,
+          // but not during movement - this ensures items remain visible during transit
+          const isActiveExperience = index === currentExperienceIndex;
+          const isActive = isActiveExperience && showItemDisplay && !isMovingCamera;
           
-          // Item is only interactive if it's active and in the clickable phase
-          const isInteractive = isActive && itemAnimationPhase === 'clickable';
+          // Item is only interactive if it's active, not showing message, and in clickable phase
+          const isInteractive = isActive && !showMessageOverlay && itemAnimationPhase === 'clickable';
           
           return (
             <ItemObject 

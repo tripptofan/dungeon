@@ -9,7 +9,8 @@ import FadeOutPlane from './components/fadeOutPlane';
 import ForceRender from './components/forceRender';
 import MessageOverlay from './components/messageOverlay';
 import ActionOverlay from './components/actionOverlay';
-import StaticItems from './components/staticItems'; // Changed from Item to StaticItems
+import StaticItems from './components/staticItems';
+import CameraShake from './components/cameraShake'; // Import the new camera shake component
 import DeviceDetection from './DeviceDetection';
 
 const CanvasWrapper = styled.div`
@@ -140,9 +141,10 @@ function App() {
             <ambientLight intensity={0.2} />
             <Dungeon />
             <Player />
-            <StaticItems /> {/* Changed from Item to StaticItems */}
+            <StaticItems />
             {loadingFade && <FadeOutPlane />}
             <ForceRender />
+            <CameraShake /> {/* Add the camera shake component */}
           </Suspense>
         </Canvas>
         

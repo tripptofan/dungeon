@@ -32,9 +32,19 @@ const useGameStore = create((set, get) => ({
   isMovingCamera: false,
   targetCameraPosition: null,
   
+  // Camera shake state
+  cameraShaking: {
+    isShaking: false,
+    intensity: 0.5,
+    decay: 0.92,
+    maxOffset: 0.3,
+    duration: 3000, // Default 3 seconds
+    onComplete: null
+  },
+  
   // Experience timing constants
-  initialExperienceDelay: 1000, // ms
-  moveSpeed: 0.05, // units per frame for camera movement
+  initialExperienceDelay: 100, // ms - reduced to make events feel more immediate
+  moveSpeed: 0.03, // units per frame for camera movement - consistent pace
   
   // World configuration
   tileSize: 5,
@@ -42,7 +52,7 @@ const useGameStore = create((set, get) => ({
   wallLocations: [],
   isMobile: false,
   
-  // Experience content - enhanced with positions, colors, and better spacing
+  // Experience content - simplified flow with just item interactions and shaking events
   experienceScript: {
     "prologue": {
       "text": "You open your eyes in the dark. You think you've been here before—but maybe it was only a dream."
@@ -52,7 +62,7 @@ const useGameStore = create((set, get) => ({
         "experience": 1,
         "position": { x: 5, y: 0, z: 15 }, // Position for the player to stop at (z=15)
         "itemPosition": { x: 5, y: 0, z: 17 }, // Item 2 units ahead of player position
-        "text": "The path ahead is unfolding, though it's a little hard to see where it goes. Trust that it will make sense eventually, but only if you stop trying to control it.",
+        "type": "item",
         "item": {
           "name": "Candle",
           "text": "This candle holds a quiet flame. Sometimes, even the smallest light is enough.",
@@ -63,22 +73,41 @@ const useGameStore = create((set, get) => ({
         "experience": 2,
         "position": { x: 5, y: 0, z: 30 }, // Position for the player to stop, spaced further (z=30)
         "itemPosition": { x: 5, y: 0, z: 32 }, // Item 2 units ahead of player position
-        "text": "The path ahead is unfolding, though it's a little hard to see where it goes. Trust that it will make sense eventually, but only if you stop trying to control it.",
+        "type": "item",
         "item": {
           "name": "Toy Wooden Sword",
           "text": "A toy wooden sword. It's not much, but it may prove useful.",
           "color": "brown"
         }
+      },
+      {
+        "experience": 3,
+        "position": { x: 5, y: 0, z: 75 }, // First shake event position
+        "type": "shake",
+        "shakeConfig": {
+          "intensity": 0.8,
+          "duration": 3000,
+          "message": "What was that?"
+        }
+      },
+      {
+        "experience": 4,
+        "position": { x: 5, y: 0, z: 100 }, // Second shake event position
+        "type": "shake",
+        "shakeConfig": {
+          "intensity": 1.0,
+          "duration": 3000,
+          "message": "Something is coming..."
+        }
       }
-      // Other experiences can be added here...
     ]
   },
   
-  // Dungeon layout
+  // Dungeon layout - expanded for longer corridor
   dungeon: [
-    [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-    [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
-    [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+    [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+    [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
   ],
   
   // Core action dispatchers
@@ -147,6 +176,26 @@ const useGameStore = create((set, get) => ({
   
   stopCameraMovement: () => set({ isMovingCamera: false }),
   
+  // Camera shake controls
+  startCameraShake: (config, onComplete) => {
+    const defaultConfig = {
+      isShaking: true,
+      intensity: 0.5,
+      decay: 0.92,
+      maxOffset: 0.3,
+      duration: 3000
+    };
+    
+    const fullConfig = { ...defaultConfig, ...config, isShaking: true, onComplete };
+    console.log("Starting camera shake with config:", fullConfig);
+    
+    set({ cameraShaking: fullConfig });
+  },
+  
+  stopCameraShake: () => set({ 
+    cameraShaking: { ...get().cameraShaking, isShaking: false } 
+  }),
+  
   // Initialize the experience flow
   startExperience: () => {
     console.log("Starting experience flow - showing prologue");
@@ -157,7 +206,7 @@ const useGameStore = create((set, get) => ({
       currentExperienceIndex: -1,
       currentMessage: get().experienceScript.prologue.text,
       typingInProgress: true,
-      showItemDisplay: true, // Show items from the start
+      showItemDisplay: true, // Always show items from the start
       itemAnimationPhase: 'hidden'
     });
   },
@@ -170,22 +219,24 @@ const useGameStore = create((set, get) => ({
     if (currentExperienceIndex >= 0 && state.itemAnimationPhase === 'clickable') {
       const experience = experienceScript.experiences[currentExperienceIndex];
       
-      console.log(`Item "${experience.item.name}" clicked, showing item text`);
-      set({
-        showMessageOverlay: true,
-        messageBoxVisible: true,
-        currentMessage: experience.item.text,
-        typingInProgress: true
-      });
+      if (experience.type === 'item') {
+        console.log(`Item "${experience.item.name}" clicked, starting acquisition`);
+        set({
+          showMessageOverlay: false,
+          messageBoxVisible: false,
+          showItemDisplay: true, // Ensure item display stays enabled during acquisition
+          itemAnimationPhase: 'acquiring' // Start acquiring animation immediately
+        });
+      }
     }
   },
   
   // Progress to the next step in the experience
   progressExperience: () => {
     const state = get();
-    const { currentExperienceIndex, experienceScript, itemAnimationPhase } = state;
+    const { currentExperienceIndex, experienceScript } = state;
     
-    console.log(`Progressing experience from index ${currentExperienceIndex}, phase ${itemAnimationPhase}`);
+    console.log(`Progressing experience from index ${currentExperienceIndex}`);
     
     // Handle different stages of progression
     if (currentExperienceIndex === -1) {
@@ -204,24 +255,25 @@ const useGameStore = create((set, get) => ({
         // Get the current experience
         const experience = experienceScript.experiences[currentExperienceIndex];
         
-        if (state.currentMessage === experience.text) {
-          // Main experience text was dismissed, make item clickable
-          console.log(`Main text for experience ${currentExperienceIndex} dismissed, item now clickable`);
+        if (experience.type === 'shake' && state.currentMessage === experience.shakeConfig.message) {
+          // After shake message is dismissed, show move forward action
+          console.log(`Shake message for experience ${currentExperienceIndex} dismissed, showing move action`);
+          set({
+            showMessageOverlay: false,
+            messageBoxVisible: false,
+            showActionOverlay: true,
+            actionType: 'move',
+            actionDirection: 'forward'
+          });
+        } 
+        else if (experience.type === 'item' && state.currentMessage === experience.item.text) {
+          // Item text dismissed, make item clickable
+          console.log(`Item text for "${experience.item.name}" dismissed, making item clickable`);
           set({
             showMessageOverlay: false,
             messageBoxVisible: false,
             showItemDisplay: true,
-            currentItem: experience.item,
-            itemAnimationPhase: 'clickable' // Make item clickable after dismissing experience text
-          });
-        } 
-        else if (state.currentItem && state.currentMessage === state.currentItem.text) {
-          // Item text dismissed, start item acquisition
-          console.log(`Item text for "${state.currentItem.name}" dismissed, starting acquisition`);
-          set({
-            showMessageOverlay: false,
-            messageBoxVisible: false,
-            itemAnimationPhase: 'acquiring' // Start acquiring animation after dismissing item text
+            itemAnimationPhase: 'clickable'
           });
         }
       }
@@ -251,20 +303,19 @@ const useGameStore = create((set, get) => ({
         
         console.log(`Moving to experience ${targetIndex} at position`, targetPosition);
         
+        // Keep item display enabled if moving to another item experience
+        const keepItemDisplay = nextExperience.type === 'item';
+        
+        // We'll handle the experience triggering in the Player component's update
+        // Set the current experience index, but don't trigger the events yet
+        set({ 
+          currentExperienceIndex: targetIndex,
+          // Important: Don't turn off showItemDisplay when moving to another item experience
+          showItemDisplay: keepItemDisplay
+        });
+        
         // Start camera movement
         state.startCameraMovement(targetPosition);
-        
-        // After reaching position, show experience text after delay
-        setTimeout(() => {
-          console.log(`Reached position for experience ${targetIndex}, showing text`);
-          set({
-            currentExperienceIndex: targetIndex,
-            showMessageOverlay: true,
-            messageBoxVisible: true,
-            currentMessage: nextExperience.text,
-            typingInProgress: true
-          });
-        }, state.initialExperienceDelay + (Math.abs(targetPosition.z - state.playerPosition.z) / state.moveSpeed) * 15); // Approximate time to reach destination
       }
     }
   }
