@@ -221,8 +221,11 @@ const useGameStore = create((set, get) => ({
   
   stopCameraMovement: () => set({ isMovingCamera: false }),
   
-  // Camera shake controls
+  // Camera shake controls - FIXED VERSION
   startCameraShake: (config, onComplete) => {
+    // Ensure we have a valid config object
+    const configObj = typeof config === 'object' ? config : {};
+    
     const defaultConfig = {
       isShaking: true,
       intensity: 0.5,
@@ -231,15 +234,43 @@ const useGameStore = create((set, get) => ({
       duration: 3000
     };
     
-    const fullConfig = { ...defaultConfig, ...config, isShaking: true, onComplete };
-    console.log("Starting camera shake with config:", fullConfig);
+    const fullConfig = { 
+      ...defaultConfig, 
+      ...configObj, 
+      isShaking: true, 
+      onComplete: typeof onComplete === 'function' ? onComplete : null 
+    };
     
-    set({ cameraShaking: fullConfig });
+    console.log("Starting camera shake with config:", fullConfig);
+    console.log("onComplete callback provided:", !!fullConfig.onComplete);
+    
+    // Double check we're actually setting isShaking to true
+    const newCameraShaking = {
+      ...fullConfig,
+      isShaking: true // Explicitly ensure this is true
+    };
+    
+    set({ cameraShaking: newCameraShaking });
+    
+    // For debugging - log active state after setting
+    console.log("Camera shake state after setting:", get().cameraShaking);
   },
   
-  stopCameraShake: () => set({ 
-    cameraShaking: { ...get().cameraShaking, isShaking: false } 
-  }),
+  stopCameraShake: () => {
+    const currentShakeConfig = get().cameraShaking;
+    const onComplete = currentShakeConfig.onComplete;
+    
+    // Update the shake state
+    set({ 
+      cameraShaking: { ...currentShakeConfig, isShaking: false } 
+    });
+    
+    // Call the onComplete callback if provided
+    if (typeof onComplete === 'function') {
+      console.log("Camera shake stopped, calling onComplete callback");
+      onComplete();
+    }
+  },
   
   // Initialize the experience flow
   startExperience: () => {
@@ -276,7 +307,7 @@ const useGameStore = create((set, get) => ({
     }
   },
   
-  // Progress to the next step in the experience
+  // Progress to the next step in the experience - FIXED VERSION
   progressExperience: () => {
     const state = get();
     const { currentExperienceIndex, experienceScript, inventory, forceItemsVisible } = state;
@@ -285,6 +316,9 @@ const useGameStore = create((set, get) => ({
     
     // Always preserve item visibility if we have items
     const hasAcquiredItems = inventory.length > 0;
+    
+    // Check if we have the sword in inventory for special handling
+    const hasSword = inventory.some(item => item.name === "Toy Wooden Sword");
     
     // Handle different stages of progression
     if (currentExperienceIndex === -1) {
@@ -299,7 +333,7 @@ const useGameStore = create((set, get) => ({
         // Keep items visible if we have any
         showItemDisplay: hasAcquiredItems ? true : state.showItemDisplay,
         // Preserve force flag if it was set
-        forceItemsVisible: forceItemsVisible
+        forceItemsVisible: forceItemsVisible || hasSword
       });
     } else {
       // Within an experience, check what's displayed
@@ -322,8 +356,8 @@ const useGameStore = create((set, get) => ({
             actionDirection: 'forward',
             // Keep items visible if we have any
             showItemDisplay: hasAcquiredItems ? true : state.showItemDisplay,
-            // Preserve force flag if it was set
-            forceItemsVisible: forceItemsVisible
+            // Preserve force flag if it was set or we have the sword
+            forceItemsVisible: forceItemsVisible || hasSword
           });
         } 
         else if (experience.type === 'item' && state.currentMessage === experience.item.text) {
@@ -334,15 +368,15 @@ const useGameStore = create((set, get) => ({
             messageBoxVisible: false,
             showItemDisplay: true, // Always keep this true for items
             itemAnimationPhase: 'clickable',
-            // Preserve force flag if it was set
-            forceItemsVisible: forceItemsVisible || isSwordExperience
+            // Very important: Ensure force visibility remains on for sword or if we have items
+            forceItemsVisible: forceItemsVisible || isSwordExperience || hasSword || hasAcquiredItems
           });
         }
       }
     }
   },
   
-  // Handle action overlay interactions
+  // Handle action overlay interactions - FIXED VERSION
   handleAction: () => {
     const state = get();
     const { actionType, actionDirection, currentExperienceIndex, forceItemsVisible } = state;
@@ -370,8 +404,12 @@ const useGameStore = create((set, get) => ({
                                  nextExperience.item && 
                                  nextExperience.item.name === "Toy Wooden Sword";
         
+        // Check if we have any items in inventory
+        const hasItems = state.inventory.length > 0;
+        const hasSword = state.inventory.some(item => item.name === "Toy Wooden Sword");
+        
         // Keep item display enabled if moving to another item experience
-        const keepItemDisplay = nextExperience.type === 'item' || state.inventory.length > 0;
+        const keepItemDisplay = nextExperience.type === 'item' || hasItems;
         
         // We'll handle the experience triggering in the Player component's update
         // Set the current experience index, but don't trigger the events yet
@@ -379,8 +417,8 @@ const useGameStore = create((set, get) => ({
           currentExperienceIndex: targetIndex,
           // Important: Don't turn off showItemDisplay when moving to another item experience
           showItemDisplay: keepItemDisplay,
-          // Preserve force items visible, but force it on for sword experience
-          forceItemsVisible: forceItemsVisible || isSwordExperience
+          // Preserve force items visible, but force it on for sword experience or if we have the sword
+          forceItemsVisible: forceItemsVisible || isSwordExperience || hasSword
         });
         
         // Start camera movement

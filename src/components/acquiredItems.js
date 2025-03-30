@@ -4,6 +4,7 @@ import * as THREE from 'three';
 import useGameStore from '../store';
 import { Model as Lantern } from './lantern';
 import { Model as WoodenSword } from './woodenSword';
+import FlickeringFlame from './flickeringFlame';
 
 // Base position configuration for acquired items (will be adjusted based on aspect ratio)
 const ACQUIRED_ITEMS_CONFIG = {
@@ -118,16 +119,15 @@ const AcquiredItem = ({ item }) => {
     console.log(`Acquired item ${item.name} mounted`);
   }, [item.name]);
 
-  // Log when force visible changes
-  useEffect(() => {
-    if (forceVisible) {
-      console.log(`${item.name} is in force visible mode`);
-    }
-  }, [forceVisible, item.name]);
-
   // useFrame must NOT be called conditionally - this is a React hooks rule
   useFrame((state, delta) => {
     if (!groupRef.current || !adjustedConfig) return;
+
+    // IMPORTANT: Ensure visibility during message overlay and when forceVisible is true
+    if (forceVisible && !groupRef.current.visible) {
+      console.log(`Forcing ${item.name} to be visible`);
+      groupRef.current.visible = true;
+    }
 
     // If during camera shake, update pause status
     if (cameraShaking && !headBobRef.current.bobPaused) {
@@ -232,33 +232,20 @@ const AcquiredItem = ({ item }) => {
         return (
           <group scale={[config.scale, config.scale, config.scale]}>
             <Lantern />
-            {/* Enhanced light setup for visibility during overlays */}
-            <pointLight 
-              color="#ff9930" 
-              intensity={15} 
-              distance={8} 
-              decay={1.5} 
+            {/* Replace static lights with flickering flame */}
+            <FlickeringFlame 
               position={[0, 0.2, 0]}
-              castShadow
+              color="#ffcc77"
+              randomizer={0.75} // Fixed seed for consistent effect
             />
             {/* Additional always-on ambient light for the lantern */}
             <pointLight 
               color="#ffcc77" 
-              intensity={10} 
+              intensity={5} 
               distance={3} 
               decay={1.5} 
               position={[0, 0.2, 0]}
             />
-            {/* Extra visual glow element */}
-            <mesh position={[0, 0.2, 0]}>
-              <sphereGeometry args={[0.2, 8, 8]} />
-              <meshBasicMaterial 
-                color="#ffcc77" 
-                transparent 
-                opacity={0.5} 
-                toneMapped={false} // Important to keep it bright
-              />
-            </mesh>
           </group>
         );
       case 'Toy Wooden Sword':
@@ -294,17 +281,19 @@ const AcquiredItem = ({ item }) => {
 const AcquiredItems = () => {
   const inventory = useGameStore(state => state.inventory);
   const forceItemsVisible = useGameStore(state => state.forceItemsVisible);
+  const showItemDisplay = useGameStore(state => state.showItemDisplay);
+  const showMessageOverlay = useGameStore(state => state.showMessageOverlay);
   const { size } = useThree();
   
   // Log component rendering for debugging
   useEffect(() => {
-    console.log(`AcquiredItems rendering: Inventory size ${inventory.length}, Force visible: ${forceItemsVisible}`);
+    console.log(`AcquiredItems rendering: Inventory size ${inventory.length}, Force visible: ${forceItemsVisible}, Show display: ${showItemDisplay}, Message overlay: ${showMessageOverlay}`);
     
     // For debugging, list all items in inventory
     if (inventory.length > 0) {
       console.log(`Inventory contains: ${inventory.map(item => item.name).join(', ')}`);
     }
-  }, [inventory, forceItemsVisible]);
+  }, [inventory, forceItemsVisible, showItemDisplay, showMessageOverlay]);
   
   // Update viewport size in store if needed
   useEffect(() => {
@@ -318,9 +307,8 @@ const AcquiredItems = () => {
     }
   }, [size]);
   
-  // Always render if forceItemsVisible is true, otherwise check inventory
-  if (inventory.length === 0 && !forceItemsVisible) return null;
-  
+  // Always render items if they're in inventory, regardless of other flags
+  // This ensures consistent visibility across all scenarios
   return (
     <>
       {/* Render all items in inventory */}

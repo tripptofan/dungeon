@@ -125,7 +125,8 @@ const Player = () => {
         
         // Reset head bob
         headBobRef.current.bobHeight = 0;
-        
+        // Stop movement
+        stopCameraMovement();
         // Update position in store
         setPlayerPosition({
           x: targetPos.x,
@@ -133,8 +134,7 @@ const Player = () => {
           z: targetPos.z
         });
         
-        // Stop movement
-        stopCameraMovement();
+
         
         // Get current experience data
         const experienceIndex = useGameStore.getState().currentExperienceIndex;
@@ -145,17 +145,22 @@ const Player = () => {
           
           console.log(`Triggering experience ${experienceIndex} of type ${currentExperience.type}`);
           
-          if (currentExperience.type === 'item') {
-            // For item experiences, show the item text
-            setTimeout(() => {
-              useGameStore.getState().setShowMessageOverlay(true);
-              useGameStore.getState().setMessageBoxVisible(true);
-              useGameStore.getState().setCurrentMessage(currentExperience.item.text);
-              useGameStore.getState().setTypingInProgress(true);
-              // Keep item display enabled for item experiences during message overlay
-              useGameStore.getState().setShowItemDisplay(true);
-            }, 100); // Very short delay for better feel
-          }
+ // Handle different experience types
+ if (currentExperience.type === 'item') {
+  // For item experiences, show the item text
+  setTimeout(() => {
+    // Force all items to be visible before showing the overlay
+    useGameStore.getState().setForceItemsVisible(true);
+    
+    // Regular overlay display
+    useGameStore.getState().setShowMessageOverlay(true);
+    useGameStore.getState().setMessageBoxVisible(true);
+    useGameStore.getState().setCurrentMessage(currentExperience.item.text);
+    useGameStore.getState().setTypingInProgress(true);
+    // Keep item display enabled for item experiences during message overlay
+    useGameStore.getState().setShowItemDisplay(true);
+  }, 100); // Very short delay for better feel
+} 
           
           // Replace it with this enhanced version:
           if (currentExperience.type === 'item') {
@@ -191,6 +196,7 @@ const Player = () => {
               useGameStore.getState().setShowItemDisplay(true);
             }, 100); // Very short delay for better feel
           }
+            
         }
         
         // Force a render

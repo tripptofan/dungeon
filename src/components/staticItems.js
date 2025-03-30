@@ -4,6 +4,7 @@ import useGameStore from '../store';
 import * as THREE from 'three';
 import { Model as Lantern } from './lantern'; // Import Lantern model
 import { Model as WoodenSword } from './woodenSword'; // Import WoodenSword model
+import FlickeringFlame from './flickeringFlame';
 
 // Individual item component that handles both static display and animation
 const ItemObject = ({ experience, isActive, isInteractive }) => {
@@ -101,16 +102,23 @@ const ItemObject = ({ experience, isActive, isInteractive }) => {
         return (
           <group position={[0, .2, 0]} scale={[modelScale, modelScale, modelScale]}>
             <Lantern />
-            {/* Add a subtle light inside the lantern */}
+            {/* Replace static light with flickering flame */}
+{/* Use the revised flame effect that matches flickeringLight.js */}
+<FlickeringFlame 
+              position={[0, 0.2, 0]}
+              color="#ffcc77"
+              randomizer={0.42} // Different seed for variety
+            />
+            {/* Additional always-on ambient light for the lantern */}
             <pointLight 
-              color="orange" 
-              intensity={15} 
-              distance={10} 
-              decay={2} 
-              position={[0, 0.2, 0]} 
+              color="#ffcc77" 
+              intensity={5} 
+              distance={3} 
+              decay={1.5} 
+              position={[0, 0.2, 0]}
             />
             
-            {/* Add a visible glass effect manually */}
+            {/* Add a visible glass effect manually - keep this */}
             <mesh position={[0, 0, 0]}>
               <meshPhysicalMaterial
                 color="#ffcc88"
