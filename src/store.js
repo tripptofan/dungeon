@@ -29,6 +29,12 @@ const useGameStore = create((set, get) => ({
   itemAnimationPhase: 'hidden', // 'hidden', 'clickable', 'acquiring', 'acquired'
   forceItemsVisible: false, // Force items to be visible regardless of other state
   
+  // Sword swing animation state
+  swordSwinging: false,
+  swingDirection: { x: 0, y: 0 }, // Direction of the swing
+  swingProgress: 0, // Animation progress (0 to 1)
+  swingSpeed: 2.0, // Speed multiplier for swing animation
+  
   // Viewport dimensions for responsive positioning
   viewportSize: {
     width: window.innerWidth,
@@ -93,7 +99,7 @@ const useGameStore = create((set, get) => ({
         "position": { x: 5, y: 0, z: 55 }, // First shake event position
         "type": "shake",
         "shakeConfig": {
-          "intensity": 0.8,
+          "intensity": 0.5, // Reduced from 0.8 to 0.5
           "duration": 3000,
           "message": "What was that?"
         }
@@ -103,7 +109,7 @@ const useGameStore = create((set, get) => ({
         "position": { x: 5, y: 0, z: 65 }, // Second shake event position
         "type": "shake",
         "shakeConfig": {
-          "intensity": 1.0,
+          "intensity": 0.7, // Reduced from 1.0 to 0.7
           "duration": 3000,
           "message": "Something is coming..."
         }
@@ -440,6 +446,71 @@ const useGameStore = create((set, get) => ({
         state.startCameraMovement(targetPosition);
       }
     }
+  },
+  
+  // Sword swing animation controls
+  startSwordSwing: (direction) => {
+    const state = get();
+    
+    // Only allow swinging if:
+    // 1. We have a sword in inventory
+    // 2. No message or action overlay is currently visible
+    // 3. Not currently swinging
+    const hasSword = state.inventory.some(item => item.name === "Toy Wooden Sword");
+    const noOverlays = !state.showMessageOverlay && !state.showActionOverlay;
+    
+    if (hasSword && noOverlays && !state.swordSwinging) {
+      // Normalize the direction vector
+      const length = Math.sqrt(direction.x * direction.x + direction.y * direction.y);
+      const normalizedDirection = {
+        x: direction.x / length,
+        y: direction.y / length
+      };
+      
+      set({
+        swordSwinging: true,
+        swingDirection: normalizedDirection,
+        swingProgress: 0
+      });
+      
+      // Auto-complete the swing animation after a delay
+      setTimeout(() => {
+        get().completeSwordSwing();
+      }, 700); // Animation duration in ms
+    }
+  },
+  
+  // Update the sword swing animation progress (called in animation loop)
+  updateSwordSwing: (delta) => {
+    const state = get();
+    
+    if (state.swordSwinging) {
+      // Adjusted swing progression speed for a more dramatic effect
+      // This makes the initial part of the swing faster and the follow-through slower
+      let speedMultiplier = 3.0;
+      
+      // Slow down in the second half of the animation for better follow-through
+      if (state.swingProgress > 0.5) {
+        speedMultiplier = 1.5;
+      }
+      
+      const newProgress = state.swingProgress + (delta * state.swingSpeed * speedMultiplier);
+      
+      if (newProgress >= 1) {
+        // Animation complete
+        get().completeSwordSwing();
+      } else {
+        set({ swingProgress: newProgress });
+      }
+    }
+  },
+  
+  // Complete the sword swing animation
+  completeSwordSwing: () => {
+    set({
+      swordSwinging: false,
+      swingProgress: 0
+    });
   }
 }));
 

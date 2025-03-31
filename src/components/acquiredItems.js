@@ -27,14 +27,14 @@ const ACQUIRED_ITEMS_CONFIG = {
     viewportFactor: 0.15  // How much to adjust based on aspect ratio
   },
   "Toy Wooden Sword": {
-    position: new THREE.Vector3(0.28, -0.35, -1.1), // Right side
+    position: new THREE.Vector3(0.4, -0.35, -1.1), // Moved further right (from 0.28 to 0.4)
     rotation: new THREE.Euler(-Math.PI / 8, 0, (Math.PI / 4) * 0.3), // Point forward and slightly up
     scale: 0.2,
     bobAmount: 0.015,
     bobSpeed: 1.2,
     // Position adjustment factors
-    minXPos: 0.2,     // For very narrow viewport
-    maxXPos: 0.5,     // For wide viewport
+    minXPos: 0.3,     // For very narrow viewport (increased from 0.2 to 0.3)
+    maxXPos: 0.6,     // For wide viewport (increased from 0.5 to 0.6)
     viewportFactor: 0.18  // How much to adjust based on aspect ratio
   }
 };
@@ -46,11 +46,18 @@ const AcquiredItem = ({ item }) => {
   const [adjustedConfig, setAdjustedConfig] = useState(null);
   
   // Get camera shake state and force visible flag from the store
-  const cameraShaking = useGameStore(state => state.cameraShaking.isShaking);
+  const cameraShakingState = useGameStore(state => state.cameraShaking);
+  const cameraShaking = cameraShakingState.isShaking;
   const forceVisible = useGameStore(state => state.forceItemsVisible);
   const showOverlay = useGameStore(state => 
     state.showMessageOverlay || state.showActionOverlay
   );
+  
+  // Get sword swing state
+  const swordSwinging = useGameStore(state => state.swordSwinging);
+  const swingDirection = useGameStore(state => state.swingDirection);
+  const swingProgress = useGameStore(state => state.swingProgress);
+  const updateSwordSwing = useGameStore(state => state.updateSwordSwing);
   
   // Add ref to the static array when mounted, remove when unmounted
   useEffect(() => {
@@ -143,7 +150,37 @@ const AcquiredItem = ({ item }) => {
       groupRef.current.visible = true;
     }
 
-    // If during camera shake, update pause status
+    // Ensure the item stays relative to the camera - this must happen regardless of shake or bob state
+    groupRef.current.position.copy(camera.position);
+    groupRef.current.rotation.copy(camera.rotation);
+    
+    // Apply the configured position offset (in camera space)
+    // Use adjustedConfig if available, otherwise use defaults
+    const config = adjustedConfig || baseConfig;
+    const posOffset = config.position.clone();
+    
+    // IMPORTANT: Always process shake effect even if head bob is paused
+    // Apply shake effect if camera shake is active
+    if (cameraShaking) {
+      // Generate random shake offsets - scale down for acquired items compared to camera
+      // Get actual intensity from the shake state and apply a multiplier for items
+      const intensityValue = cameraShakingState.intensity || 0.5;
+      const shakeIntensity = intensityValue * 1.0; // Use full camera shake intensity for items for more visible effect
+      
+      // Apply more dramatic shake for visibility
+      const offsetX = (Math.random() * 2 - 1) * shakeIntensity * 0.08;
+      const offsetY = (Math.random() * 2 - 1) * shakeIntensity * 0.08;
+      const offsetZ = (Math.random() * 2 - 1) * shakeIntensity * 0.04;
+      
+      // Add shake offsets to the position offset
+      posOffset.x += offsetX;
+      posOffset.y += offsetY;
+      posOffset.z += offsetZ;
+      
+      // We'll apply rotation shake separately below
+    }
+
+    // Handle head bobbing (but not during shake)
     if (cameraShaking && !headBobRef.current.bobPaused) {
       headBobRef.current.bobPaused = true;
       headBobRef.current.pauseTimer = 0;
@@ -171,8 +208,8 @@ const AcquiredItem = ({ item }) => {
     headBobRef.current.isMoving = isMoving;
     headBobRef.current.lastPosition.copy(playerPosition);
     
-    // Update bob timer based on movement and pause state
-    if (!headBobRef.current.bobPaused) {
+    // Update bob timer based on movement and pause state - only if not shaking
+    if (!headBobRef.current.bobPaused && !cameraShaking) {
       if (isMoving) {
         // Increase timer when moving (speed proportional to movement)
         headBobRef.current.timer += delta * 10 * Math.min(1, Math.sqrt(distanceMovedSq) * 20);
@@ -188,17 +225,8 @@ const AcquiredItem = ({ item }) => {
       }
     }
     
-    // Ensure the item stays relative to the camera
-    groupRef.current.position.copy(camera.position);
-    groupRef.current.rotation.copy(camera.rotation);
-    
-    // Apply the configured position offset (in camera space)
-    // Use adjustedConfig if available, otherwise use defaults
-    const config = adjustedConfig || baseConfig;
-    const posOffset = config.position.clone();
-    
-    // Add bobbing only if not paused
-    if (!headBobRef.current.bobPaused) {
+    // Add bobbing only if not paused and not shaking
+    if (!cameraShaking && !headBobRef.current.bobPaused) {
       // Add subtle bobbing effect (vertical)
       const basicBob = Math.sin(state.clock.elapsedTime * config.bobSpeed) * config.bobAmount;
       
@@ -216,26 +244,145 @@ const AcquiredItem = ({ item }) => {
     groupRef.current.translateY(posOffset.y);
     groupRef.current.translateZ(posOffset.z);
     
-    // Add subtle rotation variation based on movement (if not paused)
-    if (!headBobRef.current.bobPaused) {
+    // Apply custom rotation - separate from position offsets
+    let rotX = config.rotation.x;
+    let rotY = config.rotation.y;
+    let rotZ = config.rotation.z;
+    
+    // Add rotation shake if camera is shaking
+    if (cameraShaking) {
+      const intensityValue = cameraShakingState.intensity || 0.5;
+      const shakeIntensity = intensityValue * 1.2; // Exaggerate rotation shake for more visible effect
+      
+      // Add random rotation shake - more dramatic for visibility
+      rotX += (Math.random() * 2 - 1) * shakeIntensity * 0.08;
+      rotZ += (Math.random() * 2 - 1) * shakeIntensity * 0.08;
+    } 
+    // Add subtle rotation variation based on movement (if not paused and not shaking)
+    else if (!headBobRef.current.bobPaused) {
       const tiltAmount = 0.01 * Math.min(1, headBobRef.current.stepCounter);
       const movementTilt = Math.sin(headBobRef.current.timer * 2) * tiltAmount;
       
-      // Apply custom rotation for the item
-      groupRef.current.rotateX(config.rotation.x + movementTilt);
-      groupRef.current.rotateY(config.rotation.y);
-      groupRef.current.rotateZ(config.rotation.z + (movementTilt * 0.5));
-    } else {
-      // Just apply base rotation when paused
-      groupRef.current.rotateX(config.rotation.x);
-      groupRef.current.rotateY(config.rotation.y);
-      groupRef.current.rotateZ(config.rotation.z);
+      rotX += movementTilt;
+      rotZ += (movementTilt * 0.5);
+    }
+    
+    // Apply all rotations
+    groupRef.current.rotateX(rotX);
+    groupRef.current.rotateY(rotY);
+    groupRef.current.rotateZ(rotZ);
+  });
+
+  // Add another useFrame for updating the sword swing animation
+  useFrame((state, delta) => {
+    // If this isn't the sword, we don't need to process swing animation
+    if (item.name !== "Toy Wooden Sword") return;
+    
+    // Always update the swing animation progress in store
+    if (swordSwinging) {
+      updateSwordSwing(delta);
     }
   });
 
-  // Render the appropriate model based on item type
-// This is a partial update focusing on the part that needs white outlines
-// in the renderItemModel function of the AcquiredItem component
+  // Helper functions for sword swing animation
+
+  // Calculate swing rotation based on direction and progress - ENHANCED VERSION
+  const calculateSwordSwingRotation = (direction, progress) => {
+    if (!swordSwinging) {
+      return [0, 0, 0]; // Default rotation
+    }
+    
+    // Extract direction components
+    const { x, y } = direction;
+    
+    // Calculate swing angle based on direction
+    // Use an easing function for the swing (ease-out)
+    const easedProgress = easeOutCubic(progress);
+    
+    // ENHANCED: Much larger rotation angles in radians
+    // Determine rotation axes based on swipe direction
+    // For horizontal swipes, rotate around the y axis
+    // For vertical swipes, rotate around the x axis
+    // For diagonal swipes, rotate around both
+    
+    // Calculate the primary swing axis based on which direction is stronger
+    const isHorizontalDominant = Math.abs(x) > Math.abs(y);
+    
+    // Maximum rotation angles in radians - DRAMATICALLY INCREASED
+    const maxRotationX = Math.PI * 1.5; // Up to 270 degrees rotation
+    const maxRotationY = Math.PI * 1.5; // Up to 270 degrees rotation
+    const maxRotationZ = Math.PI * 0.75; // Up to 135 degrees rotation for twist
+    
+    // Calculate direction weight - how much of each axis to use
+    // This ensures the swing follows the swipe direction naturally
+    const xWeight = (Math.abs(y) / (Math.abs(x) + Math.abs(y) || 1));
+    const yWeight = (Math.abs(x) / (Math.abs(x) + Math.abs(y) || 1));
+    
+    // Calculate current rotation based on progress
+    // Use sin curve for natural swing motion with a longer follow-through
+    // ENHANCED: Use modified curve for more dramatic swing
+    // This creates a quick initial movement and a longer follow-through
+    const swingCurve = Math.sin(easedProgress * Math.PI) * (1 + easedProgress * 0.5);
+    
+    // Direction-aware rotation with more dramatic values
+    // Sign of x/y determines swing direction (left/right or up/down)
+    const rotX = isHorizontalDominant 
+      ? -y * maxRotationX * 0.3 * swingCurve // Secondary axis when horizontal is dominant
+      : -y * maxRotationX * swingCurve;      // Primary axis for vertical swipes
+      
+    const rotY = isHorizontalDominant
+      ? x * maxRotationY * swingCurve        // Primary axis for horizontal swipes
+      : x * maxRotationY * 0.3 * swingCurve; // Secondary axis when vertical is dominant
+      
+    // Add some twist for visual flair, more pronounced for diagonal swipes
+    const diagonalFactor = Math.abs(x * y) / ((Math.abs(x) + Math.abs(y)) / 2 || 1);
+    const rotZ = maxRotationZ * swingCurve * diagonalFactor * (x < 0 ? -1 : 1);
+    
+    return [rotX, rotY, rotZ];
+  };
+
+  // Calculate swing position offset based on direction and progress - ENHANCED VERSION
+  const calculateSwordSwingPosition = (direction, progress) => {
+    if (!swordSwinging) {
+      return [0, 0, 0]; // Default position
+    }
+    
+    // Extract direction components
+    const { x, y } = direction;
+    
+    // Calculate position offset based on direction
+    // Use an easing function for the swing (ease-out)
+    const easedProgress = easeOutCubic(progress);
+    
+    // ENHANCED: Much larger position offsets
+    // Maximum position offset - dramatically increased
+    const maxOffsetX = 0.8; // Horizontal movement
+    const maxOffsetY = 0.6; // Vertical movement
+    const maxOffsetZ = 0.5; // Forward thrust
+    
+    // Calculate movement curve - quick thrust followed by slower return
+    // This creates a more realistic sword swing effect
+    // Use a modified sine curve with more dramatic initial movement
+    const swingCurve = Math.sin(easedProgress * Math.PI);
+    const thrustCurve = easedProgress < 0.4 
+      ? easedProgress * 2.5 // Fast initial thrust
+      : 1 - ((easedProgress - 0.4) * 1.67); // Slower return
+    
+    // Apply more dramatic movement
+    // Move in the opposite direction of the swing for realistic physics
+    const offsetX = -x * maxOffsetX * swingCurve;
+    const offsetY = -y * maxOffsetY * swingCurve;
+    
+    // Add a dramatic forward thrust at the start of the swing
+    const offsetZ = maxOffsetZ * thrustCurve * Math.max(0.2, Math.abs(x) + Math.abs(y));
+    
+    return [offsetX, offsetY, offsetZ];
+  };
+
+  // Easing function for natural swing motion
+  const easeOutCubic = (x) => {
+    return 1 - Math.pow(1 - x, 3);
+  };
 
   // Render the appropriate model based on item type
   const renderItemModel = () => {
@@ -253,9 +400,9 @@ const AcquiredItem = ({ item }) => {
             {/* Additional always-on ambient light for the lantern */}
             <pointLight 
               color="#ffcc77" 
-              intensity={5} 
-              distance={3} 
-              decay={1.5} 
+              intensity={15}
+              distance={10}
+              decay={1}
               position={[0, 0.2, 0]}
             />
           </group>
@@ -263,8 +410,17 @@ const AcquiredItem = ({ item }) => {
       case 'Toy Wooden Sword':
         return (
           <group scale={[config.scale, config.scale, config.scale]}>
-            {/* Use outlined sword with white outline */}
-            <OutlinedSword outlineThickness={0.05} />
+            {/* Wrap in an extra group for swing animation */}
+            <group
+              rotation={calculateSwordSwingRotation(swingDirection, swingProgress)}
+              position={calculateSwordSwingPosition(swingDirection, swingProgress)}
+            >
+              {/* Add an additional offset to improve sword swing pivot point */}
+              <group position={[0, -0.2, 0]}>
+                {/* Use outlined sword with white outline */}
+                <OutlinedSword outlineThickness={0.05} />
+              </group>
+            </group>
           </group>
         );
       default:
