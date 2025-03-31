@@ -92,9 +92,9 @@ const OutlinedLantern = ({ position = [0, 0, 0], rotation = [0, 0, 0], scale = 1
       {/* Add light for the lantern */}
       <pointLight 
         color="#ffcc77" 
-        intensity={5} 
-        distance={3} 
-        decay={1.5} 
+        intensity={3} 
+        distance={2} 
+        decay={1} 
         position={[0, 0.2, 0]}
       />
     </group>

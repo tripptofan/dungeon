@@ -16,10 +16,10 @@ const FlickeringFlame = ({
   const timeOffset = Math.random() * 1000;
 
   // Compute light behavior based on randomizer (same approach as flickeringLight.js)
-  const baseIntensity = 12 + randomizer * 5; // Between 12 and 17
+  const baseIntensity = 5 + randomizer * 5; // Between 12 and 17
   const flickerAmount = 2 + randomizer * 2; // Between 2 and 4
   const flickerSpeed = 0.0002 + randomizer * 0.0002; // Between 0.0002 and 0.0004
-  const blackoutChance = 0.003 + randomizer * 0.004; // Between 0.3% and 0.7%
+  const blackoutChance = 0.3 + randomizer * 0.004; // Between 0.3% and 0.7%
   const minIntensity = baseIntensity * 0.7; // Ensures the light never drops below 70% of base
 
   useFrame(() => {
@@ -53,7 +53,7 @@ const FlickeringFlame = ({
         color={color}
         intensity={baseIntensity}
         distance={9}
-        decay={1.2}
+        decay={1}
         castShadow
       />
     </group>

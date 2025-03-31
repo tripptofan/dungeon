@@ -2,10 +2,10 @@ import React, { useEffect, useMemo } from "react";
 import useGameStore from "../store";
 
 import FlickeringLight from "./flickeringLight";
-import PastelFloor from "./pastelFloor";
-import PastelWall from "./pastelWall";
-import PastelDoor from "./pastelDoor";
-import PastelCeiling from "./pastelCeiling";
+import FloorTile from "./floorTile";
+import Wall from "./wall";
+import Door from "./door";
+import Ceiling from "./ceiling";
 
 const Dungeon = () => {
   const tileSize = useGameStore((state) => state.tileSize);
@@ -37,19 +37,19 @@ const Dungeon = () => {
           // Floor tile
           tileLocationsArray.push({ x: worldX, z: worldZ });
           tilesArray.push(
-            <PastelFloor key={`floor-${x}-${z}`} position={[worldX, 0, worldZ]} tileSize={tileSize} />
+            <FloorTile key={`floor-${x}-${z}`} position={[worldX, 0, worldZ]} tileSize={tileSize} />
           );
         } else if (tile === 1) {
           // Regular wall
           wallLocationsArray.push({ x: worldX, z: worldZ });
           wallsArray.push(
-            <PastelWall key={`wall-${x}-${z}`} position={[worldX, tileSize / 2, worldZ]} tileSize={tileSize} />
+            <Wall key={`wall-${x}-${z}`} position={[worldX, tileSize / 2, worldZ]} tileSize={tileSize} />
           );
         } else if (tile === 2) {
           // Door component
           wallLocationsArray.push({ x: worldX, z: worldZ });
           doorsArray.push(
-            <PastelDoor key={`door-${x}-${z}`} position={[worldX, tileSize / 2, worldZ]} tileSize={tileSize} />
+            <Door key={`door-${x}-${z}`} position={[worldX, tileSize / 2, worldZ]} tileSize={tileSize} />
           );
         }
       });
@@ -76,7 +76,7 @@ const Dungeon = () => {
       {tiles}
       {walls}
       {doors}
-      <PastelCeiling 
+      <Ceiling 
         position={[dungeonWidth / 2 - tileSize / 2, roofHeight, dungeonDepth / 2 - tileSize / 2]} 
         tileSize={tileSize}
       />

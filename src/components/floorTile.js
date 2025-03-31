@@ -26,7 +26,7 @@ const FloorTile = ({ position, tileSize }) => {
         color={pastelTint}
         emissive={new THREE.Color(0xffffff)} 
         emissiveMap={floorTexture}
-        emissiveIntensity={0.9}
+        emissiveIntensity={0.01}
         roughness={0.8}
         metalness={0.2}
       />

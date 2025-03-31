@@ -12,13 +12,7 @@ import ActionOverlay from './components/actionOverlay';
 import StaticItems from './components/staticItems';
 import AcquiredItems from './components/acquiredItems';
 import CameraShake from './components/cameraShake';
-import TestOutlineObjects from './components/testOutlineObjects';
 import DeviceDetection from './DeviceDetection';
-import PastelEffect from './components/pastelEffect'; // Import the new component
-import PastelLighting from './components/pastelLighting';
-import ReliableColorFilters from './components/reliableColorFilters';
-import VintageFilter from './components/vintageFilter';
-
 
 const CanvasWrapper = styled.div`
   position: relative;
@@ -140,7 +134,6 @@ function App() {
           resize={{ scroll: false, debounce: { scroll: 50, resize: 0 } }}
         >
           <Suspense fallback={null}>
-            {/* <PastelLighting /> */}
             <Dungeon />
             <Player />
             <StaticItems />
@@ -148,14 +141,10 @@ function App() {
             <ForceRender />
             <CameraShake />
             <AcquiredItems />
-            
-
-            {/* <VintageFilter /> */}
-            {/* <ReliableColorFilters /> */}
           </Suspense>
         </Canvas>
         
-        {/* Rest of your UI components remain the same... */}
+        {/* UI components */}
         <BlackOverlay isVisible={overlayVisible} />
         
         {!sceneLoaded && (
