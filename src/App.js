@@ -12,6 +12,7 @@ import ActionOverlay from './components/actionOverlay';
 import StaticItems from './components/staticItems';
 import AcquiredItems from './components/acquiredItems';
 import CameraShake from './components/cameraShake';
+import TestOutlineObjects from './components/testOutlineObjects';
 import DeviceDetection from './DeviceDetection';
 
 const CanvasWrapper = styled.div`
@@ -142,8 +143,10 @@ function App() {
             <ForceRender />
             <CameraShake />
             <AcquiredItems />
+            
+            {/* Keep the test objects for comparison */}
+            <TestOutlineObjects />
           </Suspense>
-
         </Canvas>
         
         {/* CSS-based black overlay - provides a backup fade mechanism */}

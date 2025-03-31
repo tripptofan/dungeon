@@ -2,9 +2,15 @@ import React, { useRef, useState, useEffect } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import useGameStore from '../store';
 import * as THREE from 'three';
-import { Model as Lantern } from './lantern'; // Import Lantern model
-import { Model as WoodenSword } from './woodenSword'; // Import WoodenSword model
+import { Model as Lantern } from './lantern';
+import { Model as WoodenSword } from './woodenSword';
 import FlickeringFlame from './flickeringFlame';
+
+import OutlinedLantern from './outlinedLantern';
+import OutlinedSword from './outlinedSword';
+
+// Static array to store refs to all item objects for outlining
+export const staticItemRefs = [];
 
 // Individual item component that handles both static display and animation
 const ItemObject = ({ experience, isActive, isInteractive }) => {
@@ -36,6 +42,22 @@ const ItemObject = ({ experience, isActive, isInteractive }) => {
   };
   
   const modelScale = getModelScale();
+  
+  // Add ref to the static array when mounted, remove when unmounted
+  useEffect(() => {
+    if (groupRef.current) {
+      staticItemRefs.push(groupRef.current);
+      console.log(`Added ${itemType} to outline list, total: ${staticItemRefs.length}`);
+    }
+    
+    return () => {
+      const index = staticItemRefs.indexOf(groupRef.current);
+      if (index !== -1) {
+        staticItemRefs.splice(index, 1);
+        console.log(`Removed ${itemType} from outline list, remaining: ${staticItemRefs.length}`);
+      }
+    };
+  }, [itemType]);
   
   // Animation for all items
   useFrame((state, delta) => {
@@ -97,58 +119,46 @@ const ItemObject = ({ experience, isActive, isInteractive }) => {
   const glowScale = (hovered && isInteractive) ? 1.1 : 1.0;
   const glowIntensity = (hovered && isInteractive) ? 0.8 : 0.3;
   
-  // Render the 3D model based on item type
   const renderItemModel = () => {
     switch(itemType) {
       case 'Lantern':
         return (
           <group position={[0, .2, 0]} scale={[modelScale, modelScale, modelScale]}>
-            <Lantern />
-            <FlickeringFlame 
-              position={[0, 0.2, 0]}
-              color="#ffcc77"
-              randomizer={0.42} // Different seed for variety
-            />
-            <pointLight 
-              color="#ffcc77" 
-              intensity={5} 
-              distance={3} 
-              decay={1.5} 
-              position={[0, 0.2, 0]}
-            />
-            
-            <mesh position={[0, 0, 0]}>
-              <meshPhysicalMaterial
-                color="#ffcc88"
-                transparent={true}
-                opacity={0.5}
-                transmission={0.5}
-                roughness={0.1}
-                clearcoat={0.5}
-                emissive="#ffcc77"
-                emissiveIntensity={0.2}
-                side={THREE.DoubleSide}
-              />
-            </mesh>
+            {/* Use outlined lantern instead of the regular one */}
+            <OutlinedLantern outlineThickness={0.05} />
           </group>
         );
       case 'Toy Wooden Sword':
         return (
           <group scale={[modelScale, modelScale, modelScale]} rotation={[0, 0, Math.PI / 4]}>
-            <WoodenSword />
+            {/* Use outlined sword instead of the regular one */}
+            <OutlinedSword outlineThickness={0.05} />
           </group>
         );
       default:
-        // Fallback to box for unknown items
+        // Fallback to a box with outline for unknown items
         return (
-          <mesh>
-            <boxGeometry args={[0.5, 0.5, 0.5]} />
-            <meshStandardMaterial 
-              color={experience.item?.color || 'white'}
-              emissive={experience.item?.color || 'white'}
-              emissiveIntensity={glowIntensity}
-            />
-          </mesh>
+          <group>
+            {/* Outline - slightly larger black box */}
+            <mesh scale={[0.52, 0.52, 0.52]} renderOrder={1}>
+              <boxGeometry />
+              <meshBasicMaterial 
+                color="#000000" 
+                side={THREE.BackSide} 
+                depthTest={true} 
+              />
+            </mesh>
+            
+            {/* Main box */}
+            <mesh scale={[0.5, 0.5, 0.5]} renderOrder={2}>
+              <boxGeometry />
+              <meshStandardMaterial 
+                color={experience.item?.color || 'white'}
+                emissive={experience.item?.color || 'white'}
+                emissiveIntensity={glowIntensity}
+              />
+            </mesh>
+          </group>
         );
     }
   };
