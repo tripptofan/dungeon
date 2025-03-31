@@ -234,6 +234,10 @@ const AcquiredItem = ({ item }) => {
   });
 
   // Render the appropriate model based on item type
+// This is a partial update focusing on the part that needs white outlines
+// in the renderItemModel function of the AcquiredItem component
+
+  // Render the appropriate model based on item type
   const renderItemModel = () => {
     // Use adjustedConfig if available, otherwise fall back to baseConfig
     const config = adjustedConfig || baseConfig;
@@ -243,7 +247,7 @@ const AcquiredItem = ({ item }) => {
       case 'Lantern':
         return (
           <group scale={[config.scale, config.scale, config.scale]}>
-            {/* Use outlined lantern instead of the regular one */}
+            {/* Use outlined lantern with white outline */}
             <OutlinedLantern outlineThickness={0.05} />
             
             {/* Additional always-on ambient light for the lantern */}
@@ -259,19 +263,19 @@ const AcquiredItem = ({ item }) => {
       case 'Toy Wooden Sword':
         return (
           <group scale={[config.scale, config.scale, config.scale]}>
-            {/* Use outlined sword instead of the regular one */}
+            {/* Use outlined sword with white outline */}
             <OutlinedSword outlineThickness={0.05} />
           </group>
         );
       default:
-        // Fallback to a box with outline for unknown items
+        // Fallback to a box with white outline for unknown items
         return (
           <group scale={[0.2, 0.2, 0.2]}>
-            {/* Outline - slightly larger black box */}
+            {/* Outline - slightly larger white box */}
             <mesh scale={[1.1, 1.1, 1.1]} renderOrder={1}>
               <boxGeometry />
               <meshBasicMaterial 
-                color="#000000" 
+                color="#FFFFFF" 
                 side={THREE.BackSide} 
                 depthTest={true} 
               />

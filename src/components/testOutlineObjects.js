@@ -15,29 +15,29 @@ const TestOutlineObjects = () => {
   
   return (
     <group ref={groupRef} position={[5, 2, 10]}>
-      {/* Red box with black outline */}
+      {/* Red box with white outline */}
       <OutlinedObject 
         position={[-2, 0, 0]} 
         color="#ff0000" 
-        outlineColor="#000000"
-        outlineThickness={0.1} // Very thick outline for visibility
+        outlineColor="#FFFFFF"
+        outlineThickness={0.1} // Thick outline for visibility
         geometry={<boxGeometry args={[1, 1, 1]} />}
       />
       
-      {/* Blue box with black outline */}
+      {/* Blue box with white outline */}
       <OutlinedObject 
         position={[0, 0, 0]} 
         color="#0000ff" 
-        outlineColor="#000000"
+        outlineColor="#FFFFFF"
         outlineThickness={0.1}
         geometry={<boxGeometry args={[1, 1, 1]} />}
       />
       
-      {/* Green sphere with black outline */}
+      {/* Green sphere with white outline */}
       <OutlinedObject 
         position={[2, 0, 0]} 
         color="#00ff00" 
-        outlineColor="#000000"
+        outlineColor="#FFFFFF"
         outlineThickness={0.1}
         geometry={<sphereGeometry args={[0.7, 32, 32]} />}
       />
