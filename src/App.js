@@ -191,7 +191,7 @@ function App() {
       <StyledCanvasWrapper $isMobile={isMobile}>
         <Canvas 
           key={canvasKey}
-          style={{ background: 'black' }}
+          style={{ background: 'rgb(2,0,20)' }}
           gl={{ 
             powerPreference: "high-performance",
             antialias: true,
