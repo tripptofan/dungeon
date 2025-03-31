@@ -10,37 +10,33 @@ const Ceiling = ({ position, tileSize }) => {
   const dungeonWidth = useMemo(() => dungeon.length * tileSize, [dungeon.length, tileSize]);
   const dungeonDepth = useMemo(() => dungeon[0].length * tileSize, [dungeon, tileSize]);
 
-  // Load textures using useLoader hook
-  const aoTexture = useLoader(THREE.TextureLoader, "/textures/broken_wall_ao_4k.jpg");
-  const diffuseTexture = useLoader(THREE.TextureLoader, "/textures/broken_wall_diff_4k.jpg");
-  const normalTexture = useLoader(THREE.TextureLoader, "/textures/broken_wall_nor_gl_4k.jpg");
-  const roughnessTexture = useLoader(THREE.TextureLoader, "/textures/broken_wall_rough_4k.jpg");
-  const displacementTexture = useLoader(THREE.TextureLoader, "/textures/broken_wall_disp_4k.jpg");
+  // Load the new ceiling texture (using ceilingTexture1, can be changed to ceilingTexture2)
+  const ceilingTexture = useLoader(THREE.TextureLoader, "/textures/dungeonFloor.png");
 
-  // Set texture properties
-  const repeatX = dungeonWidth / tileSize;
-  const repeatZ = dungeonDepth / tileSize;
+  // Set texture properties - scale down significantly
+  // Make texture repeat many times across each tile for a smaller, more detailed pattern
+  const repeatX = dungeonWidth * .5; // 3 times more repeats for a smaller scale
+  const repeatZ = dungeonDepth * .5;
 
   // Optimize by applying texture settings only when needed
   useMemo(() => {
-    [aoTexture, diffuseTexture, normalTexture, roughnessTexture, displacementTexture].forEach((texture) => {
-      texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
-      texture.repeat.set(repeatX, repeatZ);
-    });
-  }, [aoTexture, diffuseTexture, normalTexture, roughnessTexture, displacementTexture, repeatX, repeatZ]);
+    ceilingTexture.wrapS = ceilingTexture.wrapT = THREE.RepeatWrapping;
+    ceilingTexture.repeat.set(repeatX, repeatZ);
+    ceilingTexture.colorSpace = THREE.SRGBColorSpace;
+    ceilingTexture.minFilter = THREE.LinearMipmapLinearFilter;
+    ceilingTexture.magFilter = THREE.LinearFilter;
+  }, [ceilingTexture, repeatX, repeatZ]);
 
   return (
     <mesh position={position} rotation={[-Math.PI / 2, 0, 0]}>
       <planeGeometry args={[dungeonWidth, dungeonDepth]} />
       <meshStandardMaterial
-        map={diffuseTexture}
-        normalMap={normalTexture}
-        roughnessMap={roughnessTexture}
-        aoMap={aoTexture}
-        displacementMap={displacementTexture}
-        displacementScale={0.1} 
-        displacementBias={-0.05} 
-        transparent
+        map={ceilingTexture}
+        emissive={new THREE.Color(0xffffff)} 
+        emissiveMap={ceilingTexture}
+        emissiveIntensity={.3}
+        roughness={0.7}
+        metalness={0.3}
         side={THREE.DoubleSide}
       />
     </mesh>

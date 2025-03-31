@@ -12,6 +12,7 @@
     "@testing-library/user-event": "^13.5.0",
     "drei": "^2.2.21",
     "gsap": "^3.12.7",
+    "leva": "^0.10.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "react-scripts": "5.0.1",

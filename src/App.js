@@ -14,6 +14,11 @@ import AcquiredItems from './components/acquiredItems';
 import CameraShake from './components/cameraShake';
 import TestOutlineObjects from './components/testOutlineObjects';
 import DeviceDetection from './DeviceDetection';
+import PastelEffect from './components/pastelEffect'; // Import the new component
+import PastelLighting from './components/pastelLighting';
+import ReliableColorFilters from './components/reliableColorFilters';
+import VintageFilter from './components/vintageFilter';
+
 
 const CanvasWrapper = styled.div`
   position: relative;
@@ -135,7 +140,7 @@ function App() {
           resize={{ scroll: false, debounce: { scroll: 50, resize: 0 } }}
         >
           <Suspense fallback={null}>
-            <ambientLight intensity={0.8} />
+            {/* <PastelLighting /> */}
             <Dungeon />
             <Player />
             <StaticItems />
@@ -144,22 +149,21 @@ function App() {
             <CameraShake />
             <AcquiredItems />
             
-            {/* Keep the test objects for comparison */}
-            {/* <TestOutlineObjects /> */}
+
+            {/* <VintageFilter /> */}
+            {/* <ReliableColorFilters /> */}
           </Suspense>
         </Canvas>
         
-        {/* CSS-based black overlay - provides a backup fade mechanism */}
+        {/* Rest of your UI components remain the same... */}
         <BlackOverlay isVisible={overlayVisible} />
         
-        {/* Only show loading indicator when scene isn't loaded */}
         {!sceneLoaded && (
           <LoadingIndicator>
             Loading Experience...
           </LoadingIndicator>
         )}
         
-        {/* Show UI components when scene is ready */}
         {sceneReady && (
           <>
             <MessageOverlay />
