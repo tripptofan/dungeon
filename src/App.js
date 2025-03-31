@@ -13,7 +13,6 @@ import StaticItems from './components/staticItems';
 import AcquiredItems from './components/acquiredItems';
 import CameraShake from './components/cameraShake';
 import DeviceDetection from './DeviceDetection';
-import SwipeDetector from './components/swipeDetector';
 import Enemy from './components/enemy';
 
 const CanvasWrapper = styled.div`
@@ -145,6 +144,7 @@ function App() {
             <CameraShake />
             <AcquiredItems />
             <Enemy />
+
           </Suspense>
         </Canvas>
         

@@ -24,8 +24,8 @@ const TreasureChest = () => {
   const chestExperience = experiences.find(exp => exp.type === 'chest');
   // If chest experience is defined, use its position, otherwise fallback to default
   const chestPosition = chestExperience 
-    ? { x: chestExperience.position.x, z: chestExperience.position.z - 5 } // 5 units in front of where player will stop
-    : { x: 5, z: (dungeon[0].length - 2) * tileSize }; // Fallback
+    ? { x: chestExperience.position.x, z: chestExperience.position.z + 4 } // 3 units in front of where player will stop
+    : { x: 5, z: (dungeon[0].length - 3) * tileSize }; // Fallback - second to last tile
   
   // Determine whether this is the active experience
   const isChestExperience = currentExperienceIndex >= 0 && 
@@ -109,15 +109,6 @@ const TreasureChest = () => {
         />
       </mesh>
       
-      {/* Add a subtle glow around the chest but don't make it too large */}
-      <mesh position={[0, 0.2, 0]}>
-        <sphereGeometry args={[1.2, 16, 16]} />
-        <meshBasicMaterial 
-          color="#FFD700" 
-          transparent 
-          opacity={hovered && isInteractive ? 0.25 : 0.1} 
-        />
-      </mesh>
       
       {/* Add a light source to make the chest more visible */}
       <pointLight
