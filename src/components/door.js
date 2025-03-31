@@ -25,7 +25,7 @@ const Door = ({ position, tileSize }) => {
         map={doorTexture}
         emissive={new THREE.Color(0xffffff)} 
         emissiveMap={doorTexture}
-        emissiveIntensity={0.1}
+        emissiveIntensity={0.01}
         roughness={0.8}
         metalness={0.2}
       />

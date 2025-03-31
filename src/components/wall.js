@@ -30,7 +30,7 @@ const Wall = ({ position, tileSize }) => {
         // Use the same texture for emissive but with a different color to enhance pastel effect
         emissive={new THREE.Color(0xffe8f5)} // Light pink for subtle glow
         emissiveMap={wallTexture}
-        emissiveIntensity={0.2}
+        emissiveIntensity={0.01}
         // Lower contrast and increase smoothness for pastel look
         roughness={0.6}
         metalness={0.1}
