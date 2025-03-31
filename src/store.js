@@ -130,17 +130,17 @@ const useGameStore = create((set, get) => ({
         "message": "Not all problems can be solved with words....",
         "nextAction": "sword"
       },
-{
-  "experience": 6,
-  "position": { x: 5, y: 0, z: 90 }, // Position directly in front of the chest
-  "type": "chest",
-  "message": "You found a treasure chest! It contains untold riches... or perhaps something more valuable.",
-  "reward": {
-    "name": "Ancient Artifact",
-    "text": "An artifact of mysterious origins. Its purpose remains unknown, but you feel a strange connection to it.",
-    "color": "#FFD700" // Gold color
-  }
-}
+      {
+        "experience": 6,
+        "position": { x: 5, y: 0, z: 86 }, // UPDATED: Position for player to stop BEFORE the chest
+        "type": "chest",
+        "message": "You found a treasure chest! It contains untold riches... or perhaps something more valuable.",
+        "reward": {
+          "name": "Ancient Artifact",
+          "text": "An artifact of mysterious origins. Its purpose remains unknown, but you feel a strange connection to it.",
+          "color": "#FFD700" // Gold color
+        }
+      }
     ]
   },
   

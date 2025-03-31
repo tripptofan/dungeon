@@ -2,10 +2,6 @@ import React, { useRef, useState, useEffect } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import useGameStore from '../store';
 import * as THREE from 'three';
-import { Model as Lantern } from './lantern';
-import { Model as WoodenSword } from './woodenSword';
-import FlickeringFlame from './flickeringFlame';
-
 import OutlinedLantern from './outlinedLantern';
 import OutlinedSword from './outlinedSword';
 
@@ -35,7 +31,7 @@ const ItemObject = ({ experience, isActive, isInteractive }) => {
       case 'Lantern':
         return 0.2;
       case 'Toy Wooden Sword':
-        return 0.3;
+        return 0.2;
       default:
         return 1.0;
     }
@@ -116,7 +112,7 @@ const ItemObject = ({ experience, isActive, isInteractive }) => {
   const isVisible = isSwordItem ? true : !(isActive && itemAnimationPhase === 'acquired');
   
   // For glow effect when hovered and clickable
-  const glowScale = (hovered && isInteractive) ? 1.1 : 1.0;
+  const glowScale = (hovered && isInteractive) ? 1 : 1.0;
   const glowIntensity = (hovered && isInteractive) ? 0.8 : 0.3;
   
   const renderItemModel = () => {
@@ -186,17 +182,6 @@ const ItemObject = ({ experience, isActive, isInteractive }) => {
     >
       {renderItemModel()}
       
-      {/* Add a glow effect when hovered */}
-      {hovered && isInteractive && (
-        <mesh>
-          <sphereGeometry args={[0.8, 16, 16]} />
-          <meshBasicMaterial 
-            color={experience.item?.color || 'white'} 
-            transparent 
-            opacity={0.2} 
-          />
-        </mesh>
-      )}
     </group>
   );
 };

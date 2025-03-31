@@ -2,9 +2,6 @@ import React, { useRef, useEffect, useState } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 import useGameStore from '../store';
-import { Model as Lantern } from './lantern';
-import { Model as WoodenSword } from './woodenSword';
-import FlickeringFlame from './flickeringFlame';
 
 import OutlinedLantern from './outlinedLantern';
 import OutlinedSword from './outlinedSword';
@@ -514,8 +511,8 @@ const AcquiredItem = ({ item }) => {
             {/* Additional always-on ambient light for the lantern */}
             <pointLight 
               color="#ffcc77" 
-              intensity={25}
-              distance={50}
+              intensity={15}
+              distance={10}
               decay={1}
               position={[0, 0.2, 0]}
             />

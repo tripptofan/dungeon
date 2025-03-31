@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo } from "react";
 import useGameStore from "../store";
 
-import FlickeringLight from "./flickeringLight";
+
 import FloorTile from "./floorTile";
 import Wall from "./wall";
 import Door from "./door";
