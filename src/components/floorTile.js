@@ -3,34 +3,32 @@ import { useLoader } from "@react-three/fiber";
 import * as THREE from "three";
 
 const FloorTile = ({ position, tileSize }) => {
-  // Load textures using useLoader hook
-  const aoTexture = useLoader(THREE.TextureLoader, "/textures/medieval_wall_02_ao_4k.jpg");
-  const diffuseTexture = useLoader(THREE.TextureLoader, "/textures/medieval_wall_02_diff_4k.jpg");
-  const normalTexture = useLoader(THREE.TextureLoader, "/textures/medieval_wall_02_nor_gl_4k.jpg");
-  const roughnessTexture = useLoader(THREE.TextureLoader, "/textures/medieval_wall_02_rough_4k.jpg");
-  const displacementTexture = useLoader(THREE.TextureLoader, "/textures/medieval_wall_02_disp_4k.jpg");
-
+  // Load the new floor texture
+  const floorTexture = useLoader(THREE.TextureLoader, "/textures/ceilingTexture2.png");
+    // Define a soft pastel color
+    const pastelTint = new THREE.Color(0xf0e6ff); // Light lavender
   // Set texture properties once - optimize with useMemo
   useMemo(() => {
-    aoTexture.wrapS = aoTexture.wrapT = THREE.RepeatWrapping;
-    diffuseTexture.wrapS = diffuseTexture.wrapT = THREE.RepeatWrapping;
-    normalTexture.wrapS = normalTexture.wrapT = THREE.RepeatWrapping;
-    roughnessTexture.wrapS = roughnessTexture.wrapT = THREE.RepeatWrapping;
-    displacementTexture.wrapS = displacementTexture.wrapT = THREE.RepeatWrapping;
-  }, [aoTexture, diffuseTexture, normalTexture, roughnessTexture, displacementTexture]);
+    floorTexture.wrapS = floorTexture.wrapT = THREE.RepeatWrapping;
+    floorTexture.repeat.set(1, 1);
+    
+    // Set additional texture properties
+    floorTexture.colorSpace = THREE.SRGBColorSpace;
+    floorTexture.minFilter = THREE.LinearMipmapLinearFilter;
+    floorTexture.magFilter = THREE.LinearFilter;
+  }, [floorTexture]);
 
   return (
     <mesh position={position} rotation={[-Math.PI / 2, 0, 0]}>
       <planeGeometry args={[tileSize, tileSize]} />
       <meshStandardMaterial
-        map={diffuseTexture}
-        normalMap={normalTexture}
-        roughnessMap={roughnessTexture}
-        aoMap={aoTexture}
-        displacementMap={displacementTexture}
-        displacementScale={0.1}
-        displacementBias={-0.05}
-        transparent
+        map={floorTexture}
+        color={pastelTint}
+        emissive={new THREE.Color(0xffffff)} 
+        emissiveMap={floorTexture}
+        emissiveIntensity={0.9}
+        roughness={0.8}
+        metalness={0.2}
       />
     </mesh>
   );
