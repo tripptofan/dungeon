@@ -129,7 +129,18 @@ const useGameStore = create((set, get) => ({
         "type": "enemy",
         "message": "Not all problems can be solved with words....",
         "nextAction": "sword"
-      }
+      },
+{
+  "experience": 6,
+  "position": { x: 5, y: 0, z: 90 }, // Position directly in front of the chest
+  "type": "chest",
+  "message": "You found a treasure chest! It contains untold riches... or perhaps something more valuable.",
+  "reward": {
+    "name": "Ancient Artifact",
+    "text": "An artifact of mysterious origins. Its purpose remains unknown, but you feel a strange connection to it.",
+    "color": "#FFD700" // Gold color
+  }
+}
     ]
   },
   
@@ -152,7 +163,22 @@ const useGameStore = create((set, get) => ({
   setEnemyClickable: (value) => set({ enemyClickable: value }),
   setEnemyHit: (value) => set({ enemyHit: value }),
   startEnemyFadeOut: () => set({ enemyFadingOut: true }),
-  completeEnemyFadeOut: () => set({ enemyFadingOut: false, enemyHit: false, enemyClickable: false }),
+  completeEnemyFadeOut: () => {
+    set({ 
+      enemyFadingOut: false, 
+      enemyHit: false, 
+      enemyClickable: false 
+    });
+    
+    // After a short delay, show action overlay to prompt moving forward
+    setTimeout(() => {
+      set({
+        showActionOverlay: true,
+        actionType: 'move',
+        actionDirection: 'forward'
+      });
+    }, 1000);
+  },
   
   // Viewport size management
   updateViewportSize: (dimensions) => set({ viewportSize: dimensions }),
@@ -476,6 +502,17 @@ const useGameStore = create((set, get) => ({
             enemyClickable: true // Make enemy clickable
           });
         }
+
+        else if (experience.type === 'chest') {
+          set({
+            showMessageOverlay: true,
+            messageBoxVisible: true,
+            currentMessage: experience.message,
+            typingInProgress: true,
+            showItemDisplay: true,
+            forceItemsVisible: true
+          });
+        }
       }
     }
   },
@@ -499,7 +536,19 @@ const useGameStore = create((set, get) => ({
           z: nextExperience.position.z
         };
         
-        // Special case for moving to sword experience
+        // If previous experience was the enemy (experience 5), ensure we go to the chest next
+        const wasEnemyExperience = currentExperienceIndex === 4; // 5th experience has index 4
+        
+        if (wasEnemyExperience) {
+          console.log("Moving forward after defeating enemy, to chest experience");
+          
+          // Set current experience to the chest experience
+          set({ 
+            currentExperienceIndex: 5, // Index 5 is the 6th experience (chest)
+            showItemDisplay: true, // Keep items visible
+            forceItemsVisible: true // Force items visible
+          });
+        } // Special case for moving to sword experience
         const isSwordExperience = nextExperience.type === 'item' && 
                                  nextExperience.item?.name === "Toy Wooden Sword";
         

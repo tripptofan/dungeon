@@ -163,10 +163,10 @@ const Enemy = () => {
         setIsVisible(false);
         useGameStore.getState().completeEnemyFadeOut();
         
-        // Move to the next experience
-        setTimeout(() => {
-          useGameStore.getState().progressExperience();
-        }, 500);
+        // Remove this part as we'll handle progression in completeEnemyFadeOut
+        // setTimeout(() => {
+        //   useGameStore.getState().progressExperience();
+        // }, 500);
       }
     }
   });
