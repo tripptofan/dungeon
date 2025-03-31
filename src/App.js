@@ -3,6 +3,9 @@ import { Canvas } from '@react-three/fiber';
 import styled from 'styled-components';
 import useGameStore from './store';
 
+// Import the TextureProvider
+import { TextureProvider } from './utils/textureManagement';
+
 import Dungeon from './components/dungeon';
 import Player from './components/player';
 import FadeOutPlane from './components/fadeOutPlane';
@@ -15,19 +18,6 @@ import CameraShake from './components/cameraShake';
 import DeviceDetection from './DeviceDetection';
 import Enemy from './components/enemy';
 
-const CanvasWrapper = styled.div`
-  position: relative;
-  width: 100vw;
-  height: 100vh;
-  overflow: hidden;
-`;
-
-const StyledCanvasWrapper = styled(CanvasWrapper)`
-  ${props => props.$isMobile && `
-    touch-action: none;
-  `}
-`;
-
 // Loading indicator shown during initial scene loading
 const LoadingIndicator = styled.div`
   position: fixed;
@@ -39,6 +29,28 @@ const LoadingIndicator = styled.div`
   letter-spacing: 0.1em;
   text-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
   z-index: 100;
+`;
+
+// Add loading progress bar
+const LoadingProgressContainer = styled.div`
+  position: fixed;
+  bottom: 20%;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 60%;
+  max-width: 400px;
+  height: 8px;
+  background-color: rgba(255, 255, 255, 0.2);
+  border-radius: 4px;
+  overflow: hidden;
+  z-index: 100;
+`;
+
+const LoadingProgressBar = styled.div`
+  height: 100%;
+  background-color: #3a86ff;
+  width: ${props => props.progress}%;
+  transition: width 0.3s ease;
 `;
 
 // Black overlay that fades out with CSS
@@ -55,6 +67,34 @@ const BlackOverlay = styled.div`
   z-index: 90;
 `;
 
+const CanvasWrapper = styled.div`
+  position: relative;
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+`;
+
+const StyledCanvasWrapper = styled(CanvasWrapper)`
+  ${props => props.$isMobile && `
+    touch-action: none;
+  `}
+`;
+
+// Performance info overlay for development
+const PerformanceInfo = styled.div`
+  position: fixed;
+  top: 10px;
+  right: 10px;
+  background-color: rgba(0, 0, 0, 0.7);
+  color: white;
+  padding: 10px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-family: monospace;
+  z-index: 1000;
+  display: ${props => props.visible ? 'block' : 'none'};
+`;
+
 function App() {
   const isMobile = useGameStore((state) => state.isMobile);
   const sceneLoaded = useGameStore((state) => state.sceneLoaded);
@@ -66,6 +106,33 @@ function App() {
   const [canvasKey, setCanvasKey] = useState(0);
   const [overlayVisible, setOverlayVisible] = useState(true);
   const [sceneReady, setSceneReady] = useState(false);
+  const [textureProgress, setTextureProgress] = useState(0);
+  const [fps, setFps] = useState(0);
+  const [showPerformance, setShowPerformance] = useState(process.env.NODE_ENV === 'development');
+  
+  // FPS counter
+  useEffect(() => {
+    if (!showPerformance) return;
+    
+    let frameCount = 0;
+    let lastTime = performance.now();
+    
+    const updateFps = () => {
+      const now = performance.now();
+      frameCount++;
+      
+      if (now >= lastTime + 1000) {
+        setFps(Math.round((frameCount * 1000) / (now - lastTime)));
+        frameCount = 0;
+        lastTime = now;
+      }
+      
+      requestAnimationFrame(updateFps);
+    };
+    
+    const animId = requestAnimationFrame(updateFps);
+    return () => cancelAnimationFrame(animId);
+  }, [showPerformance]);
   
   // Initialize scene loading sequence
   useEffect(() => {
@@ -112,10 +179,14 @@ function App() {
     return () => clearTimeout(timer);
   }, []);
 
+  // Handle texture loading progress (will be passed to TextureProvider)
+  const handleTextureProgress = (progress) => {
+    setTextureProgress(progress);
+  };
+
   return (
     <>
       <DeviceDetection />
-
       
       <StyledCanvasWrapper $isMobile={isMobile}>
         <Canvas 
@@ -135,26 +206,33 @@ function App() {
           }}
           resize={{ scroll: false, debounce: { scroll: 50, resize: 0 } }}
         >
-          <Suspense fallback={null}>
-            <Dungeon />
-            <Player />
-            <StaticItems />
-            {loadingFade && <FadeOutPlane />}
-            <ForceRender />
-            <CameraShake />
-            <AcquiredItems />
-            <Enemy />
-
-          </Suspense>
+          {/* Wrap entire scene in TextureProvider to provide shared materials */}
+          <TextureProvider onProgress={handleTextureProgress}>
+            <Suspense fallback={null}>
+              <Dungeon />
+              <Player />
+              <StaticItems />
+              {loadingFade && <FadeOutPlane />}
+              <ForceRender />
+              <CameraShake />
+              <AcquiredItems />
+              <Enemy />
+            </Suspense>
+          </TextureProvider>
         </Canvas>
         
         {/* UI components */}
         <BlackOverlay isVisible={overlayVisible} />
         
         {!sceneLoaded && (
-          <LoadingIndicator>
-            Loading Experience...
-          </LoadingIndicator>
+          <>
+            <LoadingIndicator>
+              Loading Experience...
+            </LoadingIndicator>
+            <LoadingProgressContainer>
+              <LoadingProgressBar progress={textureProgress} />
+            </LoadingProgressContainer>
+          </>
         )}
         
         {sceneReady && (
@@ -162,6 +240,14 @@ function App() {
             <MessageOverlay />
             <ActionOverlay />
           </>
+        )}
+        
+        {/* Performance monitoring for development */}
+        {showPerformance && (
+          <PerformanceInfo visible={true}>
+            <div>FPS: {fps}</div>
+            <div>Device: {isMobile ? 'Mobile' : 'Desktop'}</div>
+          </PerformanceInfo>
         )}
       </StyledCanvasWrapper>
     </>

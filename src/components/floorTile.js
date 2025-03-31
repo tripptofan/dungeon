@@ -1,36 +1,10 @@
-import React, { useMemo, useRef, useEffect } from "react";
-import { useLoader } from "@react-three/fiber";
-import * as THREE from "three";
+import React, { useRef, useEffect } from "react";
+import { useTextures } from "../utils/textureManagement";
 
-const FloorTile = ({ position, tileSize }) => {
+const OptimizedFloorTile = ({ position, tileSize }) => {
   const meshRef = useRef();
+  const { materials } = useTextures();
   
-  // Load all texture maps for the floor
-  const [
-    colorMap,
-    aoMap,
-    displacementMap,
-    normalMap,
-    specularMap
-  ] = useLoader(THREE.TextureLoader, [
-    "/textures/dungeonFloor/dungeonFloor.png",
-    "/textures/dungeonFloor/AmbientOcclusionMap.png",
-    "/textures/dungeonFloor/DisplacementMap.png",
-    "/textures/dungeonFloor/NormalMap.png",
-    "/textures/dungeonFloor/SpecularMap.png"
-  ]);
-
-  // Configure all textures once using useMemo for better performance
-  useMemo(() => {
-    [colorMap, aoMap, displacementMap, normalMap, specularMap].forEach(texture => {
-      if (texture) {
-        texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
-        texture.repeat.set(1, 1);
-        texture.colorSpace = THREE.SRGBColorSpace;
-      }
-    });
-  }, [colorMap, aoMap, displacementMap, normalMap, specularMap]);
-
   // Add UV2 coordinates for ambient occlusion mapping
   useEffect(() => {
     if (meshRef.current) {
@@ -39,34 +13,17 @@ const FloorTile = ({ position, tileSize }) => {
     }
   }, []);
 
-  // Define a soft pastel color for tinting
-  const pastelTint = new THREE.Color(0xf0e6ff); // Light lavender
-
   return (
     <mesh ref={meshRef} position={position} rotation={[-Math.PI / 2, 0, 0]}>
       <planeGeometry args={[tileSize, tileSize]} />
-      <meshStandardMaterial
-        map={colorMap}
-        aoMap={aoMap}
-        displacementMap={displacementMap}
-        normalMap={normalMap}
-        roughnessMap={specularMap} // Use specular map for roughness (inverse)
-        
-        // Material properties
-        // color={pastelTint}
-        aoMapIntensity={.6}
-        displacementScale={0.02} // Very subtle displacement for floor
-        normalScale={new THREE.Vector2(0.6, 0.6)}
-        roughness={1.8} // Floors typically rougher than walls
-        metalness={0.2}
-        
-        // Subtle emissive for overall lightness
-        emissive={new THREE.Color(0xffffff)}
-        emissiveMap={colorMap}
-        emissiveIntensity={0.01}
-      />
+      {/* Use the shared floor material - no need to create new material instances */}
+      {materials.floorMaterial ? (
+        <primitive object={materials.floorMaterial} />
+      ) : (
+        <meshStandardMaterial color="#444" /> // Fallback if material isn't loaded yet
+      )}
     </mesh>
   );
 };
 
-export default React.memo(FloorTile);
+export default React.memo(OptimizedFloorTile);
