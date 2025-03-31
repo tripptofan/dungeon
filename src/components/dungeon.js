@@ -4,6 +4,7 @@ import useGameStore from "../store";
 import FlickeringLight from "./flickeringLight";
 import FloorTile from "./floorTile";
 import Wall from "./wall";
+import Door from "./door"; // Import the Door component
 import Ceiling from "./ceiling";
 
 const Dungeon = () => {
@@ -18,56 +19,65 @@ const Dungeon = () => {
   const roofHeight = tileSize; // Roof height
 
   // Build the dungeon elements with useMemo to avoid unnecessary rebuilds
-  const { tiles, walls, tileLocations, wallLocations, lightSpheres } = useMemo(() => {
+  const { tiles, walls, doors, tileLocations, wallLocations, lightSpheres } = useMemo(() => {
     const tilesArray = [];
     const wallsArray = [];
+    const doorsArray = []; // Array for door components
     const tileLocationsArray = [];
     const wallLocationsArray = [];
     const lightSpheresArray = [];
 
     // Create lights
-    for (let z = 4; z < dungeon[0].length - 2; z += 4) {
-      const lightZ = z * tileSize;
-      const lightX = dungeon.length * tileSize / 2;
-      const isFlickering = Math.random() < 0.8;
+    // for (let z = 4; z < dungeon[0].length - 2; z += 4) {
+    //   const lightZ = z * tileSize;
+    //   const lightX = dungeon.length * tileSize / 2;
+    //   const isFlickering = Math.random() < 0.8;
     
-      if (isFlickering) {
-        lightSpheresArray.push(
-          <FlickeringLight
-            key={`flicker-light-${z}`}
-            position={[lightX - tileSize / 2, roofHeight - 2, lightZ]}
-            randomizer={Math.random()} // Unique randomizer for each light
-          />
-        );
-      } else {
-        // Steady light
-        lightSpheresArray.push(
-          <group key={`steady-light-${z}`} position={[lightX - tileSize / 2, roofHeight - 2, lightZ]}>
-            <mesh>
-              <sphereGeometry args={[0.3, 8, 8]} />
-              <meshStandardMaterial emissive="yellow" emissiveIntensity={15} transparent opacity={0.5} />
-            </mesh>
-            <pointLight intensity={15} color="white" distance={9} decay={1.2} castShadow />
-          </group>
-        );
-      }
-    }
+    //   if (isFlickering) {
+    //     lightSpheresArray.push(
+    //       <FlickeringLight
+    //         key={`flicker-light-${z}`}
+    //         position={[lightX - tileSize / 2, roofHeight - 2, lightZ]}
+    //         randomizer={Math.random()} // Unique randomizer for each light
+    //       />
+    //     );
+    //   } else {
+    //     // Steady light
+    //     lightSpheresArray.push(
+    //       <group key={`steady-light-${z}`} position={[lightX - tileSize / 2, roofHeight - 2, lightZ]}>
+    //         <mesh>
+    //           <sphereGeometry args={[0.3, 8, 8]} />
+    //           <meshStandardMaterial emissive="yellow" emissiveIntensity={15} transparent opacity={0.5} />
+    //         </mesh>
+    //         <pointLight intensity={15} color="white" distance={9} decay={1.2} castShadow />
+    //       </group>
+    //     );
+    //   }
+    // }
 
-    // Create tiles and walls
+    // Create tiles, walls and doors
     dungeon.forEach((row, x) => {
       row.forEach((tile, z) => {
         const worldX = x * tileSize;
         const worldZ = z * tileSize;
 
         if (tile === 0) {
+          // Floor tile
           tileLocationsArray.push({ x: worldX, z: worldZ });
           tilesArray.push(
             <FloorTile key={`floor-${x}-${z}`} position={[worldX, 0, worldZ]} tileSize={tileSize} />
           );
-        } else {
+        } else if (tile === 1) {
+          // Regular wall
           wallLocationsArray.push({ x: worldX, z: worldZ });
           wallsArray.push(
             <Wall key={`wall-${x}-${z}`} position={[worldX, tileSize / 2, worldZ]} tileSize={tileSize} />
+          );
+        } else if (tile === 2) {
+          // Door component
+          wallLocationsArray.push({ x: worldX, z: worldZ });
+          doorsArray.push(
+            <Door key={`door-${x}-${z}`} position={[worldX, tileSize / 2, worldZ]} tileSize={tileSize} />
           );
         }
       });
@@ -76,9 +86,10 @@ const Dungeon = () => {
     return {
       tiles: tilesArray,
       walls: wallsArray,
+      doors: doorsArray,
       tileLocations: tileLocationsArray,
       wallLocations: wallLocationsArray,
-      lightSpheres: lightSpheresArray
+      // lightSpheres: lightSpheresArray
     };
   }, [dungeon, tileSize, roofHeight]);
 
@@ -92,6 +103,7 @@ const Dungeon = () => {
     <>
       {tiles}
       {walls}
+      {doors} {/* Render the doors */}
       <Ceiling 
         position={[dungeonWidth / 2 - tileSize / 2, roofHeight, dungeonDepth / 2 - tileSize / 2]} 
         tileSize={tileSize}

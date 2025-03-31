@@ -6,6 +6,12 @@ import { Model as Lantern } from './lantern';
 import { Model as WoodenSword } from './woodenSword';
 import FlickeringFlame from './flickeringFlame';
 
+import OutlinedLantern from './outlinedLantern';
+import OutlinedSword from './outlinedSword';
+
+// Static array to store refs to all acquired items for outlining
+export const acquiredItemRefs = [];
+
 // Base position configuration for acquired items (will be adjusted based on aspect ratio)
 const ACQUIRED_ITEMS_CONFIG = {
   "Lantern": {
@@ -45,6 +51,22 @@ const AcquiredItem = ({ item }) => {
   const showOverlay = useGameStore(state => 
     state.showMessageOverlay || state.showActionOverlay
   );
+  
+  // Add ref to the static array when mounted, remove when unmounted
+  useEffect(() => {
+    if (groupRef.current) {
+      acquiredItemRefs.push(groupRef.current);
+      console.log(`Added acquired ${item.name} to outline list, total: ${acquiredItemRefs.length}`);
+    }
+    
+    return () => {
+      const index = acquiredItemRefs.indexOf(groupRef.current);
+      if (index !== -1) {
+        acquiredItemRefs.splice(index, 1);
+        console.log(`Removed acquired ${item.name} from outline list, remaining: ${acquiredItemRefs.length}`);
+      }
+    };
+  }, [item.name]);
   
   // Get base config for this item
   const baseConfig = ACQUIRED_ITEMS_CONFIG[item.name] || {
@@ -215,19 +237,15 @@ const AcquiredItem = ({ item }) => {
   const renderItemModel = () => {
     // Use adjustedConfig if available, otherwise fall back to baseConfig
     const config = adjustedConfig || baseConfig;
-
-    // IMPORTANT: Item-specific rendering that handles special cases
+  
+    // IMPORTANT: Item-specific rendering with outlines
     switch (item.name) {
       case 'Lantern':
         return (
           <group scale={[config.scale, config.scale, config.scale]}>
-            <Lantern />
-            {/* Replace static lights with flickering flame */}
-            <FlickeringFlame 
-              position={[0, 0.2, 0]}
-              color="#ffcc77"
-              randomizer={0.75} // Fixed seed for consistent effect
-            />
+            {/* Use outlined lantern instead of the regular one */}
+            <OutlinedLantern outlineThickness={0.05} />
+            
             {/* Additional always-on ambient light for the lantern */}
             <pointLight 
               color="#ffcc77" 
@@ -241,16 +259,30 @@ const AcquiredItem = ({ item }) => {
       case 'Toy Wooden Sword':
         return (
           <group scale={[config.scale, config.scale, config.scale]}>
-            <WoodenSword />
+            {/* Use outlined sword instead of the regular one */}
+            <OutlinedSword outlineThickness={0.05} />
           </group>
         );
       default:
-        // Fallback to box for unknown items
+        // Fallback to a box with outline for unknown items
         return (
-          <mesh scale={[0.2, 0.2, 0.2]}>
-            <boxGeometry />
-            <meshStandardMaterial color={item.color || 'white'} />
-          </mesh>
+          <group scale={[0.2, 0.2, 0.2]}>
+            {/* Outline - slightly larger black box */}
+            <mesh scale={[1.1, 1.1, 1.1]} renderOrder={1}>
+              <boxGeometry />
+              <meshBasicMaterial 
+                color="#000000" 
+                side={THREE.BackSide} 
+                depthTest={true} 
+              />
+            </mesh>
+            
+            {/* Main box */}
+            <mesh renderOrder={2}>
+              <boxGeometry />
+              <meshStandardMaterial color={item.color || 'white'} />
+            </mesh>
+          </group>
         );
     }
   };
