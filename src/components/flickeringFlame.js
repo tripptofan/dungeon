@@ -52,8 +52,8 @@ const FlickeringFlame = ({
         ref={lightRef}
         color={color}
         intensity={baseIntensity}
-        distance={9}
-        decay={1}
+        distance={10}
+        decay={.9}
         castShadow
       />
     </group>

@@ -5,7 +5,9 @@ import useGameStore from '../store';
 
 const CameraShake = () => {
   const { camera, invalidate } = useThree();
+  // Store both original position and rotation
   const originalPosition = useRef(new THREE.Vector3());
+  const originalRotation = useRef(new THREE.Euler());
   const shakeConfig = useRef({
     intensity: 0,
     decay: 0.9,
@@ -23,8 +25,15 @@ const CameraShake = () => {
   // Store original camera position when shake starts
   useEffect(() => {
     if (cameraShaking.isShaking && !shakeConfig.current.isActive) {
-      // Store original camera position
+      // Store original camera position AND rotation
       originalPosition.current.copy(camera.position);
+      originalRotation.current.copy(camera.rotation);
+      
+      console.log("Starting camera shake, stored original rotation:", 
+        originalRotation.current.x, 
+        originalRotation.current.y, 
+        originalRotation.current.z
+      );
       
       // Set shake configuration
       shakeConfig.current = {
@@ -70,13 +79,35 @@ const CameraShake = () => {
         originalPosition.current.z + offsetZ
       );
       
+      // Add subtle camera rotation shake for more impact
+      // Make a temporary copy of original rotation to avoid accumulating rotation
+      const tempRotation = originalRotation.current.clone();
+      
+      // Apply random rotation offsets to the original rotation
+      const rotationIntensity = currentIntensity * 0.04; // Subtle rotation shake
+      tempRotation.x += (Math.random() * 2 - 1) * rotationIntensity;
+      tempRotation.z += (Math.random() * 2 - 1) * rotationIntensity;
+      
+      // Set camera rotation from our modified original rotation
+      camera.rotation.copy(tempRotation);
+      
       // Force a render update
       invalidate();
       
       // Check if shake duration has elapsed
       if (shakeConfig.current.duration >= shakeConfig.current.maxDuration) {
-        // Reset camera to npm ruoriginal position
+        // Reset camera to original position
         camera.position.copy(originalPosition.current);
+        
+        // Reset camera to the exact original rotation
+        camera.rotation.copy(originalRotation.current);
+        
+        console.log("Shake complete, restored original rotation:", 
+          originalRotation.current.x, 
+          originalRotation.current.y, 
+          originalRotation.current.z
+        );
+        
         invalidate();
         
         // Reset shake config

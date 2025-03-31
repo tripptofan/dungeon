@@ -13,6 +13,7 @@ import StaticItems from './components/staticItems';
 import AcquiredItems from './components/acquiredItems';
 import CameraShake from './components/cameraShake';
 import DeviceDetection from './DeviceDetection';
+import SwipeDetector from './components/swipeDetector';
 
 const CanvasWrapper = styled.div`
   position: relative;
@@ -114,6 +115,7 @@ function App() {
   return (
     <>
       <DeviceDetection />
+      <SwipeDetector />
       
       <StyledCanvasWrapper $isMobile={isMobile}>
         <Canvas 
