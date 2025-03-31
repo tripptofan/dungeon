@@ -2,6 +2,9 @@ import { create } from 'zustand';
 
 // Create a store with optimized structure and enhanced experience flow
 const useGameStore = create((set, get) => ({
+  // Development testing flags
+  debugMode: true, // Enable for additional logging and testing features
+  
   // Scene loading state
   sceneLoaded: false,
   loadingFade: false,
@@ -29,11 +32,17 @@ const useGameStore = create((set, get) => ({
   itemAnimationPhase: 'hidden', // 'hidden', 'clickable', 'acquiring', 'acquired'
   forceItemsVisible: false, // Force items to be visible regardless of other state
   
+  // Enemy state
+  enemyClickable: false,
+  enemyHit: false,
+  enemyFadingOut: false,
+  
   // Sword swing animation state
   swordSwinging: false,
   swingDirection: { x: 0, y: 0 }, // Direction of the swing
   swingProgress: 0, // Animation progress (0 to 1)
-  swingSpeed: 2.0, // Speed multiplier for swing animation
+  swingSpeed: 2.5, // Speed multiplier for swing animation (increased from 2.0)
+  swingType: 'default', // Types: 'default', 'slash'
   
   // Viewport dimensions for responsive positioning
   viewportSize: {
@@ -52,7 +61,7 @@ const useGameStore = create((set, get) => ({
     intensity: 0.5,
     decay: 0.92,
     maxOffset: 0.3,
-    duration: 3000, // Default 3 seconds
+    duration: 2000, // Reduced from 3000 to 2000 (2 seconds)
     onComplete: null
   },
   
@@ -99,8 +108,8 @@ const useGameStore = create((set, get) => ({
         "position": { x: 5, y: 0, z: 55 }, // First shake event position
         "type": "shake",
         "shakeConfig": {
-          "intensity": 0.5, // Reduced from 0.8 to 0.5
-          "duration": 3000,
+          "intensity": 0.5,
+          "duration": 2000, // Reduced to 2 seconds
           "message": "What was that?"
         }
       },
@@ -109,19 +118,26 @@ const useGameStore = create((set, get) => ({
         "position": { x: 5, y: 0, z: 65 }, // Second shake event position
         "type": "shake",
         "shakeConfig": {
-          "intensity": 0.7, // Reduced from 1.0 to 0.7
-          "duration": 3000,
+          "intensity": 0.7,
+          "duration": 2000, // Reduced to 2 seconds
           "message": "Something is coming..."
         }
+      },
+      {
+        "experience": 5,
+        "position": { x: 5, y: 0, z: 75 }, // Enemy encounter position
+        "type": "enemy",
+        "message": "Not all problems can be solved with words....",
+        "nextAction": "sword"
       }
     ]
   },
   
   // Dungeon layout - expanded for longer corridor
   dungeon: [
-    [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-    [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2],
-    [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+    [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+    [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2],
+    [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
   ],
   
   // Core action dispatchers
@@ -131,6 +147,12 @@ const useGameStore = create((set, get) => ({
   setTileLocations: (tiles) => set({ tileLocations: tiles }),
   setWallLocations: (walls) => set({ wallLocations: walls }),
   setIsMobile: (value) => set({ isMobile: value }),
+  
+  // Enemy state control
+  setEnemyClickable: (value) => set({ enemyClickable: value }),
+  setEnemyHit: (value) => set({ enemyHit: value }),
+  startEnemyFadeOut: () => set({ enemyFadingOut: true }),
+  completeEnemyFadeOut: () => set({ enemyFadingOut: false, enemyHit: false, enemyClickable: false }),
   
   // Viewport size management
   updateViewportSize: (dimensions) => set({ viewportSize: dimensions }),
@@ -179,7 +201,7 @@ const useGameStore = create((set, get) => ({
     const currentExperienceIndex = get().currentExperienceIndex;
     const experiences = get().experienceScript.experiences;
     
-    // FIX: Check if we're in the sword experience
+    // Check if we're in the sword experience
     const isSwordExperience = currentExperienceIndex >= 0 && 
       currentExperienceIndex < experiences.length &&
       experiences[currentExperienceIndex].type === 'item' && 
@@ -238,7 +260,7 @@ const useGameStore = create((set, get) => ({
   
   stopCameraMovement: () => set({ isMovingCamera: false }),
   
-  // Camera shake controls - FIXED VERSION
+  // Camera shake controls
   startCameraShake: (config, onComplete) => {
     // Ensure we have a valid config object
     const configObj = typeof config === 'object' ? config : {};
@@ -315,10 +337,41 @@ const useGameStore = create((set, get) => ({
     }
   },
   
-  // Progress to the next step in the experience - FIXED VERSION
+  // Handle enemy click
+  handleEnemyClick: () => {
+    const state = get();
+    const hasSword = state.inventory.some(item => item.name === "Toy Wooden Sword");
+    
+    // Can only attack if we have the sword and the enemy is clickable
+    if (hasSword && state.enemyClickable && !state.swordSwinging) {
+      console.log("Enemy clicked! Triggering sword slash animation");
+      
+      // Show the sword if not already visible
+      set({
+        showItemDisplay: true,
+        forceItemsVisible: true,
+        // Trigger a sword slash animation
+        swordSwinging: true,
+        swingProgress: 0,
+        swingType: 'slash',
+        swingDirection: { x: -0.8, y: -0.6 } // Diagonal direction from top-right to bottom-left
+      });
+      
+      // Ensure the animation completes
+      setTimeout(() => {
+        if (get().swordSwinging) {
+          get().completeSwordSwing();
+        }
+      }, 1000); // Ensure the animation completes after 1 second
+    }
+  },
+  
+  // Progress to the next step in the experience
   progressExperience: () => {
     const state = get();
     const { currentExperienceIndex, experienceScript, inventory, forceItemsVisible } = state;
+    
+    console.log("Progressing experience, current index:", currentExperienceIndex);
     
     // Always preserve item visibility if we have items
     const hasAcquiredItems = inventory.length > 0;
@@ -326,7 +379,7 @@ const useGameStore = create((set, get) => ({
     // Check if we have the sword in inventory for special handling
     const hasSword = inventory.some(item => item.name === "Toy Wooden Sword");
     
-    // FIX: Check if current experience is sword related
+    // Check if current experience is sword related
     const isSwordExperience = currentExperienceIndex >= 0 && 
       currentExperienceIndex < experienceScript.experiences.length &&
       experienceScript.experiences[currentExperienceIndex].type === 'item' && 
@@ -365,18 +418,42 @@ const useGameStore = create((set, get) => ({
                                  experience.item.name === "Toy Wooden Sword";
         
         if (experience.type === 'shake' && state.currentMessage === experience.shakeConfig.message) {
-          // After shake message is dismissed, show move forward action
-          set({
-            showMessageOverlay: false,
-            messageBoxVisible: false,
-            showActionOverlay: true,
-            actionType: 'move',
-            actionDirection: 'forward',
-            // Keep items visible if we have any
-            showItemDisplay: hasAcquiredItems ? true : state.showItemDisplay,
-            // Preserve force flag if it was set or we have the sword
-            forceItemsVisible: forceItemsVisible || hasSword || isSwordExperience
-          });
+          // Special handling for the second shake message (experience 4)
+          if (currentExperienceIndex === 3) { // index 3 is the 4th experience
+            // Move directly to the enemy experience without action overlay
+            const nextExperienceIndex = currentExperienceIndex + 1;
+            console.log("Progressing directly to enemy experience (index 4)");
+            
+            set({
+              showMessageOverlay: false,
+              messageBoxVisible: false,
+              currentExperienceIndex: nextExperienceIndex,
+              showItemDisplay: true,
+              forceItemsVisible: true,
+              // Reset enemy state
+              enemyClickable: false,
+              enemyHit: false,
+              enemyFadingOut: false
+            });
+            
+            console.log("Enemy experience activated. Current state:", {
+              experienceIndex: nextExperienceIndex,
+              playerPosition: get().playerPosition
+            });
+          } else {
+            // For other shake messages, show move forward action
+            set({
+              showMessageOverlay: false,
+              messageBoxVisible: false,
+              showActionOverlay: true,
+              actionType: 'move',
+              actionDirection: 'forward',
+              // Keep items visible if we have any
+              showItemDisplay: hasAcquiredItems ? true : state.showItemDisplay,
+              // Preserve force flag if it was set or we have the sword
+              forceItemsVisible: forceItemsVisible || hasSword || isSwordExperience
+            });
+          }
         } 
         else if (experience.type === 'item' && state.currentMessage === experience.item.text) {
           // Item text dismissed, make item clickable
@@ -389,11 +466,21 @@ const useGameStore = create((set, get) => ({
             forceItemsVisible: forceItemsVisible || isSwordExperience || hasSword || hasAcquiredItems
           });
         }
+        else if (experience.type === 'enemy' && state.currentMessage === experience.message) {
+          // Enemy message dismissed, make enemy clickable
+          set({
+            showMessageOverlay: false,
+            messageBoxVisible: false,
+            showItemDisplay: true, // Keep items visible
+            forceItemsVisible: true, // Force items visible for sword
+            enemyClickable: true // Make enemy clickable
+          });
+        }
       }
     }
   },
   
-  // Handle action overlay interactions - FIXED VERSION
+  // Handle action overlay interactions
   handleAction: () => {
     const state = get();
     const { actionType, actionDirection, currentExperienceIndex, forceItemsVisible } = state;
@@ -412,7 +499,7 @@ const useGameStore = create((set, get) => ({
           z: nextExperience.position.z
         };
         
-        // FIX: Special case for moving to sword experience - improved detection
+        // Special case for moving to sword experience
         const isSwordExperience = nextExperience.type === 'item' && 
                                  nextExperience.item?.name === "Toy Wooden Sword";
         
@@ -442,6 +529,15 @@ const useGameStore = create((set, get) => ({
           });
         }
         
+        // Reset enemy state when moving to next experience
+        if (nextExperience.type === 'enemy') {
+          set({
+            enemyClickable: false,
+            enemyHit: false,
+            enemyFadingOut: false
+          });
+        }
+        
         // Start camera movement
         state.startCameraMovement(targetPosition);
       }
@@ -449,7 +545,7 @@ const useGameStore = create((set, get) => ({
   },
   
   // Sword swing animation controls
-  startSwordSwing: (direction) => {
+  startSwordSwing: (direction, type = 'default') => {
     const state = get();
     
     // Only allow swinging if:
@@ -470,7 +566,8 @@ const useGameStore = create((set, get) => ({
       set({
         swordSwinging: true,
         swingDirection: normalizedDirection,
-        swingProgress: 0
+        swingProgress: 0,
+        swingType: type
       });
       
       // Auto-complete the swing animation after a delay
@@ -511,6 +608,15 @@ const useGameStore = create((set, get) => ({
       swordSwinging: false,
       swingProgress: 0
     });
+    
+    // If this was an enemy encounter, check if we need to move to next experience
+    const state = get();
+    const currentExperience = state.experienceScript.experiences[state.currentExperienceIndex];
+    
+    if (currentExperience && currentExperience.type === 'enemy' && state.enemyHit && !state.enemyFadingOut) {
+      // Let the enemy component handle the fade out instead of progressing immediately
+      // This creates a better visual effect
+    }
   }
 }));
 

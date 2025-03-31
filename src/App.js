@@ -14,6 +14,7 @@ import AcquiredItems from './components/acquiredItems';
 import CameraShake from './components/cameraShake';
 import DeviceDetection from './DeviceDetection';
 import SwipeDetector from './components/swipeDetector';
+import Enemy from './components/enemy';
 
 const CanvasWrapper = styled.div`
   position: relative;
@@ -115,7 +116,7 @@ function App() {
   return (
     <>
       <DeviceDetection />
-      <SwipeDetector />
+
       
       <StyledCanvasWrapper $isMobile={isMobile}>
         <Canvas 
@@ -143,6 +144,7 @@ function App() {
             <ForceRender />
             <CameraShake />
             <AcquiredItems />
+            <Enemy />
           </Suspense>
         </Canvas>
         
