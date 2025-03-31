@@ -514,8 +514,8 @@ const AcquiredItem = ({ item }) => {
             {/* Additional always-on ambient light for the lantern */}
             <pointLight 
               color="#ffcc77" 
-              intensity={15}
-              distance={10}
+              intensity={25}
+              distance={50}
               decay={1}
               position={[0, 0.2, 0]}
             />

@@ -6,6 +6,7 @@ import FloorTile from "./floorTile";
 import Wall from "./wall";
 import Door from "./door";
 import Ceiling from "./ceiling";
+import TreasureChest from './treasureChest';
 
 const Dungeon = () => {
   const tileSize = useGameStore((state) => state.tileSize);
@@ -80,6 +81,7 @@ const Dungeon = () => {
         position={[dungeonWidth / 2 - tileSize / 2, roofHeight, dungeonDepth / 2 - tileSize / 2]} 
         tileSize={tileSize}
       />
+        <TreasureChest />
     </>
   );
 };
