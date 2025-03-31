@@ -156,6 +156,7 @@ const OptimizedDungeon = () => {
   const setTileLocations = useGameStore((state) => state.setTileLocations);
   const setWallLocations = useGameStore((state) => state.setWallLocations);
   const playerPosition = useGameStore((state) => state.playerPosition);
+  const isMobile = useGameStore((state) => state.isMobile);
 
   // Calculate dungeon dimensions
   const dungeonWidth = useMemo(() => dungeon.length * tileSize, [dungeon.length, tileSize]);
@@ -257,7 +258,9 @@ const OptimizedDungeon = () => {
     const now = performance.now();
     
     // Only update frustum and occlusion culling at specific intervals to save performance
-    const shouldUpdateFrustum = now - lastFrustumUpdateRef.current >= OCCLUSION_UPDATE_INTERVAL;
+    // Reduce update frequency on mobile for better performance
+    const updateInterval = isMobile ? OCCLUSION_UPDATE_INTERVAL * 2 : OCCLUSION_UPDATE_INTERVAL;
+    const shouldUpdateFrustum = now - lastFrustumUpdateRef.current >= updateInterval;
     
     if (!shouldUpdateFrustum) {
       return;
@@ -280,6 +283,9 @@ const OptimizedDungeon = () => {
       camera.position.z
     );
     
+    // Use a shorter culling distance on mobile
+    const effectiveCullingDistance = isMobile ? CULLING_DISTANCE * 0.8 : CULLING_DISTANCE;
+    
     // Reusable objects to prevent garbage collection
     const tempPosition = new THREE.Vector3();
     const boundingSphere = new THREE.Sphere();
@@ -300,7 +306,7 @@ const OptimizedDungeon = () => {
       tempPosition.set(tile.position.x, 0, tile.position.z);
       
       // First do a quick distance check (faster than frustum check)
-      if (tempPosition.distanceTo(cameraPosVec) > CULLING_DISTANCE) {
+      if (tempPosition.distanceTo(cameraPosVec) > effectiveCullingDistance) {
         return false;
       }
       
@@ -315,7 +321,7 @@ const OptimizedDungeon = () => {
       tempPosition.set(wall.position.x, tileSize / 2, wall.position.z);
       
       // Distance check
-      if (tempPosition.distanceTo(cameraPosVec) > CULLING_DISTANCE) {
+      if (tempPosition.distanceTo(cameraPosVec) > effectiveCullingDistance) {
         return; // Skip this wall
       }
       
@@ -340,7 +346,7 @@ const OptimizedDungeon = () => {
       tempPosition.set(door.position.x, tileSize / 2, door.position.z);
       
       // Distance check
-      if (tempPosition.distanceTo(cameraPosVec) > CULLING_DISTANCE) {
+      if (tempPosition.distanceTo(cameraPosVec) > effectiveCullingDistance) {
         return; // Skip this door
       }
       
@@ -368,137 +374,157 @@ const OptimizedDungeon = () => {
     const occlusionVisibleDoors = [];
     let occludedCount = 0;
     
-    // Set up objects for occlusion testing
-    const rayOrigin = cameraPosVec.clone();
-    const rayDirection = new THREE.Vector3();
-    const rayEndpoint = new THREE.Vector3();
-    
-    // Create an array of all blocking objects (all walls and doors) for ray testing
-    const allBlockers = [...dungeonData.wallsData.map(wall => ({
-      type: 'wall',
-      object: wall,
-      position: new THREE.Vector3(wall.position.x, tileSize / 2, wall.position.z),
-      halfWidth: WALL_THICKNESS / 2
-    })), ...dungeonData.doorsData.map(door => ({
-      type: 'door',
-      object: door,
-      position: new THREE.Vector3(door.position.x, tileSize / 2, door.position.z),
-      halfWidth: WALL_THICKNESS / 2
-    }))];
-    
-    // Perform occlusion testing on objects that pass frustum culling
-    occlusionTestObjects.forEach(testObj => {
-      const objPos = testObj.position;
-      
-      // For very close objects, don't perform occlusion testing
-      if (testObj.distance < tileSize * 1.5) {
-        // Object is very close to camera, always visible
+    // On mobile, we might skip full occlusion testing to improve performance
+    if (isMobile) {
+      // Simplified occlusion check for mobile - just use distance-based sorting
+      occlusionTestObjects.forEach(testObj => {
         if (testObj.type === 'wall') {
           occlusionVisibleWalls.push(testObj.object);
         } else {
           occlusionVisibleDoors.push(testObj.object);
         }
-        return;
-      }
+      });
+    } else {
+      // Full occlusion testing for desktop
+      // Set up objects for occlusion testing
+      const rayOrigin = cameraPosVec.clone();
+      const rayDirection = new THREE.Vector3();
+      const rayEndpoint = new THREE.Vector3();
       
-      // Cast multiple rays to test different parts of the object
-      let isVisible = false;
-      const rayOffsets = [
-        { x: 0, y: 0, z: 0 },                           // Center
-        { x: tileSize * 0.4, y: 0, z: tileSize * 0.4 }, // Corner
-        { x: -tileSize * 0.4, y: 0, z: tileSize * 0.4 }, // Corner
-        { x: tileSize * 0.4, y: 0, z: -tileSize * 0.4 }  // Corner
-      ];
+      // Create an array of all blocking objects (all walls and doors) for ray testing
+      const allBlockers = [...dungeonData.wallsData.map(wall => ({
+        type: 'wall',
+        object: wall,
+        position: new THREE.Vector3(wall.position.x, tileSize / 2, wall.position.z),
+        halfWidth: WALL_THICKNESS / 2
+      })), ...dungeonData.doorsData.map(door => ({
+        type: 'door',
+        object: door,
+        position: new THREE.Vector3(door.position.x, tileSize / 2, door.position.z),
+        halfWidth: WALL_THICKNESS / 2
+      }))];
       
-      // Check if any ray reaches the object without being blocked
-      for (let i = 0; i < OCCLUSION_RAY_COUNT; i++) {
-        if (isVisible) break; // If already found visible, skip remaining checks
+      // Perform occlusion testing on objects that pass frustum culling
+      occlusionTestObjects.forEach(testObj => {
+        const objPos = testObj.position;
         
-        // Calculate ray endpoint with offset
-        rayEndpoint.copy(objPos);
-        rayEndpoint.x += rayOffsets[i].x;
-        rayEndpoint.y += rayOffsets[i].y;
-        rayEndpoint.z += rayOffsets[i].z;
+        // For very close objects, don't perform occlusion testing
+        if (testObj.distance < tileSize * 1.5) {
+          // Object is very close to camera, always visible
+          if (testObj.type === 'wall') {
+            occlusionVisibleWalls.push(testObj.object);
+          } else {
+            occlusionVisibleDoors.push(testObj.object);
+          }
+          return;
+        }
         
-        // Calculate direction from camera to this point of the object
-        rayDirection.copy(rayEndpoint).sub(rayOrigin).normalize();
+        // Cast multiple rays to test different parts of the object
+        let isVisible = false;
+        const rayOffsets = [
+          { x: 0, y: 0, z: 0 },                           // Center
+          { x: tileSize * 0.4, y: 0, z: tileSize * 0.4 }, // Corner
+          { x: -tileSize * 0.4, y: 0, z: tileSize * 0.4 }, // Corner
+          { x: tileSize * 0.4, y: 0, z: -tileSize * 0.4 }  // Corner
+        ];
         
-        // Set up raycaster from camera to object
-        raycasterRef.current.set(rayOrigin, rayDirection);
-        
-        // Find all potential intersections along the ray
-        let isOccluded = false;
-        
-        // Perform manual ray testing against blockers
-        // This is faster than scene.raycast for this specific case
-        for (const blocker of allBlockers) {
-          // Skip self-intersection
-          if ((testObj.type === blocker.type) && 
-              (testObj.object.key === blocker.object.key)) {
-            continue;
+        // Check if any ray reaches the object without being blocked
+        for (let i = 0; i < OCCLUSION_RAY_COUNT; i++) {
+          if (isVisible) break; // If already found visible, skip remaining checks
+          
+          // Calculate ray endpoint with offset
+          rayEndpoint.copy(objPos);
+          rayEndpoint.x += rayOffsets[i].x;
+          rayEndpoint.y += rayOffsets[i].y;
+          rayEndpoint.z += rayOffsets[i].z;
+          
+          // Calculate direction from camera to this point of the object
+          rayDirection.copy(rayEndpoint).sub(rayOrigin).normalize();
+          
+          // Set up raycaster from camera to object
+          raycasterRef.current.set(rayOrigin, rayDirection);
+          
+          // Find all potential intersections along the ray
+          let isOccluded = false;
+          
+          // Perform manual ray testing against blockers
+          // This is faster than scene.raycast for this specific case
+          for (const blocker of allBlockers) {
+            // Skip self-intersection
+            if ((testObj.type === blocker.type) && 
+                (testObj.object.key === blocker.object.key)) {
+              continue;
+            }
+            
+            // Skip blockers that are farther from camera than our test object
+            const blockerDistSq = blocker.position.distanceToSquared(rayOrigin);
+            if (blockerDistSq > testObj.distance * testObj.distance) {
+              continue;
+            }
+            
+            // Calculate ray-box intersection
+            // Simplify to 2D test for our grid-based dungeon
+            const dx = blocker.position.x - rayOrigin.x;
+            const dz = blocker.position.z - rayOrigin.z;
+            
+            // Project blocker center onto ray
+            const t = (dx * rayDirection.x + dz * rayDirection.z) / 
+                      (rayDirection.x * rayDirection.x + rayDirection.z * rayDirection.z);
+            
+            // Skip if blocker is behind ray origin
+            if (t < 0) continue;
+            
+            // Calculate closest point on ray to blocker center
+            const closestX = rayOrigin.x + t * rayDirection.x;
+            const closestZ = rayOrigin.z + t * rayDirection.z;
+            
+            // Calculate distance from closest point to blocker center
+            const distX = Math.abs(closestX - blocker.position.x);
+            const distZ = Math.abs(closestZ - blocker.position.z);
+            
+            // Check if closest point is within blocker bounds
+            if (distX <= blocker.halfWidth && distZ <= blocker.halfWidth) {
+              // Ray intersects this blocker
+              isOccluded = true;
+              break;
+            }
           }
           
-          // Skip blockers that are farther from camera than our test object
-          const blockerDistSq = blocker.position.distanceToSquared(rayOrigin);
-          if (blockerDistSq > testObj.distance * testObj.distance) {
-            continue;
-          }
-          
-          // Calculate ray-box intersection
-          // Simplify to 2D test for our grid-based dungeon
-          const dx = blocker.position.x - rayOrigin.x;
-          const dz = blocker.position.z - rayOrigin.z;
-          
-          // Project blocker center onto ray
-          const t = (dx * rayDirection.x + dz * rayDirection.z) / 
-                    (rayDirection.x * rayDirection.x + rayDirection.z * rayDirection.z);
-          
-          // Skip if blocker is behind ray origin
-          if (t < 0) continue;
-          
-          // Calculate closest point on ray to blocker center
-          const closestX = rayOrigin.x + t * rayDirection.x;
-          const closestZ = rayOrigin.z + t * rayDirection.z;
-          
-          // Calculate distance from closest point to blocker center
-          const distX = Math.abs(closestX - blocker.position.x);
-          const distZ = Math.abs(closestZ - blocker.position.z);
-          
-          // Check if closest point is within blocker bounds
-          if (distX <= blocker.halfWidth && distZ <= blocker.halfWidth) {
-            // Ray intersects this blocker
-            isOccluded = true;
-            break;
+          if (!isOccluded) {
+            isVisible = true;
           }
         }
         
-        if (!isOccluded) {
-          isVisible = true;
-        }
-      }
-      
-      if (isVisible) {
-        // Object is visible through at least one ray
-        if (testObj.type === 'wall') {
-          occlusionVisibleWalls.push(testObj.object);
+        if (isVisible) {
+          // Object is visible through at least one ray
+          if (testObj.type === 'wall') {
+            occlusionVisibleWalls.push(testObj.object);
+          } else {
+            occlusionVisibleDoors.push(testObj.object);
+          }
         } else {
-          occlusionVisibleDoors.push(testObj.object);
+          occludedCount++;
         }
-      } else {
-        occludedCount++;
-      }
-    });
+      });
+    }
     
     // Update visible elements state
     setVisibleTiles(newVisibleTiles);
-    setVisibleWalls(occlusionVisibleWalls);
-    setVisibleDoors(occlusionVisibleDoors);
+    
+    // Use the appropriate set of visible walls/doors based on platform
+    if (isMobile) {
+      setVisibleWalls(frustumVisibleWalls);
+      setVisibleDoors(frustumVisibleDoors);
+    } else {
+      setVisibleWalls(occlusionVisibleWalls);
+      setVisibleDoors(occlusionVisibleDoors);
+    }
     
     // Update render statistics
     setRenderCount({
       tiles: newVisibleTiles.length,
-      walls: occlusionVisibleWalls.length,
-      doors: occlusionVisibleDoors.length,
+      walls: isMobile ? frustumVisibleWalls.length : occlusionVisibleWalls.length,
+      doors: isMobile ? frustumVisibleDoors.length : occlusionVisibleDoors.length,
       occluded: occludedCount
     });
   });
@@ -531,7 +557,7 @@ const OptimizedDungeon = () => {
       {useGameStore(state => state.debugMode) && (
         <DungeonDebugInfo 
           renderCount={renderCount} 
-          cullingDistance={CULLING_DISTANCE}
+          cullingDistance={isMobile ? CULLING_DISTANCE * 0.8 : CULLING_DISTANCE}
         />
       )}
     </>

@@ -1,26 +1,37 @@
 import React, { useRef, useMemo } from 'react';
-import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
+import useGameStore from '../store';
 
 // Constants for performance tuning
-const STAR_COUNT = 1000; // Reasonable number of stars
+const STAR_COUNT = 800; // Reduced number of stars
 const SKY_RADIUS = 500; // Far enough to be a backdrop, but not too far
-const ROTATION_SPEED = 0.0001; // Very slow rotation for subtle effect
+const MIN_Y_POSITION = 10; // Only generate stars above this Y value
 
 const NightSky = () => {
   const skyRef = useRef();
+  const isMobile = useGameStore((state) => state.isMobile);
   
   // Generate stars only once using useMemo
+  // Use fewer stars on mobile
+  const actualStarCount = isMobile ? Math.floor(STAR_COUNT * 0.6) : STAR_COUNT;
+  
   const starsGeometry = useMemo(() => {
     const geometry = new THREE.BufferGeometry();
     const positions = [];
     const colors = [];
     const sizes = [];
     
+    // Counter to ensure we generate enough valid stars
+    let validStarsCount = 0;
+    let attempts = 0;
+    const maxAttempts = actualStarCount * 3; // Prevent infinite loops
+    
     // Distribute stars evenly in a dome shape above the dungeon
-    for (let i = 0; i < STAR_COUNT; i++) {
+    while (validStarsCount < actualStarCount && attempts < maxAttempts) {
+      attempts++;
+      
       // Use hemisphere distribution for stars (only above the dungeon)
-      const theta = Math.random() * Math.PI; // Vertical angle (0 to PI)
+      const theta = Math.random() * Math.PI / 2; // Vertical angle (0 to PI/2 - only top hemisphere)
       const phi = Math.random() * Math.PI * 2; // Horizontal angle (0 to 2PI)
       
       // Convert spherical to Cartesian coordinates
@@ -28,6 +39,12 @@ const NightSky = () => {
       const y = SKY_RADIUS * Math.cos(theta); // Y is up
       const z = SKY_RADIUS * Math.sin(theta) * Math.sin(phi);
       
+      // Skip stars below the minimum Y position
+      if (y < MIN_Y_POSITION) {
+        continue;
+      }
+      
+      // Add the position
       positions.push(x, y, z);
       
       // Vary star colors slightly
@@ -36,9 +53,11 @@ const NightSky = () => {
       const b = 1.0; // Full blue for slight blue tint
       colors.push(r, g, b);
       
-      // Vary star sizes
-      const size = 0.5 + Math.random() * 1.5;
+      // Vary star sizes - smaller variance for more uniform look
+      const size = 0.7 + Math.random() * 1.0;
       sizes.push(size);
+      
+      validStarsCount++;
     }
     
     // Create buffer attributes
@@ -47,7 +66,7 @@ const NightSky = () => {
     geometry.setAttribute('size', new THREE.Float32BufferAttribute(sizes, 1));
     
     return geometry;
-  }, []);
+  }, [actualStarCount, isMobile]);
   
   // Create material only once with useMemo
   const starsMaterial = useMemo(() => {
@@ -86,12 +105,7 @@ const NightSky = () => {
     });
   }, []);
   
-  // Very slow rotation of the sky
-  useFrame(() => {
-    if (skyRef.current) {
-      skyRef.current.rotation.y += ROTATION_SPEED;
-    }
-  });
+  // No rotation or animation - stars are static now
   
   return (
     <points ref={skyRef} geometry={starsGeometry} material={starsMaterial} />

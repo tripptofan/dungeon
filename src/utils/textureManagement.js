@@ -46,30 +46,17 @@ class TextureSets {
       floor: {
         color: "/textures/dungeonFloor/dungeonFloor.png",
         ao: "/textures/dungeonFloor/AmbientOcclusionMap.png",
-        displacement: "/textures/dungeonFloor/DisplacementMap.png",
         normal: "/textures/dungeonFloor/NormalMap.png",
-        specular: "/textures/dungeonFloor/SpecularMap.png"
       },
       wall: {
         color: "/textures/dungeonWall/dungeonWall.png",
         ao: "/textures/dungeonWall/AmbientOcclusionMap.png",
-        displacement: "/textures/dungeonWall/DisplacementMap.png",
         normal: "/textures/dungeonWall/NormalMap.png",
-        specular: "/textures/dungeonWall/SpecularMap.png"
-      },
-      ceiling: {
-        color: "/textures/ceilingTexture/ceilingTexture.png",
-        ao: "/textures/ceilingTexture/AmbientOcclusionMap.png",
-        displacement: "/textures/ceilingTexture/DisplacementMap.png",
-        normal: "/textures/ceilingTexture/NormalMap.png",
-        specular: "/textures/ceilingTexture/SpecularMap.png"
       },
       door: {
         color: "/textures/dungeonDoor/dungeonDoor.png",
         ao: "/textures/dungeonDoor/AmbientOcclusionMap.png",
-        displacement: "/textures/dungeonDoor/DisplacementMap.png",
         normal: "/textures/dungeonDoor/NormalMap.png",
-        specular: "/textures/dungeonDoor/SpecularMap.png"
       }
     };
   }
@@ -117,9 +104,7 @@ class TextureSets {
     const material = new THREE.MeshStandardMaterial({
       map: textureSet.color,
       aoMap: textureSet.ao,
-      displacementMap: textureSet.displacement,
       normalMap: textureSet.normal,
-      roughnessMap: textureSet.specular,
       ...options
     });
 
@@ -135,41 +120,22 @@ class TextureSets {
     const defaults = {
       floor: {
         aoMapIntensity: 0.6,
-        displacementScale: 0.02,
         normalScale: new THREE.Vector2(0.6, 0.6),
-        roughness: 1.8,
-        metalness: 0.2,
-        emissive: new THREE.Color(0xffffff),
-        emissiveIntensity: 0.01
+        roughness: 1.0,
+        metalness: 0.2
       },
       wall: {
         color: new THREE.Color(0xf0e6ff), // Light lavender tint
         aoMapIntensity: 0.5,
-        displacementScale: 0.5,
         normalScale: new THREE.Vector2(0.5, 0.5),
-        roughness: 1.6,
-        metalness: 0.1,
-        emissive: new THREE.Color(0xffe8f5),
-        emissiveIntensity: 0.01
-      },
-      ceiling: {
-        aoMapIntensity: 0.5,
-        displacementScale: 0.4,
-        normalScale: new THREE.Vector2(0.5, 0.5),
-        roughness: 2.7,
-        metalness: 0.3,
-        emissive: new THREE.Color(0xffffff),
-        emissiveIntensity: 0,
-        side: THREE.DoubleSide
+        roughness: 1.0,
+        metalness: 0.1
       },
       door: {
         aoMapIntensity: 0.7,
-        displacementScale: 0.1,
         normalScale: new THREE.Vector2(0.8, 0.8),
         roughness: 0.6,
-        metalness: 0.3,
-        emissive: new THREE.Color(0xffffff),
-        emissiveIntensity: 0.02
+        metalness: 0.3
       }
     };
 
@@ -181,7 +147,7 @@ class TextureSets {
  * Provider component to load and share textures across the app
  * Handles loading, caching and creating optimized materials
  */
-export const TextureProvider = ({ children }) => {
+export const TextureProvider = ({ children, onProgress }) => {
   const [isLoading, setIsLoading] = useState(true);
   const [loadingProgress, setLoadingProgress] = useState(0);
   const { invalidate } = useThree();
@@ -218,7 +184,13 @@ export const TextureProvider = ({ children }) => {
         
         // Update progress
         loadedSets++;
-        setLoadingProgress((loadedSets / totalSets) * 100);
+        const progressValue = (loadedSets / totalSets) * 100;
+        setLoadingProgress(progressValue);
+        
+        // Call the onProgress callback if provided
+        if (typeof onProgress === 'function') {
+          onProgress(progressValue);
+        }
       }
       
       setIsLoading(false);
@@ -226,14 +198,13 @@ export const TextureProvider = ({ children }) => {
     };
     
     loadAllSets();
-  }, [textureSets, invalidate]);
+  }, [textureSets, invalidate, onProgress]);
   
   // Create shared materials - these are created once and reused
   const materials = useMemo(() => {
     return {
       floorMaterial: textureSets.createMaterial('floor'),
       wallMaterial: textureSets.createMaterial('wall'),
-      ceilingMaterial: textureSets.createMaterial('ceiling'),
       doorMaterial: textureSets.createMaterial('door')
     };
   }, [textureSets]);
