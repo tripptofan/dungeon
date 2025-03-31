@@ -179,7 +179,7 @@ function App() {
     return () => clearTimeout(timer);
   }, []);
 
-  // Handle texture loading progress (will be passed to TextureProvider)
+  // Handle texture loading progress
   const handleTextureProgress = (progress) => {
     setTextureProgress(progress);
   };
@@ -194,7 +194,7 @@ function App() {
           style={{ background: 'rgb(2,0,20)' }}
           gl={{ 
             powerPreference: "high-performance",
-            antialias: true,
+            antialias: isMobile ? false : true, // Disable antialiasing on mobile
             stencil: false,
             depth: true 
           }}
