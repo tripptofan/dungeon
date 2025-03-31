@@ -16,7 +16,7 @@ export const acquiredItemRefs = [];
 const ACQUIRED_ITEMS_CONFIG = {
   "Lantern": {
     // These are base values that will be modified based on viewport
-    position: new THREE.Vector3(-0.2, -0.35, -0.7), // Left side
+    position: new THREE.Vector3(-0.2, -0.45, -0.7), // Left side, lowered position
     rotation: new THREE.Euler(0, (-Math.PI / 2) * 0.7, 0),
     scale: 0.15,
     bobAmount: 0.02,
@@ -57,6 +57,7 @@ const AcquiredItem = ({ item }) => {
   const swordSwinging = useGameStore(state => state.swordSwinging);
   const swingDirection = useGameStore(state => state.swingDirection);
   const swingProgress = useGameStore(state => state.swingProgress);
+  const swingType = useGameStore(state => state.swingType || 'default');
   const updateSwordSwing = useGameStore(state => state.updateSwordSwing);
   
   // Add ref to the static array when mounted, remove when unmounted
@@ -286,102 +287,215 @@ const AcquiredItem = ({ item }) => {
 
   // Helper functions for sword swing animation
 
-  // Calculate swing rotation based on direction and progress - ENHANCED VERSION
-  const calculateSwordSwingRotation = (direction, progress) => {
+  // Calculate swing rotation based on direction, progress, and swing type
+  const calculateSwordSwingRotation = (direction, progress, swingType) => {
     if (!swordSwinging) {
       return [0, 0, 0]; // Default rotation
     }
     
-    // Extract direction components
-    const { x, y } = direction;
-    
-    // Calculate swing angle based on direction
-    // Use an easing function for the swing (ease-out)
-    const easedProgress = easeOutCubic(progress);
-    
-    // ENHANCED: Much larger rotation angles in radians
-    // Determine rotation axes based on swipe direction
-    // For horizontal swipes, rotate around the y axis
-    // For vertical swipes, rotate around the x axis
-    // For diagonal swipes, rotate around both
-    
-    // Calculate the primary swing axis based on which direction is stronger
-    const isHorizontalDominant = Math.abs(x) > Math.abs(y);
-    
-    // Maximum rotation angles in radians - DRAMATICALLY INCREASED
-    const maxRotationX = Math.PI * 1.5; // Up to 270 degrees rotation
-    const maxRotationY = Math.PI * 1.5; // Up to 270 degrees rotation
-    const maxRotationZ = Math.PI * 0.75; // Up to 135 degrees rotation for twist
-    
-    // Calculate direction weight - how much of each axis to use
-    // This ensures the swing follows the swipe direction naturally
-    const xWeight = (Math.abs(y) / (Math.abs(x) + Math.abs(y) || 1));
-    const yWeight = (Math.abs(x) / (Math.abs(x) + Math.abs(y) || 1));
-    
-    // Calculate current rotation based on progress
-    // Use sin curve for natural swing motion with a longer follow-through
-    // ENHANCED: Use modified curve for more dramatic swing
-    // This creates a quick initial movement and a longer follow-through
-    const swingCurve = Math.sin(easedProgress * Math.PI) * (1 + easedProgress * 0.5);
-    
-    // Direction-aware rotation with more dramatic values
-    // Sign of x/y determines swing direction (left/right or up/down)
-    const rotX = isHorizontalDominant 
-      ? -y * maxRotationX * 0.3 * swingCurve // Secondary axis when horizontal is dominant
-      : -y * maxRotationX * swingCurve;      // Primary axis for vertical swipes
+    // Check if this is a special slash animation
+    if (swingType === 'slash') {
+      // Use a specialized diagonal slash animation from top-right to bottom-left
       
-    const rotY = isHorizontalDominant
-      ? x * maxRotationY * swingCurve        // Primary axis for horizontal swipes
-      : x * maxRotationY * 0.3 * swingCurve; // Secondary axis when vertical is dominant
+      // Arc path for the slash
+      // Start with sword raised and angled in top right
+      // Swing through to bottom left with follow-through
       
-    // Add some twist for visual flair, more pronounced for diagonal swipes
-    const diagonalFactor = Math.abs(x * y) / ((Math.abs(x) + Math.abs(y)) / 2 || 1);
-    const rotZ = maxRotationZ * swingCurve * diagonalFactor * (x < 0 ? -1 : 1);
-    
-    return [rotX, rotY, rotZ];
+      // Maximum rotation angles for slash (in radians) - more dramatic
+      const maxRotX = -Math.PI * 0.4; // More angled downward
+      const maxRotY = Math.PI * 0.9; // More significant horizontal component
+      const maxRotZ = Math.PI * 0.6; // More twist during swing
+      
+      // Calculate starting positions (pre-swing) - more exaggerated wind-up
+      const startRotX = Math.PI * 0.3; // Higher raised position
+      const startRotY = -Math.PI * 0.4; // More angled to right side
+      const startRotZ = -Math.PI * 0.2; // More twisted
+      
+      // Calculate the swing arc - combine pre-swing and full swing
+      if (progress < 0.2) {
+        // Initial wind-up (0-20% of animation)
+        // Normalize progress to 0-1 range for this phase
+        const phaseProgress = progress / 0.2;
+        const windupEase = easeInQuad(phaseProgress);
+        
+        // Move to wind-up position
+        const rotX = startRotX * windupEase;
+        const rotY = startRotY * windupEase;
+        const rotZ = startRotZ * windupEase;
+        
+        return [rotX, rotY, rotZ];
+      } else {
+        // Main swing (20-100% of animation)
+        // Normalize progress to 0-1 range for this phase
+        const phaseProgress = (progress - 0.2) / 0.8;
+        const swingEase = easeOutQuint(phaseProgress);
+        
+        // Calculate a smooth arc from wind-up to follow-through
+        const rotX = startRotX + (maxRotX - startRotX) * swingEase;
+        const rotY = startRotY + (maxRotY - startRotY) * swingEase;
+        const rotZ = startRotZ + (maxRotZ - startRotZ) * swingEase;
+        
+        return [rotX, rotY, rotZ];
+      }
+    } else {
+      // Original swing animation logic for default swing
+      // Extract direction components
+      const { x, y } = direction;
+      
+      // Calculate swing angle based on direction
+      // Use an easing function for the swing (ease-out)
+      const easedProgress = easeOutCubic(progress);
+      
+      // Calculate the primary swing axis based on which direction is stronger
+      const isHorizontalDominant = Math.abs(x) > Math.abs(y);
+      
+      // Maximum rotation angles in radians
+      const maxRotationX = Math.PI * 1.5; // Up to 270 degrees rotation
+      const maxRotationY = Math.PI * 1.5; // Up to 270 degrees rotation
+      const maxRotationZ = Math.PI * 0.75; // Up to 135 degrees rotation for twist
+      
+      // Calculate direction weight - how much of each axis to use
+      const xWeight = (Math.abs(y) / (Math.abs(x) + Math.abs(y) || 1));
+      const yWeight = (Math.abs(x) / (Math.abs(x) + Math.abs(y) || 1));
+      
+      // Calculate current rotation based on progress
+      // Use sin curve for natural swing motion with a longer follow-through
+      const swingCurve = Math.sin(easedProgress * Math.PI) * (1 + easedProgress * 0.5);
+      
+      // Direction-aware rotation with more dramatic values
+      // Sign of x/y determines swing direction (left/right or up/down)
+      const rotX = isHorizontalDominant 
+        ? -y * maxRotationX * 0.3 * swingCurve // Secondary axis when horizontal is dominant
+        : -y * maxRotationX * swingCurve;      // Primary axis for vertical swipes
+        
+      const rotY = isHorizontalDominant
+        ? x * maxRotationY * swingCurve        // Primary axis for horizontal swipes
+        : x * maxRotationY * 0.3 * swingCurve; // Secondary axis when vertical is dominant
+        
+      // Add some twist for visual flair, more pronounced for diagonal swipes
+      const diagonalFactor = Math.abs(x * y) / ((Math.abs(x) + Math.abs(y)) / 2 || 1);
+      const rotZ = maxRotationZ * swingCurve * diagonalFactor * (x < 0 ? -1 : 1);
+      
+      return [rotX, rotY, rotZ];
+    }
   };
 
-  // Calculate swing position offset based on direction and progress - ENHANCED VERSION
-  const calculateSwordSwingPosition = (direction, progress) => {
+  // Calculate swing position offset based on direction, progress, and type
+  const calculateSwordSwingPosition = (direction, progress, swingType) => {
     if (!swordSwinging) {
       return [0, 0, 0]; // Default position
     }
     
-    // Extract direction components
-    const { x, y } = direction;
-    
-    // Calculate position offset based on direction
-    // Use an easing function for the swing (ease-out)
-    const easedProgress = easeOutCubic(progress);
-    
-    // ENHANCED: Much larger position offsets
-    // Maximum position offset - dramatically increased
-    const maxOffsetX = 0.8; // Horizontal movement
-    const maxOffsetY = 0.6; // Vertical movement
-    const maxOffsetZ = 0.5; // Forward thrust
-    
-    // Calculate movement curve - quick thrust followed by slower return
-    // This creates a more realistic sword swing effect
-    // Use a modified sine curve with more dramatic initial movement
-    const swingCurve = Math.sin(easedProgress * Math.PI);
-    const thrustCurve = easedProgress < 0.4 
-      ? easedProgress * 2.5 // Fast initial thrust
-      : 1 - ((easedProgress - 0.4) * 1.67); // Slower return
-    
-    // Apply more dramatic movement
-    // Move in the opposite direction of the swing for realistic physics
-    const offsetX = -x * maxOffsetX * swingCurve;
-    const offsetY = -y * maxOffsetY * swingCurve;
-    
-    // Add a dramatic forward thrust at the start of the swing
-    const offsetZ = maxOffsetZ * thrustCurve * Math.max(0.2, Math.abs(x) + Math.abs(y));
-    
-    return [offsetX, offsetY, offsetZ];
+    // Check if this is a special slash animation
+    if (swingType === 'slash') {
+      // Custom orbital path for the slash animation
+      // We want the sword to move in an arc that:
+      // 1. Starts from top-right
+      // 2. Swings down and to the left in a curved path
+      // 3. Returns to normal position
+      
+      if (progress < 0.2) {
+        // Wind-up phase (0-20% of animation) - move to starting position
+        // Normalize progress to 0-1 range for this phase
+        const phaseProgress = progress / 0.2;
+        const windupEase = easeInQuad(phaseProgress);
+        
+        // Starting position in top-right - more exaggerated
+        const startX = 2.0;  // Further right
+        const startY = 1.5;  // Higher up
+        const startZ = -1.5; // More forward
+        
+        // Move to wind-up position
+        const posX = startX * windupEase;
+        const posY = startY * windupEase;
+        const posZ = startZ * windupEase;
+        
+        return [posX, posY, posZ];
+      } else {
+        // Main swing phase (20-100% of animation)
+        // Normalize progress to 0-1 range for this phase
+        const phaseProgress = (progress - 0.2) / 0.8;
+        
+        // Calculate the orbital arc from top-right to bottom-left
+        // Use parametric equations to define the arc
+        
+        // Start with wind-up position - more exaggerated
+        const startX = 2.0;  // Further right
+        const startY = 1.5;  // Higher up
+        const startZ = -1.5; // More forward
+        
+        // End with extended follow-through position - more exaggerated
+        const endX = -2.0;  // Further left
+        const endY = -1.2;  // More down
+        const endZ = -0.3;  // More forward
+        
+        // Use a stronger easing function for the slash
+        const slashEase = easeOutQuint(phaseProgress);
+        
+        // Add a slight forward thrust during the middle of the swing
+        let thrustZ = 0;
+        if (phaseProgress > 0.2 && phaseProgress < 0.7) {
+          // Normalize to 0-1 range for this sub-phase
+          const thrustProgress = (phaseProgress - 0.2) / 0.5;
+          // Parabolic curve for thrust (rises then falls)
+          thrustZ = -0.5 * Math.sin(thrustProgress * Math.PI);
+        }
+        
+        // Calculate position along the arc
+        const posX = startX + (endX - startX) * slashEase;
+        const posY = startY + (endY - startY) * slashEase;
+        const posZ = startZ + (endZ - startZ) * slashEase + thrustZ;
+        
+        return [posX, posY, posZ];
+      }
+    } else {
+      // Original position calculation for default swing
+      // Extract direction components
+      const { x, y } = direction;
+      
+      // Calculate position offset based on direction
+      // Use an easing function for the swing (ease-out)
+      const easedProgress = easeOutCubic(progress);
+      
+      // Maximum position offset
+      const maxOffsetX = 0.8; // Horizontal movement
+      const maxOffsetY = 0.6; // Vertical movement
+      const maxOffsetZ = 0.5; // Forward thrust
+      
+      // Calculate movement curve - quick thrust followed by slower return
+      const swingCurve = Math.sin(easedProgress * Math.PI);
+      const thrustCurve = easedProgress < 0.4 
+        ? easedProgress * 2.5 // Fast initial thrust
+        : 1 - ((easedProgress - 0.4) * 1.67); // Slower return
+      
+      // Apply movement
+      const offsetX = -x * maxOffsetX * swingCurve;
+      const offsetY = -y * maxOffsetY * swingCurve;
+      
+      // Add a forward thrust at the start of the swing
+      const offsetZ = maxOffsetZ * thrustCurve * Math.max(0.2, Math.abs(x) + Math.abs(y));
+      
+      return [offsetX, offsetY, offsetZ];
+    }
   };
 
-  // Easing function for natural swing motion
+  // Easing functions for more natural animation
   const easeOutCubic = (x) => {
     return 1 - Math.pow(1 - x, 3);
+  };
+
+  const easeOutQuint = (x) => {
+    return 1 - Math.pow(1 - x, 5);
+  };
+
+  const easeOutBack = (x) => {
+    const c1 = 1.70158;
+    const c3 = c1 + 1;
+    return 1 + c3 * Math.pow(x - 1, 3) + c1 * Math.pow(x - 1, 2);
+  };
+
+  const easeInQuad = (x) => {
+    return x * x;
   };
 
   // Render the appropriate model based on item type
@@ -390,10 +504,10 @@ const AcquiredItem = ({ item }) => {
     const config = adjustedConfig || baseConfig;
   
     // IMPORTANT: Item-specific rendering with outlines
-    switch (item.name) {
+    switch(item.name) {
       case 'Lantern':
         return (
-          <group scale={[config.scale, config.scale, config.scale]}>
+          <group position={[0, .2, 0]} scale={[config.scale, config.scale, config.scale]}>
             {/* Use outlined lantern with white outline */}
             <OutlinedLantern outlineThickness={0.05} />
             
@@ -412,8 +526,8 @@ const AcquiredItem = ({ item }) => {
           <group scale={[config.scale, config.scale, config.scale]}>
             {/* Wrap in an extra group for swing animation */}
             <group
-              rotation={calculateSwordSwingRotation(swingDirection, swingProgress)}
-              position={calculateSwordSwingPosition(swingDirection, swingProgress)}
+              rotation={calculateSwordSwingRotation(swingDirection, swingProgress, swingType)}
+              position={calculateSwordSwingPosition(swingDirection, swingProgress, swingType)}
             >
               {/* Add an additional offset to improve sword swing pivot point */}
               <group position={[0, -0.2, 0]}>
