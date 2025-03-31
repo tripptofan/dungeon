@@ -2,12 +2,12 @@ import React, { useRef } from 'react';
 import { useGLTF } from '@react-three/drei';
 import * as THREE from 'three';
 
-// Component that renders a wooden sword with an outline
+// Component that renders a wooden sword with a white outline
 const OutlinedSword = ({ position = [0, 0, 0], rotation = [0, 0, 0], scale = 1, outlineThickness = 0.05 }) => {
   // Load the sword model
   const { nodes, materials } = useGLTF('/woodenSword-smallerTextures.glb');
   
-  // Calculate the outline scale factor
+  // Calculate the outline scale factor - ensure consistent thickness
   const outlineScale = typeof scale === 'number'
     ? scale * (1 + outlineThickness)
     : [
@@ -18,14 +18,14 @@ const OutlinedSword = ({ position = [0, 0, 0], rotation = [0, 0, 0], scale = 1, 
       
   return (
     <group position={position} rotation={rotation}>
-      {/* Outline - slightly larger black version rendered first */}
+      {/* Outline - slightly larger WHITE version rendered first */}
       <mesh 
         geometry={nodes.SWORD.geometry} 
         scale={outlineScale} 
         renderOrder={1}
       >
         <meshBasicMaterial 
-          color="#000000" 
+          color="#FFFFFF" 
           side={THREE.BackSide} 
           depthTest={true} 
         />

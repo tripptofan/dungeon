@@ -124,26 +124,26 @@ const ItemObject = ({ experience, isActive, isInteractive }) => {
       case 'Lantern':
         return (
           <group position={[0, .2, 0]} scale={[modelScale, modelScale, modelScale]}>
-            {/* Use outlined lantern instead of the regular one */}
+            {/* Use outlined lantern with white outline */}
             <OutlinedLantern outlineThickness={0.05} />
           </group>
         );
       case 'Toy Wooden Sword':
         return (
           <group scale={[modelScale, modelScale, modelScale]} rotation={[0, 0, Math.PI / 4]}>
-            {/* Use outlined sword instead of the regular one */}
+            {/* Use outlined sword with white outline */}
             <OutlinedSword outlineThickness={0.05} />
           </group>
         );
       default:
-        // Fallback to a box with outline for unknown items
+        // Fallback to a box with white outline for unknown items
         return (
           <group>
-            {/* Outline - slightly larger black box */}
+            {/* Outline - slightly larger white box */}
             <mesh scale={[0.52, 0.52, 0.52]} renderOrder={1}>
               <boxGeometry />
               <meshBasicMaterial 
-                color="#000000" 
+                color="#FFFFFF" 
                 side={THREE.BackSide} 
                 depthTest={true} 
               />

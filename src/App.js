@@ -145,7 +145,7 @@ function App() {
             <AcquiredItems />
             
             {/* Keep the test objects for comparison */}
-            <TestOutlineObjects />
+            {/* <TestOutlineObjects /> */}
           </Suspense>
         </Canvas>
         

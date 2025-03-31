@@ -75,7 +75,7 @@ const CameraShake = () => {
       
       // Check if shake duration has elapsed
       if (shakeConfig.current.duration >= shakeConfig.current.maxDuration) {
-        // Reset camera to original position
+        // Reset camera to npm ruoriginal position
         camera.position.copy(originalPosition.current);
         invalidate();
         

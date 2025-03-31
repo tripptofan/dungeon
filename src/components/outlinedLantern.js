@@ -3,12 +3,12 @@ import { useGLTF } from '@react-three/drei';
 import * as THREE from 'three';
 import FlickeringFlame from './flickeringFlame';
 
-// Component that renders a lantern with an outline
+// Component that renders a lantern with a white outline
 const OutlinedLantern = ({ position = [0, 0, 0], rotation = [0, 0, 0], scale = 1, outlineThickness = 0.05 }) => {
   // Load the lantern model
   const { nodes, materials } = useGLTF('/Lantern-smallTextures.glb');
   
-  // Calculate the outline scale factor
+  // Calculate the outline scale factor - make it more consistent across all parts
   const outlineScale = typeof scale === 'number'
     ? scale * (1 + outlineThickness)
     : [
@@ -36,14 +36,14 @@ const OutlinedLantern = ({ position = [0, 0, 0], rotation = [0, 0, 0], scale = 1
       {/* Render all non-glass parts with outlines */}
       {parts.map((part) => (
         <React.Fragment key={part.name}>
-          {/* Outline - slightly larger black version rendered first */}
+          {/* Outline - slightly larger WHITE version rendered first */}
           <mesh 
             geometry={nodes[part.name].geometry} 
             scale={outlineScale} 
             renderOrder={1}
           >
             <meshBasicMaterial 
-              color="#000000" 
+              color="#FFFFFF" 
               side={THREE.BackSide} 
               depthTest={true} 
             />

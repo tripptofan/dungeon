@@ -1,15 +1,16 @@
 import React from 'react';
 import * as THREE from 'three';
 
-// Component that creates an outline by rendering a slightly larger black version of the geometry
-const OutlinedObject = ({ geometry, position = [0, 0, 0], rotation = [0, 0, 0], scale = 1, color = '#ffffff', outlineColor = '#000000', outlineThickness = 0.05 }) => {
+// Component that creates an outline by rendering a slightly larger white version of the geometry
+const OutlinedObject = ({ geometry, position = [0, 0, 0], rotation = [0, 0, 0], scale = 1, color = '#ffffff', outlineColor = '#FFFFFF', outlineThickness = 0.05 }) => {
   // Calculate the outline scale factor based on the original scale and outline thickness
+  // Use a consistent multiplier to ensure even outline thickness
   const outlineScale = typeof scale === 'number' 
-    ? scale + outlineThickness 
+    ? scale * (1 + outlineThickness)
     : [
-        scale[0] + outlineThickness,
-        scale[1] + outlineThickness, 
-        scale[2] + outlineThickness
+        scale[0] * (1 + outlineThickness),
+        scale[1] * (1 + outlineThickness), 
+        scale[2] * (1 + outlineThickness)
       ];
   
   return (
