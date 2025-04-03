@@ -78,6 +78,14 @@ const MessageService = {
       MessageService.showMessage(message, options);
     }, delay);
   },
+  showPrizeInteractionMessage: () => {
+    const store = useGameStore.getState();
+    
+    store.setCurrentMessage("A mysterious artifact rests in your hands. Its secrets await...");
+    store.setShowMessageOverlay(true);
+    store.setMessageBoxVisible(true);
+    store.setTypingInProgress(true);
+  },
   
   /**
    * Show an enemy encounter message

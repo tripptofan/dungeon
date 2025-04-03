@@ -1,15 +1,39 @@
-import React, { useRef, useState, useEffect } from 'react';
-import { useFrame, useThree } from '@react-three/fiber';
+import React, { useRef, useState, useEffect, useMemo } from 'react';
+import { extend, useFrame, useThree, useLoader } from '@react-three/fiber';
 import * as THREE from 'three';
+import { Mesh } from 'three';
 import useGameStore from '../store';
+import MessageService from '../utils/messageService';
+
+// Extend Three.js classes to resolve button interaction warning
+extend({ Mesh });
 
 // Static array to store refs to the prize for outlining
 export const prizeRefs = [];
 
+// Text rendering configuration
+const TEXT_CONFIG = {
+  fontSize: 24,
+  fontFamily: 'Georgia, serif',
+  textColor: '#333',
+  lineHeight: 1.3,
+  padding: 10,
+  maxWidth: 600, // Narrower text container
+  textAlign: 'center'
+};
+
 const Prize = () => {
   const prizeRef = useRef();
+  const meshRef = useRef();
   const { camera } = useThree();
   const [hovered, setHovered] = useState(false);
+  
+  // Load the paper texture
+  const paperTexture = useLoader(THREE.TextureLoader, '/paper.webp');
+  
+  // Create canvas texture for prize text
+  const textCanvasRef = useRef(document.createElement('canvas'));
+  const textTextureRef = useRef(null);
   
   // Use refs instead of state for animation values to avoid re-renders
   const animationStateRef = useRef('hidden'); // hidden, rising, floating, inspecting
@@ -17,6 +41,7 @@ const Prize = () => {
   const prizePositionRef = useRef(null);
   const initializedRef = useRef(false);
   const lastUpdateTimeRef = useRef(0);
+  const inspectTimerRef = useRef(null);
   
   // Get relevant state from the store
   const prizeState = useGameStore(state => state.prizeState);
@@ -24,15 +49,105 @@ const Prize = () => {
   const setPrizeClicked = useGameStore(state => state.setPrizeClicked);
   const chestOpened = useGameStore(state => state.chestOpened);
   const showMessageOverlay = useGameStore(state => state.showMessageOverlay);
-
-  // Get chest position from the experience data - do this once
+  
+  // Get the prize text from the experience
   const experiences = useGameStore(state => state.experienceScript.experiences);
   const chestExperience = experiences.find(exp => exp.type === 'chest');
+  const prizeText = chestExperience?.reward?.prizeText || 'No text found';
+  
+  // Get chest position from the experience data - do this once
   const chestPosition = useRef(
     chestExperience 
       ? { x: chestExperience.position.x, z: chestExperience.position.z + 4 }
       : { x: 5, z: 86 }
   ).current;
+  
+// Create canvas texture for text
+useEffect(() => {
+    const canvas = textCanvasRef.current;
+    canvas.width = 1024;
+    canvas.height = 512;
+    const ctx = canvas.getContext('2d');
+    
+    // Clear canvas
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    
+    // Calculate crop margins (3% on each side)
+    const cropMargin = canvas.width * 0.03;
+    
+    // Set text styles
+    ctx.font = `${TEXT_CONFIG.fontSize}px ${TEXT_CONFIG.fontFamily}`;
+    ctx.fillStyle = TEXT_CONFIG.textColor;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    
+    // Wrap text logic
+    const wrapText = (text, x, y, maxWidth, lineHeight) => {
+      const words = text.split(' ');
+      let line = '';
+      const lines = [];
+      
+      words.forEach((word) => {
+        const testLine = line + word + ' ';
+        const metrics = ctx.measureText(testLine);
+        
+        if (metrics.width > maxWidth && line !== '') {
+          lines.push(line);
+          line = word + ' ';
+        } else {
+          line = testLine;
+        }
+      });
+      
+      if (line) lines.push(line);
+      
+      // Render lines
+      const totalHeight = lines.length * lineHeight;
+      const startY = y - totalHeight / 2;
+      
+      lines.forEach((l, index) => {
+        ctx.fillText(l, x, startY + index * lineHeight);
+      });
+    };
+    
+    // Draw text in the center of the cropped canvas, slightly higher
+    wrapText(
+      prizeText, 
+      canvas.width / 2, 
+      canvas.height / 2 - canvas.height * 0.05, // Slightly higher 
+      canvas.width - (cropMargin * 2), 
+      TEXT_CONFIG.fontSize * TEXT_CONFIG.lineHeight
+    );
+    
+    // Create or update texture
+    if (!textTextureRef.current) {
+      textTextureRef.current = new THREE.CanvasTexture(canvas);
+      textTextureRef.current.minFilter = THREE.LinearFilter;
+      textTextureRef.current.magFilter = THREE.LinearFilter;
+    } else {
+      textTextureRef.current.needsUpdate = true;
+    }
+  }, [prizeText]);
+
+  // Handle timing for inspect state and message overlay
+  useEffect(() => {
+    if (prizeState === 'inspecting') {
+      // Disable any 3D message overlay
+      useGameStore.getState().setShowMessageOverlay(false);
+      useGameStore.getState().setMessageBoxVisible(false);
+      
+      // Show prize interaction overlay after 3 seconds
+      inspectTimerRef.current = setTimeout(() => {
+        MessageService.showPrizeInteractionMessage();
+      }, 3000);
+      
+      return () => {
+        if (inspectTimerRef.current) {
+          clearTimeout(inspectTimerRef.current);
+        }
+      };
+    }
+  }, [prizeState]);
   
   // Add ref to the static array when mounted, remove when unmounted
   useEffect(() => {
@@ -74,6 +189,22 @@ const Prize = () => {
       setPrizeState('rising');
     }
   }, [chestOpened, prizeState, setPrizeState]);
+  
+  // Handle timing for inspect state and message overlay
+  useEffect(() => {
+    if (prizeState === 'inspecting') {
+      // Show message overlay after 3 seconds
+      inspectTimerRef.current = setTimeout(() => {
+        MessageService.showPrizeInteractionMessage();
+      }, 3000);
+      
+      return () => {
+        if (inspectTimerRef.current) {
+          clearTimeout(inspectTimerRef.current);
+        }
+      };
+    }
+  }, [prizeState]);
   
   // Handle the prize animation (optimized version)
   useFrame((state, delta) => {
@@ -133,11 +264,11 @@ const Prize = () => {
       const cameraDirection = new THREE.Vector3(0, 0, -1);
       cameraDirection.applyQuaternion(camera.quaternion);
       
-      // Position the prize 1 unit in front of the camera
+      // Position the prize further from the camera to ensure full view
       const targetPos = {
-        x: camera.position.x + cameraDirection.x * 1,
+        x: camera.position.x + cameraDirection.x * 1.5, // Moved further back
         y: camera.position.y, // Same height as camera
-        z: camera.position.z + cameraDirection.z * 1
+        z: camera.position.z + cameraDirection.z * 1.5
       };
       
       // Smoothly move toward the target position (lerp)
@@ -175,8 +306,9 @@ const Prize = () => {
         prizePositionRef.current?.z || chestPosition.z
       ]}
     >
-      {/* Prize object - now tall instead of wide - rotated to appear as a tall document/note */}
+      {/* Prize object - tall document with custom material to show texture */}
       <mesh 
+        ref={meshRef}
         rotation={[0, Math.PI / 2, Math.PI/2]} // Rotate 90 degrees to make it tall instead of wide
         onClick={(e) => {
           e.stopPropagation();
@@ -190,27 +322,63 @@ const Prize = () => {
         onPointerOut={() => setHovered(false)}
         renderOrder={2000} // Ensure it renders on top when in inspection mode
       >
-        <boxGeometry args={[1.0, 0.02, 1.5]} /> {/* Swapped dimensions to make it tall */}
-        <meshStandardMaterial 
-          color="#f0e68c" // Golden color
+        <boxGeometry args={[1.5, 0.02, 1]} /> {/* Taller and narrower */}
+        <shaderMaterial 
+          transparent={false} // Fully opaque
+          side={THREE.DoubleSide}
+          uniforms={{
+            paperTexture: { value: paperTexture },
+            textTexture: { value: textTextureRef.current },
+            opacity: { value: 1.0 }, // Fully opaque
+            glowIntensity: { value: glowIntensity }
+          }}
+          vertexShader={`
+            varying vec2 vUv;
+            varying vec3 vNormal;
+            varying vec3 vViewDirection;
+            
+            void main() {
+              // Rotate UV coordinates 90 degrees clockwise
+              vUv = vec2(1.0 - uv.y, uv.x);
+              
+              vNormal = normalize(normalMatrix * normal);
+              vec4 modelViewPosition = modelViewMatrix * vec4(position, 1.0);
+              vViewDirection = normalize(-modelViewPosition.xyz);
+              gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+            }
+          `}
+          fragmentShader={`
+            uniform sampler2D paperTexture;
+            uniform sampler2D textTexture;
+            uniform float opacity;
+            uniform float glowIntensity;
+            
+            varying vec2 vUv;
+            varying vec3 vNormal;
+            varying vec3 vViewDirection;
+            
+            void main() {
+              // Check if the surface is facing the camera
+              float facing = dot(vNormal, vViewDirection);
+              
+              // Only show texture on front-facing side
+              if (facing > 0.0) {
+                vec4 paperColor = texture2D(paperTexture, vUv);
+                vec4 textColor = texture2D(textTexture, vUv);
+                
+                // Blend text with paper texture
+                vec3 finalColor = mix(paperColor.rgb, textColor.rgb, textColor.a);
+                gl_FragColor = vec4(finalColor, 1.0);
+              } else {
+                // Golden color for other sides
+                vec3 goldenColor = vec3(0.941, 0.902, 0.549); // #f0e68c
+                gl_FragColor = vec4(goldenColor * (1.0 + glowIntensity * 0.5), 1.0);
+              }
+            }
+          `}
+          emissiveMap={paperTexture}
           emissive="#f0e68c"
-          emissiveIntensity={glowIntensity}
-          metalness={0.7}
-          roughness={0.2}
-        />
-      </mesh>
-      
-      {/* Add more paper/document-like visuals */}
-      <mesh
-        rotation={[0, Math.PI / 2, Math.PI/2]} // Same rotation as parent
-        position={[0, 0, 0.001]} // Slightly in front
-        renderOrder={2001}
-      >
-        <planeGeometry args={[0.95, 1.45]} /> {/* Slightly smaller than the base */}
-        <meshBasicMaterial 
-          color="#fff8e1" // Parchment/paper color
-          transparent={true}
-          opacity={0.8}
+          emissiveIntensity={0.2} // Slight emission
         />
       </mesh>
       

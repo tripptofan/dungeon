@@ -80,6 +80,7 @@ const useGameStore = create((set, get) => ({
   wallLocations: [],
   isMobile: false,
   
+  
   // Experience content - simplified flow with just item interactions and shaking events
   experienceScript: {
     "prologue": {
@@ -143,6 +144,7 @@ const useGameStore = create((set, get) => ({
         "reward": {
           "name": "Ancient Artifact",
           "text": "An artifact of mysterious origins. Its purpose remains unknown, but you feel a strange connection to it.",
+          "prizeText": "In the silence of forgotten chambers,\ntruth whispers secrets long unheard.\nSome paths are written in shadows,\nsome destinies etched in silence.",
           "color": "#FFD700" // Gold color
         }
       }
@@ -492,14 +494,16 @@ const useGameStore = create((set, get) => ({
           }
         } 
         else if (experience.type === 'item' && state.currentMessage === experience.item.text) {
-          // Item text dismissed, make item clickable
+          // Item text dismissed, make item clickable - FIXED VERSION
+          console.log("Item message dismissed, making item clickable");
+          
+          // Always set the correct animation phase and ensure item is visible
           set({
             showMessageOverlay: false,
             messageBoxVisible: false,
-            showItemDisplay: true, // Always keep this true for items
-            itemAnimationPhase: 'clickable',
-            // Very important: Ensure force visibility remains on for sword or if we have items
-            forceItemsVisible: forceItemsVisible || isSwordExperience || hasSword || hasAcquiredItems
+            showItemDisplay: true,
+            itemAnimationPhase: 'clickable', // Explicitly set to clickable
+            forceItemsVisible: true // Ensure item remains visible
           });
         }
         else if (experience.type === 'enemy' && state.currentMessage === experience.message) {
@@ -523,6 +527,19 @@ const useGameStore = create((set, get) => ({
         }
       }
     }
+  },
+  debugItemState: () => {
+    const state = get();
+    console.log({
+      currentExperienceIndex: state.currentExperienceIndex,
+      currentExperience: state.experienceScript.experiences[state.currentExperienceIndex],
+      showMessageOverlay: state.showMessageOverlay,
+      messageBoxVisible: state.messageBoxVisible,
+      itemAnimationPhase: state.itemAnimationPhase,
+      showItemDisplay: state.showItemDisplay,
+      forceItemsVisible: state.forceItemsVisible,
+      inventory: state.inventory
+    });
   },
   
   // Handle action overlay interactions

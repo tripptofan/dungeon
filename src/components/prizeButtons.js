@@ -1,6 +1,11 @@
 import React, { memo, useMemo } from 'react';
+import { extend } from '@react-three/fiber';
 import styled from 'styled-components';
+import { Mesh, BufferGeometry, Material } from 'three';
 import useGameStore from '../store';
+
+// Extend Three.js classes to resolve button interaction warning
+extend({ Mesh, BufferGeometry, Material });
 
 const ButtonsContainer = styled.div`
   position: fixed;
