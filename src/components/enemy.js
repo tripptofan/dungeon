@@ -2,6 +2,7 @@ import React, { useRef, useEffect, useState } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 import useGameStore from '../store';
+import MessageService from '../utils/messageService';
 
 const Enemy = () => {
   const enemyRef = useRef();
@@ -189,10 +190,8 @@ const Enemy = () => {
           
           // Wait a moment before showing the message
           setTimeout(() => {
-            useGameStore.getState().setShowMessageOverlay(true);
-            useGameStore.getState().setMessageBoxVisible(true);
-            useGameStore.getState().setCurrentMessage("Not all problems can be solved with words....");
-            useGameStore.getState().setTypingInProgress(true);
+            // Use the MessageService instead of direct store access
+            MessageService.showEnemyMessage();
           }, 500);
         }
       }

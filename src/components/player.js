@@ -2,6 +2,15 @@ import React, { useRef, useEffect, useState } from 'react';
 import { useThree, useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import useGameStore from '../store';
+import MessageService from '../utils/messageService';
+
+// Constants for player movement
+const INITIAL_POSITION_MULTIPLIER = 1;
+const PLAYER_HEIGHT = 2;
+const MOVEMENT_THRESHOLD = 0.1;
+const BOBBING_SCALE = 0.05;
+const BOB_RESET_FACTOR = 0.8;
+const BOB_MINIMUM = 0.001;
 
 const Player = () => {
   const { camera, gl, scene, invalidate } = useThree();
@@ -28,14 +37,14 @@ const Player = () => {
   useEffect(() => {
     if (!playerRef.current || initialized) return;
     
-    const initialPosition = 1 * tileSize;
+    const initialPosition = INITIAL_POSITION_MULTIPLIER * tileSize;
     
     // Set player position and rotation
-    playerRef.current.position.set(initialPosition, 2, initialPosition);
+    playerRef.current.position.set(initialPosition, PLAYER_HEIGHT, initialPosition);
     playerRef.current.rotation.set(0, Math.PI, 0);
     
     // Set camera position and rotation
-    camera.position.set(initialPosition, 2, initialPosition);
+    camera.position.set(initialPosition, PLAYER_HEIGHT, initialPosition);
     camera.rotation.set(0, Math.PI, 0);
     
     // Explicitly tell Three.js to update matrices
@@ -51,7 +60,7 @@ const Player = () => {
     // Update position in store
     setPlayerPosition({
       x: initialPosition,
-      y: 2,
+      y: PLAYER_HEIGHT,
       z: initialPosition
     });
   }, [camera, tileSize, setPlayerPosition, initialized, invalidate]);
@@ -85,12 +94,12 @@ const Player = () => {
       const distance = currentPos.distanceTo(targetPos);
       
       // Move if not at destination
-      if (distance > 0.1) {
+      if (distance > MOVEMENT_THRESHOLD) {
         // Update the head bob timer when moving
         headBobRef.current.timer += delta * 10; // Control bob speed
         
-        // Calculate the bobbing using a sine wave (0.05 for subtle effect)
-        const bobAmount = Math.sin(headBobRef.current.timer) * 0.05;
+        // Calculate the bobbing using a sine wave
+        const bobAmount = Math.sin(headBobRef.current.timer) * BOBBING_SCALE;
         headBobRef.current.bobHeight = bobAmount;
         
         // Use constant movement speed regardless of distance
@@ -147,31 +156,24 @@ const Player = () => {
             
             // For item experiences, show the item text
             setTimeout(() => {
-              // Even more aggressive approach to ensure items stay visible
-              if (isSwordExperience) {
-                // Special handling for sword experience
-                useGameStore.getState().setForceItemsVisible(true);
-              }
+              // Use the MessageService instead of direct store actions
+              const options = {
+                preserveItemVisibility: true,
+                forceSwordVisibility: isSwordExperience
+              };
               
-              // Regular overlay display
-              useGameStore.getState().setShowMessageOverlay(true);
-              useGameStore.getState().setMessageBoxVisible(true);
-              useGameStore.getState().setCurrentMessage(currentExperience.item.text);
-              useGameStore.getState().setTypingInProgress(true);
-              // Multiple item visibility flags to be super safe
-              useGameStore.getState().setShowItemDisplay(true);
+              MessageService.showMessage(currentExperience.item.text, options);
             }, 100); // Very short delay for better feel
           } else if (currentExperience.type === 'shake') {
             // Start the camera shake
             useGameStore.getState().startCameraShake(
               currentExperience.shakeConfig,
               () => {
-                // After shake completes, show the message
+                // After shake completes, show the message using MessageService
                 setTimeout(() => {
-                  useGameStore.getState().setShowMessageOverlay(true);
-                  useGameStore.getState().setMessageBoxVisible(true);
-                  useGameStore.getState().setCurrentMessage(currentExperience.shakeConfig.message);
-                  useGameStore.getState().setTypingInProgress(true);
+                  MessageService.showMessage(currentExperience.shakeConfig.message, {
+                    preserveItemVisibility: true
+                  });
                 }, 500); // Short delay after shake completes
               }
             );
@@ -183,9 +185,9 @@ const Player = () => {
       }
     } else {
       // When not moving, smoothly reset any remaining head bob
-      if (Math.abs(headBobRef.current.bobHeight) > 0.001) {
+      if (Math.abs(headBobRef.current.bobHeight) > BOB_MINIMUM) {
         // Reduce bob height gradually
-        headBobRef.current.bobHeight *= 0.8;
+        headBobRef.current.bobHeight *= BOB_RESET_FACTOR;
         
         // Apply diminishing head bob to camera only
         camera.position.y = playerRef.current.position.y + headBobRef.current.bobHeight;
@@ -211,10 +213,10 @@ const Player = () => {
   return (
     <mesh 
       ref={playerRef} 
-      position={[1 * tileSize, 2, tileSize]}
+      position={[INITIAL_POSITION_MULTIPLIER * tileSize, PLAYER_HEIGHT, tileSize]}
       onUpdate={() => invalidate()}
     >
-      <boxGeometry args={[1, 2, 1]} />
+      <boxGeometry args={[1, PLAYER_HEIGHT, 1]} />
       <meshStandardMaterial color="orange" transparent opacity={0.0} /> {/* Make player invisible */}
     </mesh>
   );

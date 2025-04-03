@@ -2,6 +2,7 @@ import React, { useRef, useState, useEffect, memo } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import useGameStore from '../store';
+import MessageService from '../utils/messageService';
 
 // Static array to store refs to chest for outlining (similar to other items)
 export const treasureChestRefs = [];
@@ -23,10 +24,6 @@ const TreasureChest = () => {
   
   // Get actions from store
   const setChestOpened = useGameStore(state => state.setChestOpened);
-  const setMessageText = useGameStore(state => state.setCurrentMessage);
-  const showMessage = useGameStore(state => state.setShowMessageOverlay);
-  const setMessageBoxVisible = useGameStore(state => state.setMessageBoxVisible);
-  const setTypingInProgress = useGameStore(state => state.setTypingInProgress);
   
   // Initialize chest position once on mount
   useEffect(() => {
@@ -78,10 +75,8 @@ const TreasureChest = () => {
           // Mark message as sent to prevent repeated messages
           messageSentRef.current = true;
           
-          setMessageText("A reward for the hero...");
-          showMessage(true);
-          setMessageBoxVisible(true);
-          setTypingInProgress(true);
+          // Use the MessageService to show the chest message
+          MessageService.showChestMessage();
         }
       }, 800); // Slightly longer delay for better timing
       
@@ -91,11 +86,7 @@ const TreasureChest = () => {
     currentExperienceIndex, 
     experiences, 
     chestOpened, 
-    isMovingCamera, 
-    setMessageText, 
-    showMessage, 
-    setMessageBoxVisible, 
-    setTypingInProgress
+    isMovingCamera
   ]);
   
   // Handle chest click

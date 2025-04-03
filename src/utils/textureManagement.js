@@ -8,6 +8,9 @@ const TextureContext = createContext({});
 // Cache for textures - improves performance by preventing duplicate loads
 const textureCache = new Map();
 
+// Cache for LoD materials - store both high and low detail versions
+const materialCache = new Map();
+
 /**
  * Utility function to load a texture with caching
  * @param {string} path - The texture file path
@@ -84,13 +87,20 @@ class TextureSets {
   }
 
   /**
-   * Create a material from a texture set
+   * Create a material from a texture set with LoD support
    * @param {string} setName - The texture set name
    * @param {Object} materialOptions - Material configuration options
    * @param {Object} textureOptions - Texture configuration options
+   * @param {boolean} forceHighDetail - Force high detail regardless of LoD settings
    * @returns {THREE.Material} The created material
    */
-  createMaterial(setName, materialOptions = {}, textureOptions = {}) {
+  createMaterial(setName, materialOptions = {}, textureOptions = {}, forceHighDetail = false) {
+    // Check if we already have this material in cache
+    const cacheKey = `${setName}-${forceHighDetail ? 'high' : 'low'}-${JSON.stringify(materialOptions)}`;
+    if (materialCache.has(cacheKey)) {
+      return materialCache.get(cacheKey);
+    }
+
     const textureSet = this.loadSet(setName, textureOptions);
     if (!textureSet) return null;
 
@@ -103,11 +113,27 @@ class TextureSets {
     // Create the material with textures and options
     const material = new THREE.MeshStandardMaterial({
       map: textureSet.color,
-      aoMap: textureSet.ao,
-      normalMap: textureSet.normal,
+      // For low detail, omit normal and ao maps
+      ...(forceHighDetail ? {
+        aoMap: textureSet.ao,
+        normalMap: textureSet.normal,
+      } : {}),
       ...options
     });
 
+    // Adjust material properties for low detail version
+    if (!forceHighDetail) {
+      // Simplify roughness/metalness for better performance
+      material.roughness = Math.min(material.roughness + 0.2, 1.0);
+      material.metalness = Math.max(material.metalness - 0.1, 0);
+      
+      // Disable normal map effects even if a map was provided
+      material.normalScale = new THREE.Vector2(0, 0);
+      material.aoMapIntensity = 0;
+    }
+
+    // Cache the material
+    materialCache.set(cacheKey, material);
     return material;
   }
 
@@ -200,12 +226,18 @@ export const TextureProvider = ({ children, onProgress }) => {
     loadAllSets();
   }, [textureSets, invalidate, onProgress]);
   
-  // Create shared materials - these are created once and reused
+  // Create shared materials - both high and low detail versions
   const materials = useMemo(() => {
     return {
-      floorMaterial: textureSets.createMaterial('floor'),
-      wallMaterial: textureSets.createMaterial('wall'),
-      doorMaterial: textureSets.createMaterial('door')
+      // High detail materials (with normal maps and ao maps)
+      floorMaterial: textureSets.createMaterial('floor', {}, {}, true),
+      wallMaterial: textureSets.createMaterial('wall', {}, {}, true),
+      doorMaterial: textureSets.createMaterial('door', {}, {}, true),
+      
+      // Low detail materials (without normal maps and ao maps)
+      floorMaterialLod: textureSets.createMaterial('floor', {}, {}, false),
+      wallMaterialLod: textureSets.createMaterial('wall', {}, {}, false),
+      doorMaterialLod: textureSets.createMaterial('door', {}, {}, false)
     };
   }, [textureSets]);
   
@@ -217,7 +249,7 @@ export const TextureProvider = ({ children, onProgress }) => {
       isLoading,
       loadingProgress,
       // Helper function to create a custom material
-      createCustomMaterial: (setName, options) => textureSets.createMaterial(setName, options)
+      createCustomMaterial: (setName, options, highDetail = true) => textureSets.createMaterial(setName, options, {}, highDetail)
     };
   }, [textureSets, materials, isLoading, loadingProgress]);
   
