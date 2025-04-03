@@ -32,6 +32,11 @@ const useGameStore = create((set, get) => ({
   itemAnimationPhase: 'hidden', // 'hidden', 'clickable', 'acquiring', 'acquired'
   forceItemsVisible: false, // Force items to be visible regardless of other state
   
+  // Chest and prize state
+  chestOpened: false,
+  prizeState: 'hidden', // 'hidden', 'rising', 'floating', 'inspecting'
+  prizeClicked: false,
+  
   // Enemy state
   enemyClickable: false,
   enemyHit: false,
@@ -134,7 +139,7 @@ const useGameStore = create((set, get) => ({
         "experience": 6,
         "position": { x: 5, y: 0, z: 86 }, // UPDATED: Position for player to stop BEFORE the chest
         "type": "chest",
-        "message": "You found a treasure chest! It contains untold riches... or perhaps something more valuable.",
+        "message": "A reward for the hero...",
         "reward": {
           "name": "Ancient Artifact",
           "text": "An artifact of mysterious origins. Its purpose remains unknown, but you feel a strange connection to it.",
@@ -158,6 +163,11 @@ const useGameStore = create((set, get) => ({
   setTileLocations: (tiles) => set({ tileLocations: tiles }),
   setWallLocations: (walls) => set({ wallLocations: walls }),
   setIsMobile: (value) => set({ isMobile: value }),
+  
+  // Prize and chest state controls
+  setChestOpened: (value) => set({ chestOpened: value }),
+  setPrizeState: (state) => set({ prizeState: state }),
+  setPrizeClicked: (value) => set({ prizeClicked: value }),
   
   // Enemy state control
   setEnemyClickable: (value) => set({ enemyClickable: value }),
@@ -502,15 +512,13 @@ const useGameStore = create((set, get) => ({
             enemyClickable: true // Make enemy clickable
           });
         }
-
-        else if (experience.type === 'chest') {
+        else if (experience.type === 'chest' && state.currentMessage === experience.message) {
+          // Chest message dismissed, make chest clickable
           set({
-            showMessageOverlay: true,
-            messageBoxVisible: true,
-            currentMessage: experience.message,
-            typingInProgress: true,
-            showItemDisplay: true,
-            forceItemsVisible: true
+            showMessageOverlay: false,
+            messageBoxVisible: false,
+            showItemDisplay: true, // Keep items visible
+            forceItemsVisible: true // Force items visible
           });
         }
       }

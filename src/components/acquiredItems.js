@@ -13,13 +13,13 @@ export const acquiredItemRefs = [];
 const ACQUIRED_ITEMS_CONFIG = {
   "Lantern": {
     // These are base values that will be modified based on viewport
-    position: new THREE.Vector3(-0.2, -0.55, -0.7), // Left side, lowered position
+    position: new THREE.Vector3(-0.2, -0.65, -1.1), // Left side, lowered position
     rotation: new THREE.Euler(0, (-Math.PI / 2) * 0.7, 0),
     scale: 0.15,
     bobAmount: 0.02,
     bobSpeed: 1.5,
     // Position adjustment factors
-    minXPos: -0.2,    // For very narrow viewport
+    minXPos: -0.3,    // For very narrow viewport
     maxXPos: -0.5,    // For wide viewport
     viewportFactor: 0.15  // How much to adjust based on aspect ratio
   },
