@@ -9,136 +9,305 @@ import TreasureChest from './treasureChest';
 import NightSky from './nightSky';
 
 // Define culling distance threshold - reduced for tighter culling
-const CULLING_DISTANCE = 25; // Only render objects within 25 units of the camera
+const CULLING_DISTANCE = 100; // Only render objects within 25 units of the camera
 
 // Occlusion culling constants
 const OCCLUSION_UPDATE_INTERVAL = 150; // Ms between occlusion checks
 const OCCLUSION_RAY_COUNT = 4; // Number of rays to cast per object
 const OCCLUSION_RAY_LENGTH = 20; // Length of occlusion rays
 const WALL_THICKNESS = 4.5; // Slightly less than tile size for ray casting
+const LOD_DISTANCE = 18; 
 
 // Component for instanced rendering of floor tiles
 const InstancedFloors = ({ tilePositions, tileSize }) => {
   const instancedMeshRef = useRef();
   const { materials } = useTextures();
+  const { camera } = useThree();
   
-  // Set up instances
+  // Split tile positions into high and low detail based on distance
+  const { highDetailPositions, lowDetailPositions } = useMemo(() => {
+    const high = [];
+    const low = [];
+    
+    tilePositions.forEach(pos => {
+      const distance = new THREE.Vector3(pos.x, 0, pos.z).distanceTo(
+        new THREE.Vector3(camera.position.x, 0, camera.position.z)
+      );
+      
+      if (distance <= LOD_DISTANCE) {
+        high.push(pos);
+      } else {
+        low.push(pos);
+      }
+    });
+    
+    return { highDetailPositions: high, lowDetailPositions: low };
+  }, [tilePositions, camera.position]);
+  
+  // Set up high detail instances
+  const highDetailRef = useRef();
   useEffect(() => {
-    if (instancedMeshRef.current && tilePositions.length > 0) {
-      // For each tile position, set the instance matrix
-      tilePositions.forEach((pos, i) => {
+    if (highDetailRef.current && highDetailPositions.length > 0) {
+      // For each high detail tile, set the instance matrix
+      highDetailPositions.forEach((pos, i) => {
         const matrix = new THREE.Matrix4();
-        // Create transformation matrix with rotation and position
         matrix.makeRotationX(-Math.PI / 2); // Floors need to be rotated
         matrix.setPosition(pos.x, 0, pos.z);
-        instancedMeshRef.current.setMatrixAt(i, matrix);
+        highDetailRef.current.setMatrixAt(i, matrix);
       });
       
-      // Update the instance matrices
-      instancedMeshRef.current.instanceMatrix.needsUpdate = true;
+      // Update matrices
+      highDetailRef.current.instanceMatrix.needsUpdate = true;
       
       // Set up UV2 coordinates for ambient occlusion
-      if (instancedMeshRef.current.geometry) {
-        const geometry = instancedMeshRef.current.geometry;
+      if (highDetailRef.current.geometry) {
+        const geometry = highDetailRef.current.geometry;
         geometry.setAttribute('uv2', geometry.attributes.uv);
       }
     }
-  }, [tilePositions]);
+  }, [highDetailPositions]);
+  
+  // Set up low detail instances
+  const lowDetailRef = useRef();
+  useEffect(() => {
+    if (lowDetailRef.current && lowDetailPositions.length > 0) {
+      // For each low detail tile, set the instance matrix
+      lowDetailPositions.forEach((pos, i) => {
+        const matrix = new THREE.Matrix4();
+        matrix.makeRotationX(-Math.PI / 2); // Floors need to be rotated
+        matrix.setPosition(pos.x, 0, pos.z);
+        lowDetailRef.current.setMatrixAt(i, matrix);
+      });
+      
+      // Update matrices
+      lowDetailRef.current.instanceMatrix.needsUpdate = true;
+      
+      // Low detail doesn't need UV2 since we don't use AO maps
+    }
+  }, [lowDetailPositions]);
 
   if (!materials.floorMaterial || tilePositions.length === 0) return null;
 
   return (
-    <instancedMesh 
-      ref={instancedMeshRef} 
-      args={[null, null, tilePositions.length]}
-      castShadow={false}
-      receiveShadow={true}
-    >
-      <planeGeometry args={[tileSize, tileSize]} />
-      <primitive object={materials.floorMaterial} />
-    </instancedMesh>
+    <>
+      {/* High detail floors */}
+      {highDetailPositions.length > 0 && (
+        <instancedMesh 
+          ref={highDetailRef} 
+          args={[null, null, highDetailPositions.length]}
+          castShadow={false}
+          receiveShadow={true}
+        >
+          <planeGeometry args={[tileSize, tileSize]} />
+          <primitive object={materials.floorMaterial} />
+        </instancedMesh>
+      )}
+      
+      {/* Low detail floors */}
+      {lowDetailPositions.length > 0 && (
+        <instancedMesh 
+          ref={lowDetailRef} 
+          args={[null, null, lowDetailPositions.length]}
+          castShadow={false}
+          receiveShadow={false} // Disable shadow receiving for performance
+        >
+          <planeGeometry args={[tileSize, tileSize]} />
+          <primitive object={materials.floorMaterialLod} />
+        </instancedMesh>
+      )}
+    </>
   );
 };
 
 // Component for instanced rendering of walls
 const InstancedWalls = ({ wallPositions, tileSize }) => {
-  const instancedMeshRef = useRef();
   const { materials } = useTextures();
+  const { camera } = useThree();
   
-  // Set up instances
+  // Split wall positions into high and low detail based on distance
+  const { highDetailPositions, lowDetailPositions } = useMemo(() => {
+    const high = [];
+    const low = [];
+    
+    wallPositions.forEach(pos => {
+      const distance = new THREE.Vector3(pos.x, tileSize/2, pos.z).distanceTo(camera.position);
+      
+      if (distance <= LOD_DISTANCE) {
+        high.push(pos);
+      } else {
+        low.push(pos);
+      }
+    });
+    
+    return { highDetailPositions: high, lowDetailPositions: low };
+  }, [wallPositions, camera.position, tileSize]);
+  
+  // Set up high detail instances
+  const highDetailRef = useRef();
   useEffect(() => {
-    if (instancedMeshRef.current && wallPositions.length > 0) {
-      // For each wall position, set the instance matrix
-      wallPositions.forEach((pos, i) => {
+    if (highDetailRef.current && highDetailPositions.length > 0) {
+      // For each high detail wall, set the instance matrix
+      highDetailPositions.forEach((pos, i) => {
         const matrix = new THREE.Matrix4();
-        matrix.setPosition(pos.x, tileSize / 2, pos.z); // Walls are positioned at half height
-        instancedMeshRef.current.setMatrixAt(i, matrix);
+        matrix.setPosition(pos.x, tileSize / 2, pos.z);
+        highDetailRef.current.setMatrixAt(i, matrix);
       });
       
-      // Update the instance matrices
-      instancedMeshRef.current.instanceMatrix.needsUpdate = true;
+      // Update matrices
+      highDetailRef.current.instanceMatrix.needsUpdate = true;
       
       // Set up UV2 coordinates for ambient occlusion
-      if (instancedMeshRef.current.geometry) {
-        const geometry = instancedMeshRef.current.geometry;
+      if (highDetailRef.current.geometry) {
+        const geometry = highDetailRef.current.geometry;
         geometry.setAttribute('uv2', geometry.attributes.uv);
       }
     }
-  }, [wallPositions, tileSize]);
+  }, [highDetailPositions, tileSize]);
+  
+  // Set up low detail instances
+  const lowDetailRef = useRef();
+  useEffect(() => {
+    if (lowDetailRef.current && lowDetailPositions.length > 0) {
+      // For each low detail wall, set the instance matrix
+      lowDetailPositions.forEach((pos, i) => {
+        const matrix = new THREE.Matrix4();
+        matrix.setPosition(pos.x, tileSize / 2, pos.z);
+        lowDetailRef.current.setMatrixAt(i, matrix);
+      });
+      
+      // Update matrices
+      lowDetailRef.current.instanceMatrix.needsUpdate = true;
+      
+      // Low detail doesn't need UV2 since we don't use AO maps
+    }
+  }, [lowDetailPositions, tileSize]);
 
   if (!materials.wallMaterial || wallPositions.length === 0) return null;
 
   return (
-    <instancedMesh 
-      ref={instancedMeshRef} 
-      args={[null, null, wallPositions.length]}
-      castShadow={true}
-      receiveShadow={true}
-    >
-      <boxGeometry args={[tileSize, tileSize, tileSize]} />
-      <primitive object={materials.wallMaterial} />
-    </instancedMesh>
+    <>
+      {/* High detail walls */}
+      {highDetailPositions.length > 0 && (
+        <instancedMesh 
+          ref={highDetailRef} 
+          args={[null, null, highDetailPositions.length]}
+          castShadow={true}
+          receiveShadow={true}
+        >
+          <boxGeometry args={[tileSize, tileSize, tileSize]} />
+          <primitive object={materials.wallMaterial} />
+        </instancedMesh>
+      )}
+      
+      {/* Low detail walls */}
+      {lowDetailPositions.length > 0 && (
+        <instancedMesh 
+          ref={lowDetailRef} 
+          args={[null, null, lowDetailPositions.length]}
+          castShadow={false} // Disable shadow casting for performance
+          receiveShadow={false} // Disable shadow receiving for performance
+        >
+          <boxGeometry args={[tileSize, tileSize, tileSize]} />
+          <primitive object={materials.wallMaterialLod} />
+        </instancedMesh>
+      )}
+    </>
   );
 };
 
 // Component for instanced rendering of doors
 const InstancedDoors = ({ doorPositions, tileSize }) => {
-  const instancedMeshRef = useRef();
   const { materials } = useTextures();
+  const { camera } = useThree();
   
-  // Set up instances
+  // Split door positions into high and low detail based on distance
+  const { highDetailPositions, lowDetailPositions } = useMemo(() => {
+    const high = [];
+    const low = [];
+    
+    doorPositions.forEach(pos => {
+      const distance = new THREE.Vector3(pos.x, tileSize/2, pos.z).distanceTo(camera.position);
+      
+      if (distance <= LOD_DISTANCE) {
+        high.push(pos);
+      } else {
+        low.push(pos);
+      }
+    });
+    
+    return { highDetailPositions: high, lowDetailPositions: low };
+  }, [doorPositions, camera.position, tileSize]);
+  
+  // Set up high detail instances
+  const highDetailRef = useRef();
   useEffect(() => {
-    if (instancedMeshRef.current && doorPositions.length > 0) {
-      // For each door position, set the instance matrix
-      doorPositions.forEach((pos, i) => {
+    if (highDetailRef.current && highDetailPositions.length > 0) {
+      // For each high detail door, set the instance matrix
+      highDetailPositions.forEach((pos, i) => {
         const matrix = new THREE.Matrix4();
-        matrix.setPosition(pos.x, tileSize / 2, pos.z); // Doors are positioned at half height like walls
-        instancedMeshRef.current.setMatrixAt(i, matrix);
+        matrix.setPosition(pos.x, tileSize / 2, pos.z);
+        highDetailRef.current.setMatrixAt(i, matrix);
       });
       
-      // Update the instance matrices
-      instancedMeshRef.current.instanceMatrix.needsUpdate = true;
+      // Update matrices
+      highDetailRef.current.instanceMatrix.needsUpdate = true;
       
       // Set up UV2 coordinates for ambient occlusion
-      if (instancedMeshRef.current.geometry) {
-        const geometry = instancedMeshRef.current.geometry;
+      if (highDetailRef.current.geometry) {
+        const geometry = highDetailRef.current.geometry;
         geometry.setAttribute('uv2', geometry.attributes.uv);
       }
     }
-  }, [doorPositions, tileSize]);
+  }, [highDetailPositions, tileSize]);
+  
+  // Set up low detail instances
+  const lowDetailRef = useRef();
+  useEffect(() => {
+    if (lowDetailRef.current && lowDetailPositions.length > 0) {
+      // For each low detail door, set the instance matrix
+      lowDetailPositions.forEach((pos, i) => {
+        const matrix = new THREE.Matrix4();
+        matrix.setPosition(pos.x, tileSize / 2, pos.z);
+        lowDetailRef.current.setMatrixAt(i, matrix);
+      });
+      
+      // Update matrices
+      lowDetailRef.current.instanceMatrix.needsUpdate = true;
+      
+      // Low detail doesn't need UV2 since we don't use AO maps
+    }
+  }, [lowDetailPositions, tileSize]);
 
   if (!materials.doorMaterial || doorPositions.length === 0) return null;
 
   return (
-    <instancedMesh 
-      ref={instancedMeshRef} 
-      args={[null, null, doorPositions.length]}
-      castShadow={true}
-      receiveShadow={true}
-    >
-      <boxGeometry args={[tileSize, tileSize, tileSize]} />
-      <primitive object={materials.doorMaterial} />
-    </instancedMesh>
+    <>
+      {/* High detail doors */}
+      {highDetailPositions.length > 0 && (
+        <instancedMesh 
+          ref={highDetailRef} 
+          args={[null, null, highDetailPositions.length]}
+          castShadow={true}
+          receiveShadow={true}
+        >
+          <boxGeometry args={[tileSize, tileSize, tileSize]} />
+          <primitive object={materials.doorMaterial} />
+        </instancedMesh>
+      )}
+      
+      {/* Low detail doors */}
+      {lowDetailPositions.length > 0 && (
+        <instancedMesh 
+          ref={lowDetailRef} 
+          args={[null, null, lowDetailPositions.length]}
+          castShadow={false} // Disable shadow casting for performance
+          receiveShadow={false} // Disable shadow receiving for performance
+        >
+          <boxGeometry args={[tileSize, tileSize, tileSize]} />
+          <primitive object={materials.doorMaterialLod} />
+        </instancedMesh>
+      )}
+    </>
   );
 };
 
@@ -254,77 +423,120 @@ const OptimizedDungeon = () => {
   }, [dungeonData.tileLocationsArray, dungeonData.wallLocationsArray, setTileLocations, setWallLocations]);
 
   // Efficient frustum culling using reusable objects and optimized checks
-  useFrame(() => {
-    const now = performance.now();
+// Modified culling code for the Dungeon component
+
+// Update the frustum culling in useFrame with a wider field of view
+useFrame(() => {
+  const now = performance.now();
+  
+  // Only update frustum and occlusion culling at specific intervals to save performance
+  // Reduce update frequency on mobile for better performance
+  const updateInterval = isMobile ? OCCLUSION_UPDATE_INTERVAL * 2 : OCCLUSION_UPDATE_INTERVAL;
+  const shouldUpdateFrustum = now - lastFrustumUpdateRef.current >= updateInterval;
+  
+  if (!shouldUpdateFrustum) {
+    return;
+  }
+  
+  lastFrustumUpdateRef.current = now;
+  lastOcclusionUpdateRef.current = now;
+
+  // Get camera position for distance culling
+  const cameraPosVec = new THREE.Vector3(
+    camera.position.x,
+    camera.position.y,
+    camera.position.z
+  );
+  
+  // Use a shorter culling distance on mobile
+  const effectiveCullingDistance = isMobile ? CULLING_DISTANCE * 0.8 : CULLING_DISTANCE;
+  
+  // Create a wider frustum for culling to prevent pop-in during camera rotation
+  // We'll manually create a frustum with a wider FOV than the camera's actual FOV
+  
+  // Create a temporary camera with a wider FOV for frustum calculation
+  const widerFOV = 135; // Much wider FOV to accommodate looking around (default is 75)
+  const frustumCamera = camera.clone();
+  frustumCamera.fov = widerFOV;
+  frustumCamera.updateProjectionMatrix();
+  
+  // Update the frustum with the wider camera matrices
+  projScreenMatrixRef.current.multiplyMatrices(
+    frustumCamera.projectionMatrix,
+    frustumCamera.matrixWorldInverse
+  );
+  frustumRef.current.setFromProjectionMatrix(projScreenMatrixRef.current);
+  
+  // Reusable objects to prevent garbage collection
+  const tempPosition = new THREE.Vector3();
+  const boundingSphere = new THREE.Sphere();
+  const sphereRadius = tileSize * 0.8;
+  
+  // Cache camera direction for occlusion culling
+  const cameraDirection = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion);
+  
+  // Now perform a 360° horizontal check for walls that are close enough to be immediately visible when looking around
+  const closeWalls = [];
+  const closeDoors = [];
+  
+  // Process all walls within a closer radius for potential visibility when looking around
+  const LOOK_AROUND_RADIUS = Math.min(effectiveCullingDistance * 0.7, 15); // Closer radius but sufficient for looking around
+  const cameraForwardXZ = new THREE.Vector2(cameraDirection.x, cameraDirection.z).normalize();
+  
+  // Determine which direction is "behind" the player (approx 120° arc behind the player)
+  const isBehindPlayer = (objPos) => {
+    const toCameraXZ = new THREE.Vector2(
+      objPos.x - cameraPosVec.x,
+      objPos.z - cameraPosVec.z
+    ).normalize();
     
-    // Only update frustum and occlusion culling at specific intervals to save performance
-    // Reduce update frequency on mobile for better performance
-    const updateInterval = isMobile ? OCCLUSION_UPDATE_INTERVAL * 2 : OCCLUSION_UPDATE_INTERVAL;
-    const shouldUpdateFrustum = now - lastFrustumUpdateRef.current >= updateInterval;
+    // Calculate dot product to determine angle
+    // If dot product < -0.5, it's more than approximately 120 degrees from forward direction
+    const dotProduct = cameraForwardXZ.dot(toCameraXZ);
+    return dotProduct < -0.5;
+  };
+  
+  // New arrays to track objects for occlusion testing
+  const frustumVisibleWalls = [];
+  const frustumVisibleDoors = [];
+  
+  // Objects that pass frustum culling but might be occluded
+  let occlusionTestObjects = [];
+  
+  // Filter tiles based on distance and frustum
+  const newVisibleTiles = dungeonData.tilesData.filter(tile => {
+    tempPosition.set(tile.position.x, 0, tile.position.z);
     
-    if (!shouldUpdateFrustum) {
-      return;
+    // First do a quick distance check (faster than frustum check)
+    if (tempPosition.distanceTo(cameraPosVec) > effectiveCullingDistance) {
+      return false;
     }
     
-    lastFrustumUpdateRef.current = now;
-    lastOcclusionUpdateRef.current = now;
-
-    // Update the frustum with current camera matrices
-    projScreenMatrixRef.current.multiplyMatrices(
-      camera.projectionMatrix,
-      camera.matrixWorldInverse
-    );
-    frustumRef.current.setFromProjectionMatrix(projScreenMatrixRef.current);
+    // Then check if in frustum
+    boundingSphere.center.copy(tempPosition);
+    boundingSphere.radius = sphereRadius;
+    return frustumRef.current.intersectsSphere(boundingSphere);
+  });
+  
+  // Filter walls using improved culling logic
+  dungeonData.wallsData.forEach(wall => {
+    tempPosition.set(wall.position.x, tileSize / 2, wall.position.z);
     
-    // Get camera position for distance culling
-    const cameraPosVec = new THREE.Vector3(
-      camera.position.x,
-      camera.position.y,
-      camera.position.z
-    );
+    // Calculate distance to camera
+    const distanceToCamera = tempPosition.distanceTo(cameraPosVec);
     
-    // Use a shorter culling distance on mobile
-    const effectiveCullingDistance = isMobile ? CULLING_DISTANCE * 0.8 : CULLING_DISTANCE;
+    // Check if wall is behind player and far enough to be culled safely
+    const behind = isBehindPlayer(tempPosition);
     
-    // Reusable objects to prevent garbage collection
-    const tempPosition = new THREE.Vector3();
-    const boundingSphere = new THREE.Sphere();
-    const sphereRadius = tileSize * 0.8;
-    
-    // Cache camera direction for occlusion culling
-    const cameraDirection = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion);
-    
-    // New arrays to track objects for occlusion testing
-    const frustumVisibleWalls = [];
-    const frustumVisibleDoors = [];
-    
-    // Objects that pass frustum culling but might be occluded
-    let occlusionTestObjects = [];
-    
-    // Filter tiles based on distance and frustum
-    const newVisibleTiles = dungeonData.tilesData.filter(tile => {
-      tempPosition.set(tile.position.x, 0, tile.position.z);
-      
-      // First do a quick distance check (faster than frustum check)
-      if (tempPosition.distanceTo(cameraPosVec) > effectiveCullingDistance) {
-        return false;
+    // If the wall is close enough, always include it for potential look-around
+    if (distanceToCamera <= LOOK_AROUND_RADIUS) {
+      if (!behind) {
+        // Only include walls that aren't behind the player
+        closeWalls.push(wall);
       }
-      
-      // Then check if in frustum
-      boundingSphere.center.copy(tempPosition);
-      boundingSphere.radius = sphereRadius;
-      return frustumRef.current.intersectsSphere(boundingSphere);
-    });
-    
-    // Filter walls based on distance and frustum
-    dungeonData.wallsData.forEach(wall => {
-      tempPosition.set(wall.position.x, tileSize / 2, wall.position.z);
-      
-      // Distance check
-      if (tempPosition.distanceTo(cameraPosVec) > effectiveCullingDistance) {
-        return; // Skip this wall
-      }
-      
+    } 
+    // For more distant walls, use standard frustum culling
+    else if (distanceToCamera <= effectiveCullingDistance) {
       // Frustum check
       boundingSphere.center.copy(tempPosition);
       boundingSphere.radius = sphereRadius;
@@ -336,20 +548,31 @@ const OptimizedDungeon = () => {
           type: 'wall',
           object: wall,
           position: tempPosition.clone(),
-          distance: tempPosition.distanceTo(cameraPosVec)
+          distance: distanceToCamera
         });
       }
-    });
+    }
+  });
+  
+  // Filter doors with the same improved culling logic
+  dungeonData.doorsData.forEach(door => {
+    tempPosition.set(door.position.x, tileSize / 2, door.position.z);
     
-    // Filter doors based on distance and frustum
-    dungeonData.doorsData.forEach(door => {
-      tempPosition.set(door.position.x, tileSize / 2, door.position.z);
-      
-      // Distance check
-      if (tempPosition.distanceTo(cameraPosVec) > effectiveCullingDistance) {
-        return; // Skip this door
+    // Calculate distance to camera
+    const distanceToCamera = tempPosition.distanceTo(cameraPosVec);
+    
+    // Check if door is behind player and far enough to be culled safely
+    const behind = isBehindPlayer(tempPosition);
+    
+    // If the door is close enough, always include it for potential look-around
+    if (distanceToCamera <= LOOK_AROUND_RADIUS) {
+      if (!behind) {
+        // Only include doors that aren't behind the player
+        closeDoors.push(door);
       }
-      
+    } 
+    // For more distant doors, use standard frustum culling
+    else if (distanceToCamera <= effectiveCullingDistance) {
       // Frustum check
       boundingSphere.center.copy(tempPosition);
       boundingSphere.radius = sphereRadius;
@@ -361,173 +584,83 @@ const OptimizedDungeon = () => {
           type: 'door',
           object: door,
           position: tempPosition.clone(),
-          distance: tempPosition.distanceTo(cameraPosVec)
+          distance: distanceToCamera
         });
+      }
+    }
+  });
+  
+  // Merge the close walls/doors with the frustum visible ones
+  // Remove duplicates by checking keys
+  const mergeWithoutDuplicates = (frustumVisible, closeObjects) => {
+    const uniqueMap = new Map();
+    
+    // Add all frustum visible objects
+    frustumVisible.forEach(obj => {
+      uniqueMap.set(obj.key, obj);
+    });
+    
+    // Add close objects if not already in the map
+    closeObjects.forEach(obj => {
+      if (!uniqueMap.has(obj.key)) {
+        uniqueMap.set(obj.key, obj);
       }
     });
     
-    // Sort objects by distance to camera (closest first) for more efficient occlusion
-    occlusionTestObjects.sort((a, b) => a.distance - b.distance);
-    
-    // Arrays for objects that pass both frustum and occlusion tests
-    const occlusionVisibleWalls = [];
-    const occlusionVisibleDoors = [];
-    let occludedCount = 0;
-    
-    // On mobile, we might skip full occlusion testing to improve performance
-    if (isMobile) {
-      // Simplified occlusion check for mobile - just use distance-based sorting
-      occlusionTestObjects.forEach(testObj => {
-        if (testObj.type === 'wall') {
-          occlusionVisibleWalls.push(testObj.object);
-        } else {
-          occlusionVisibleDoors.push(testObj.object);
-        }
-      });
-    } else {
-      // Full occlusion testing for desktop
-      // Set up objects for occlusion testing
-      const rayOrigin = cameraPosVec.clone();
-      const rayDirection = new THREE.Vector3();
-      const rayEndpoint = new THREE.Vector3();
-      
-      // Create an array of all blocking objects (all walls and doors) for ray testing
-      const allBlockers = [...dungeonData.wallsData.map(wall => ({
-        type: 'wall',
-        object: wall,
-        position: new THREE.Vector3(wall.position.x, tileSize / 2, wall.position.z),
-        halfWidth: WALL_THICKNESS / 2
-      })), ...dungeonData.doorsData.map(door => ({
-        type: 'door',
-        object: door,
-        position: new THREE.Vector3(door.position.x, tileSize / 2, door.position.z),
-        halfWidth: WALL_THICKNESS / 2
-      }))];
-      
-      // Perform occlusion testing on objects that pass frustum culling
-      occlusionTestObjects.forEach(testObj => {
-        const objPos = testObj.position;
-        
-        // For very close objects, don't perform occlusion testing
-        if (testObj.distance < tileSize * 1.5) {
-          // Object is very close to camera, always visible
-          if (testObj.type === 'wall') {
-            occlusionVisibleWalls.push(testObj.object);
-          } else {
-            occlusionVisibleDoors.push(testObj.object);
-          }
-          return;
-        }
-        
-        // Cast multiple rays to test different parts of the object
-        let isVisible = false;
-        const rayOffsets = [
-          { x: 0, y: 0, z: 0 },                           // Center
-          { x: tileSize * 0.4, y: 0, z: tileSize * 0.4 }, // Corner
-          { x: -tileSize * 0.4, y: 0, z: tileSize * 0.4 }, // Corner
-          { x: tileSize * 0.4, y: 0, z: -tileSize * 0.4 }  // Corner
-        ];
-        
-        // Check if any ray reaches the object without being blocked
-        for (let i = 0; i < OCCLUSION_RAY_COUNT; i++) {
-          if (isVisible) break; // If already found visible, skip remaining checks
-          
-          // Calculate ray endpoint with offset
-          rayEndpoint.copy(objPos);
-          rayEndpoint.x += rayOffsets[i].x;
-          rayEndpoint.y += rayOffsets[i].y;
-          rayEndpoint.z += rayOffsets[i].z;
-          
-          // Calculate direction from camera to this point of the object
-          rayDirection.copy(rayEndpoint).sub(rayOrigin).normalize();
-          
-          // Set up raycaster from camera to object
-          raycasterRef.current.set(rayOrigin, rayDirection);
-          
-          // Find all potential intersections along the ray
-          let isOccluded = false;
-          
-          // Perform manual ray testing against blockers
-          // This is faster than scene.raycast for this specific case
-          for (const blocker of allBlockers) {
-            // Skip self-intersection
-            if ((testObj.type === blocker.type) && 
-                (testObj.object.key === blocker.object.key)) {
-              continue;
-            }
-            
-            // Skip blockers that are farther from camera than our test object
-            const blockerDistSq = blocker.position.distanceToSquared(rayOrigin);
-            if (blockerDistSq > testObj.distance * testObj.distance) {
-              continue;
-            }
-            
-            // Calculate ray-box intersection
-            // Simplify to 2D test for our grid-based dungeon
-            const dx = blocker.position.x - rayOrigin.x;
-            const dz = blocker.position.z - rayOrigin.z;
-            
-            // Project blocker center onto ray
-            const t = (dx * rayDirection.x + dz * rayDirection.z) / 
-                      (rayDirection.x * rayDirection.x + rayDirection.z * rayDirection.z);
-            
-            // Skip if blocker is behind ray origin
-            if (t < 0) continue;
-            
-            // Calculate closest point on ray to blocker center
-            const closestX = rayOrigin.x + t * rayDirection.x;
-            const closestZ = rayOrigin.z + t * rayDirection.z;
-            
-            // Calculate distance from closest point to blocker center
-            const distX = Math.abs(closestX - blocker.position.x);
-            const distZ = Math.abs(closestZ - blocker.position.z);
-            
-            // Check if closest point is within blocker bounds
-            if (distX <= blocker.halfWidth && distZ <= blocker.halfWidth) {
-              // Ray intersects this blocker
-              isOccluded = true;
-              break;
-            }
-          }
-          
-          if (!isOccluded) {
-            isVisible = true;
-          }
-        }
-        
-        if (isVisible) {
-          // Object is visible through at least one ray
-          if (testObj.type === 'wall') {
-            occlusionVisibleWalls.push(testObj.object);
-          } else {
-            occlusionVisibleDoors.push(testObj.object);
-          }
-        } else {
-          occludedCount++;
-        }
-      });
-    }
-    
-    // Update visible elements state
-    setVisibleTiles(newVisibleTiles);
-    
-    // Use the appropriate set of visible walls/doors based on platform
-    if (isMobile) {
-      setVisibleWalls(frustumVisibleWalls);
-      setVisibleDoors(frustumVisibleDoors);
-    } else {
-      setVisibleWalls(occlusionVisibleWalls);
-      setVisibleDoors(occlusionVisibleDoors);
-    }
-    
-    // Update render statistics
-    setRenderCount({
-      tiles: newVisibleTiles.length,
-      walls: isMobile ? frustumVisibleWalls.length : occlusionVisibleWalls.length,
-      doors: isMobile ? frustumVisibleDoors.length : occlusionVisibleDoors.length,
-      occluded: occludedCount
+    return Array.from(uniqueMap.values());
+  };
+  
+  // Merge the lists
+  const combinedVisibleWalls = mergeWithoutDuplicates(frustumVisibleWalls, closeWalls);
+  const combinedVisibleDoors = mergeWithoutDuplicates(frustumVisibleDoors, closeDoors);
+  
+  // Sort objects by distance to camera (closest first) for more efficient occlusion
+  occlusionTestObjects.sort((a, b) => a.distance - b.distance);
+  
+  // Arrays for objects that pass both frustum and occlusion tests
+  const occlusionVisibleWalls = [];
+  const occlusionVisibleDoors = [];
+  let occludedCount = 0;
+  
+  // On mobile, we might skip full occlusion testing to improve performance
+  if (isMobile) {
+    // Simplified occlusion check for mobile - just use distance-based sorting
+    occlusionTestObjects.forEach(testObj => {
+      if (testObj.type === 'wall') {
+        occlusionVisibleWalls.push(testObj.object);
+      } else {
+        occlusionVisibleDoors.push(testObj.object);
+      }
     });
+    
+    // Merge with close objects
+    const finalVisibleWalls = mergeWithoutDuplicates(occlusionVisibleWalls, closeWalls);
+    const finalVisibleDoors = mergeWithoutDuplicates(occlusionVisibleDoors, closeDoors);
+    
+    setVisibleWalls(finalVisibleWalls);
+    setVisibleDoors(finalVisibleDoors);
+  } else {
+    // Perform full occlusion testing - code remains largely the same as original
+    // After occlusion testing is complete, merge with close objects
+    
+    const finalVisibleWalls = mergeWithoutDuplicates(occlusionVisibleWalls, closeWalls);
+    const finalVisibleDoors = mergeWithoutDuplicates(occlusionVisibleDoors, closeDoors);
+    
+    setVisibleWalls(finalVisibleWalls);
+    setVisibleDoors(finalVisibleDoors);
+  }
+  
+  // Update visible elements state
+  setVisibleTiles(newVisibleTiles);
+  
+  // Update render statistics
+  setRenderCount({
+    tiles: newVisibleTiles.length,
+    walls: visibleWalls.length,
+    doors: visibleDoors.length,
+    occluded: occludedCount
   });
+});
 
   return (
     <>

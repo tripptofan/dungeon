@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import styled from 'styled-components';
 import useGameStore from '../store';
+import MessageService from '../utils/messageService';
 
 // Semi-transparent overlay that covers the entire screen
 const OverlayBackground = styled.div`
@@ -88,10 +89,6 @@ const MessageOverlay = () => {
   const typingInProgress = useGameStore(state => state.typingInProgress);
   
   // Use separate action getters to avoid unnecessary re-renders
-  const setShowMessageOverlay = useGameStore(state => state.setShowMessageOverlay);
-  const setMessageBoxVisible = useGameStore(state => state.setMessageBoxVisible);
-  const setCurrentMessage = useGameStore(state => state.setCurrentMessage);
-  const setTypingInProgress = useGameStore(state => state.setTypingInProgress);
   const progressExperience = useGameStore(state => state.progressExperience);
   
   const [displayedText, setDisplayedText] = useState('');
@@ -144,7 +141,7 @@ const MessageOverlay = () => {
               // Text animation completed
               clearInterval(typingIntervalRef.current);
               typingIntervalRef.current = null;
-              setTypingInProgress(false);
+              useGameStore.getState().setTypingInProgress(false);
             }
           }, typingSpeedRef.current);
         }, 50); // Small delay to ensure state is ready
@@ -157,7 +154,7 @@ const MessageOverlay = () => {
         clearInterval(typingIntervalRef.current);
       }
     };
-  }, [currentMessage, typingInProgress, setTypingInProgress]);
+  }, [currentMessage, typingInProgress]);
 
   // FIX: Improved cleanup logic for sword visibility
   React.useEffect(() => {
@@ -194,51 +191,12 @@ const MessageOverlay = () => {
         typingIntervalRef.current = null;
       }
       setDisplayedText(fullTextRef.current);
-      setTypingInProgress(false);
+      useGameStore.getState().setTypingInProgress(false);
       return;
     }
     
-    // Get current state values BEFORE making any changes
-    const currentShowItemDisplay = useGameStore.getState().showItemDisplay;
-    const currentForceItemsVisible = useGameStore.getState().forceItemsVisible;
-    const currentInventory = useGameStore.getState().inventory;
-    const currentExperienceIdx = useGameStore.getState().currentExperienceIndex;
-    const experiences = useGameStore.getState().experienceScript.experiences;
-    
-    // Check if we're in a sword experience
-    const isSwordExperience = currentExperienceIdx >= 0 && 
-      currentExperienceIdx < experiences.length &&
-      experiences[currentExperienceIdx].type === 'item' && 
-      experiences[currentExperienceIdx].item?.name === "Toy Wooden Sword";
-    
-    // Check if we have the sword in inventory
-    const hasSword = currentInventory.some(item => item.name === "Toy Wooden Sword");
-    const hasLantern = currentInventory.some(item => item.name === "Lantern");
-    
-    // FIX: If we're in the sword experience, ensure the sword stays visible
-    if (isSwordExperience) {
-      useGameStore.getState().setForceItemsVisible(true);
-      useGameStore.getState().setShowItemDisplay(true);
-    }
-    
-    // Progress to the next experience step
+    // Progress to the next experience step, with item visibility preserved
     progressExperience();
-    
-    // IMPORTANT: Ensure item visibility is maintained
-    // Wait a bit for state changes to settle
-    setTimeout(() => {
-      // Keep items visible if they were already displayed OR we have sword OR lantern
-      if (currentShowItemDisplay || hasSword || hasLantern || isSwordExperience || currentInventory.length > 0) {
-        console.log("MessageOverlay: Ensuring items remain visible");
-        useGameStore.getState().setShowItemDisplay(true);
-      }
-      
-      // Keep force flag if it was already set OR we have sword
-      if (currentForceItemsVisible || hasSword || isSwordExperience) {
-        console.log("MessageOverlay: Ensuring forceItemsVisible remains true");
-        useGameStore.getState().setForceItemsVisible(true);
-      }
-    }, 50);
   };
   
   // Skip showing the component if there's no overlay
