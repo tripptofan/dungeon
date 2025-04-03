@@ -67,7 +67,7 @@ const useGameStore = create((set, get) => ({
   
   // Experience timing constants
   initialExperienceDelay: 100, // ms - reduced to make events feel more immediate
-  moveSpeed: 0.03, // units per frame for camera movement - consistent pace
+  moveSpeed: 0.06, // units per frame for camera movement - consistent pace
   
   // World configuration
   tileSize: 5,
