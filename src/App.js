@@ -17,6 +17,10 @@ import AcquiredItems from './components/acquiredItems';
 import CameraShake from './components/cameraShake';
 import DeviceDetection from './DeviceDetection';
 import Enemy from './components/enemy';
+import SimpleFpsLimiter from './components/SimpleFpsLimiter';
+import LookAroundControl from './components/lookAroundControl';
+import LookAroundIndicator from './components/lookAroundIndicator';
+// import AnimatedEnemy from './components/animatedEnemy';
 
 // Loading indicator shown during initial scene loading
 const LoadingIndicator = styled.div`
@@ -102,80 +106,80 @@ function App() {
   const setLoadingFade = useGameStore((state) => state.setLoadingFade);
   const setSceneLoaded = useGameStore((state) => state.setSceneLoaded);
   const startExperience = useGameStore((state) => state.startExperience);
-  
+
   const [canvasKey, setCanvasKey] = useState(0);
   const [overlayVisible, setOverlayVisible] = useState(true);
   const [sceneReady, setSceneReady] = useState(false);
   const [textureProgress, setTextureProgress] = useState(0);
   const [fps, setFps] = useState(0);
   const [showPerformance, setShowPerformance] = useState(process.env.NODE_ENV === 'development');
-  
+
   // FPS counter
   useEffect(() => {
     if (!showPerformance) return;
-    
+
     let frameCount = 0;
     let lastTime = performance.now();
-    
+
     const updateFps = () => {
       const now = performance.now();
       frameCount++;
-      
+
       if (now >= lastTime + 1000) {
         setFps(Math.round((frameCount * 1000) / (now - lastTime)));
         frameCount = 0;
         lastTime = now;
       }
-      
+
       requestAnimationFrame(updateFps);
     };
-    
+
     const animId = requestAnimationFrame(updateFps);
     return () => cancelAnimationFrame(animId);
   }, [showPerformance]);
-  
+
   // Initialize scene loading sequence
   useEffect(() => {
     // Show loading indicator initially
     setSceneLoaded(false);
     setLoadingFade(true);
     setOverlayVisible(true);
-    
+
     // After a delay, mark scene as loaded to remove loading indicator
     const loadTimer = setTimeout(() => {
       setSceneLoaded(true);
-      
+
       // After another delay, start the fade effect
       const fadeTimer = setTimeout(() => {
         setOverlayVisible(false);
-        
+
         // After fade completes, mark scene as ready
         const readyTimer = setTimeout(() => {
           setSceneReady(true);
-          
+
           // Start the experience after a brief pause
           const experienceTimer = setTimeout(() => {
             startExperience();
           }, 1000);
-          
+
           return () => clearTimeout(experienceTimer);
         }, 3000);
-        
+
         return () => clearTimeout(readyTimer);
       }, 1000);
-      
+
       return () => clearTimeout(fadeTimer);
     }, 1500);
-    
+
     return () => clearTimeout(loadTimer);
   }, [setSceneLoaded, setLoadingFade, startExperience]);
-  
+
   // Force Canvas remount when component loads
   useEffect(() => {
     const timer = setTimeout(() => {
       setCanvasKey(prev => prev + 1);
     }, 100);
-    
+
     return () => clearTimeout(timer);
   }, []);
 
@@ -186,17 +190,19 @@ function App() {
 
   return (
     <>
+      <SimpleFpsLimiter targetFps={60} />
       <DeviceDetection />
-      
+
       <StyledCanvasWrapper $isMobile={isMobile}>
-        <Canvas 
+        <Canvas
           key={canvasKey}
           style={{ background: 'rgb(2,0,20)' }}
-          gl={{ 
+
+          gl={{
             powerPreference: "high-performance",
             antialias: isMobile ? false : true, // Disable antialiasing on mobile
             stencil: false,
-            depth: true 
+            depth: true
           }}
           camera={{
             fov: 75,
@@ -217,13 +223,16 @@ function App() {
               <CameraShake />
               <AcquiredItems />
               <Enemy />
+              {/* <AnimatedEnemy /> */}
+              <LookAroundControl />
+
             </Suspense>
           </TextureProvider>
         </Canvas>
-        
+
         {/* UI components */}
         <BlackOverlay isVisible={overlayVisible} />
-        
+
         {!sceneLoaded && (
           <>
             <LoadingIndicator>
@@ -234,14 +243,15 @@ function App() {
             </LoadingProgressContainer>
           </>
         )}
-        
+
         {sceneReady && (
           <>
             <MessageOverlay />
             <ActionOverlay />
+            <LookAroundIndicator />
           </>
         )}
-        
+
         {/* Performance monitoring for development */}
         {showPerformance && (
           <PerformanceInfo visible={true}>
