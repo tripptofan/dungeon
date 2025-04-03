@@ -1,20 +1,53 @@
 import React, { useRef, useEffect, useState } from 'react';
-import { useFrame, useThree, useLoader } from '@react-three/fiber';
+import { useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 import useGameStore from '../store';
-import { PlainAnimator } from 'three-plain-animator/lib/plain-animator'
 
 const Enemy = () => {
   const enemyRef = useRef();
+  const materialRef = useRef();
+  const videoRef = useRef(null);
+  const videoTextureRef = useRef(null);
   const [isVisible, setIsVisible] = useState(false);
   const [isRising, setIsRising] = useState(false);
   const [animationStarted, setAnimationStarted] = useState(false);
   const [enemyPosition, setEnemyPosition] = useState(null);
   const { camera } = useThree();
-  const textureSrc = '/gems.gif';
-  const spriteTexture = useLoader(THREE.TextureLoader, textureSrc);
-  const [animator] = useState(() => new PlainAnimator(spriteTexture, 1, 1, 16, 20))
-
+  
+  // Create video texture on component mount
+  useEffect(() => {
+    // Create video element
+    const video = document.createElement('video');
+    video.src = '/gems.webm'; // Using WebM format with alpha channel
+    video.crossOrigin = 'anonymous';
+    video.loop = true;
+    video.muted = true;
+    video.playsInline = true;
+    
+    // Store ref to video
+    videoRef.current = video;
+    
+    // Create video texture with alpha support
+    const videoTexture = new THREE.VideoTexture(video);
+    videoTexture.minFilter = THREE.LinearFilter;
+    videoTexture.magFilter = THREE.LinearFilter;
+    videoTexture.format = THREE.RGBAFormat; // RGBA format for alpha channel support
+    videoTexture.colorSpace = THREE.SRGBColorSpace; // Use SRGBColorSpace instead of sRGBEncoding
+    
+    // Store ref to texture
+    videoTextureRef.current = videoTexture;
+    
+    console.log("Video texture created for enemy animation");
+    
+    // Clean up on unmount
+    return () => {
+      if (videoRef.current) {
+        videoRef.current.pause();
+        videoRef.current.src = '';
+        videoRef.current.load();
+      }
+    };
+  }, []);
   
   // Get relevant state from the store
   const currentExperienceIndex = useGameStore(state => state.currentExperienceIndex);
@@ -45,6 +78,13 @@ const Enemy = () => {
       
       setEnemyPosition(debugPosition);
       setIsVisible(true);
+      
+      // Start video playback
+      if (videoRef.current) {
+        videoRef.current.play().catch(err => {
+          console.warn('Auto-play was prevented:', err);
+        });
+      }
       
       // Set enemy as clickable
       useGameStore.getState().setEnemyClickable(true);
@@ -78,6 +118,19 @@ const Enemy = () => {
       setEnemyPosition(newPosition);
       setIsVisible(true);
       
+      // Start video playback
+      if (videoRef.current) {
+        videoRef.current.play().catch(err => {
+          console.warn('Auto-play was prevented:', err);
+          // Try playing when user interacts with the scene next
+          const playOnInteraction = () => {
+            videoRef.current.play();
+            document.removeEventListener('click', playOnInteraction);
+          };
+          document.addEventListener('click', playOnInteraction);
+        });
+      }
+      
       // Start the rising animation after a short delay
       setTimeout(() => {
         console.log("Starting enemy rising animation");
@@ -88,6 +141,12 @@ const Enemy = () => {
       if (isEnemyExperience) {
         console.log("Enemy experience active but camera is moving - waiting");
       }
+      
+      // Pause video when enemy is not visible
+      if (!isEnemyExperience && videoRef.current && !isVisible) {
+        videoRef.current.pause();
+      }
+      
       setIsVisible(false);
       setIsRising(false);
       setAnimationStarted(false);
@@ -96,7 +155,11 @@ const Enemy = () => {
   
   // Handle the rising animation
   useFrame((state, delta) => {
-    animator.animate();
+    // Update video texture if needed
+    if (videoTextureRef.current && videoTextureRef.current.image.readyState === videoTextureRef.current.image.HAVE_ENOUGH_DATA) {
+      videoTextureRef.current.needsUpdate = true;
+    }
+    
     if (!enemyRef.current || !isVisible || !enemyPosition) return;
 
     // Update position
@@ -144,8 +207,9 @@ const Enemy = () => {
         useGameStore.getState().setEnemyHit(true);
         
         // Apply hit effects to the enemy (for now, just change color)
-        if (enemyRef.current.material) {
-          enemyRef.current.material.color.set(0xFF0000); // Bright red on hit
+        if (materialRef.current) {
+          materialRef.current.emissive = new THREE.Color(0xFF0000); // Bright red on hit
+          materialRef.current.emissiveIntensity = 1.0;
           
           // Slowly fade out after hit
           setTimeout(() => {
@@ -160,19 +224,19 @@ const Enemy = () => {
     
     // Handle fade out animation
     const isFadingOut = useGameStore.getState().enemyFadingOut;
-    if (isFadingOut && enemyRef.current.material) {
+    if (isFadingOut && materialRef.current) {
       // Reduce opacity
-      enemyRef.current.material.opacity -= 0.02;
+      materialRef.current.opacity -= 0.02;
       
       // When fully transparent, hide the enemy
-      if (enemyRef.current.material.opacity <= 0) {
+      if (materialRef.current.opacity <= 0) {
         setIsVisible(false);
         useGameStore.getState().completeEnemyFadeOut();
         
-        // Remove this part as we'll handle progression in completeEnemyFadeOut
-        // setTimeout(() => {
-        //   useGameStore.getState().progressExperience();
-        // }, 500);
+        // Pause video when enemy is hidden
+        if (videoRef.current) {
+          videoRef.current.pause();
+        }
       }
     }
   });
@@ -184,7 +248,7 @@ const Enemy = () => {
   const enemyClickable = useGameStore.getState().enemyClickable && 
                         !useGameStore.getState().showMessageOverlay;
   
-  // Create a red rectangle enemy
+  // Create a more visible animated enemy
   return (
     <group>
       {/* Main enemy mesh - ENLARGED and BRIGHTER for better visibility */}
@@ -203,14 +267,15 @@ const Enemy = () => {
           }
         }}
       >
-        <boxGeometry args={[3, 6, 1]} /> {/* LARGER dimensions */}
+        <boxGeometry args={[3, 4.5, 1]} /> {/* LARGER dimensions */}
         <meshStandardMaterial 
-          // color="#ff0000" /* BRIGHTER red */
+          ref={materialRef}
           transparent={true} 
-          map={spriteTexture}
-          // opacity={1.0}
-          // emissive="#ff5555"
-          // emissiveIntensity={1.0} /* Increased intensity */
+          map={videoTextureRef.current}
+          // emissive="#ffffff"
+          // emissiveIntensity={0.3}
+          // side={THREE.DoubleSide}
+          opacity={1.0}
         />
       </mesh>
       

@@ -13,7 +13,7 @@ export const acquiredItemRefs = [];
 const ACQUIRED_ITEMS_CONFIG = {
   "Lantern": {
     // These are base values that will be modified based on viewport
-    position: new THREE.Vector3(-0.2, -0.45, -0.7), // Left side, lowered position
+    position: new THREE.Vector3(-0.2, -0.55, -0.7), // Left side, lowered position
     rotation: new THREE.Euler(0, (-Math.PI / 2) * 0.7, 0),
     scale: 0.15,
     bobAmount: 0.02,
@@ -24,13 +24,13 @@ const ACQUIRED_ITEMS_CONFIG = {
     viewportFactor: 0.15  // How much to adjust based on aspect ratio
   },
   "Toy Wooden Sword": {
-    position: new THREE.Vector3(0.4, -0.35, -1.1), // Moved further right (from 0.28 to 0.4)
+    position: new THREE.Vector3(0.4, -0.5, -1.1), // Moved further right (from 0.28 to 0.4)
     rotation: new THREE.Euler(-Math.PI / 8, 0, (Math.PI / 4) * 0.3), // Point forward and slightly up
     scale: 0.2,
     bobAmount: 0.015,
     bobSpeed: 1.2,
     // Position adjustment factors
-    minXPos: 0.3,     // For very narrow viewport (increased from 0.2 to 0.3)
+    minXPos: 0.4,     // For very narrow viewport (increased from 0.2 to 0.3)
     maxXPos: 0.6,     // For wide viewport (increased from 0.5 to 0.6)
     viewportFactor: 0.18  // How much to adjust based on aspect ratio
   }
