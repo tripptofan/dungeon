@@ -15,6 +15,10 @@ const TreasureChest = () => {
   const initializedRef = useRef(false);
   const chestPositionRef = useRef({ x: 5, z: 86 });
   
+  // Track overlay dismissal to improve click handling
+  const [lastOverlayState, setLastOverlayState] = useState(false);
+  const [overlayJustDismissed, setOverlayJustDismissed] = useState(false);
+  
   // Get relevant state from the store
   const currentExperienceIndex = useGameStore(state => state.currentExperienceIndex);
   const experiences = useGameStore(state => state.experienceScript.experiences);
@@ -58,6 +62,25 @@ const TreasureChest = () => {
       }
     };
   }, []);
+
+  // FIX: Track overlay state changes to detect dismissal
+  useEffect(() => {
+    // If overlay was showing, and now it's not, mark as just dismissed
+    if (lastOverlayState && !showMessageOverlay) {
+      console.log("Overlay just dismissed, marking chest as ready for interaction");
+      setOverlayJustDismissed(true);
+      
+      // Reset after a short delay
+      const timer = setTimeout(() => {
+        setOverlayJustDismissed(false);
+      }, 500); // Allow 500ms window for click after dismissal
+      
+      return () => clearTimeout(timer);
+    }
+    
+    // Update the last overlay state
+    setLastOverlayState(showMessageOverlay);
+  }, [showMessageOverlay, lastOverlayState]);
   
   // Show "a reward for the hero..." message when chest experience starts
   // ONLY when the player has stopped moving
@@ -89,15 +112,22 @@ const TreasureChest = () => {
     isMovingCamera
   ]);
   
-  // Handle chest click
-  const handleChestClick = () => {
+  // FIX: Improved chest click handling to prevent double-click issues
+  const handleChestClick = (e) => {
+    e.stopPropagation();
+    
     // Determine if chest is currently interactive
     const isChestExperience = currentExperienceIndex === 5 && 
       experiences[currentExperienceIndex]?.type === 'chest';
-    const isInteractive = isChestExperience && !showMessageOverlay && !chestOpened;
+    
+    // FIX: Make chest interactive if overlay just dismissed or regular conditions
+    const isInteractive = isChestExperience && !chestOpened && 
+                         (!showMessageOverlay || overlayJustDismissed);
+    
+    console.log("Chest clicked, interactive:", isInteractive, "Overlay dismissed:", overlayJustDismissed);
     
     if (isInteractive) {
-      console.log("Chest clicked! Opening...");
+      console.log("Chest click is valid! Opening...");
       setChestOpened(true);
     }
   };
@@ -115,16 +145,13 @@ const TreasureChest = () => {
   const isInteractive = isChestExperience && !showMessageOverlay && !chestOpened;
   
   // For glow effect when hovered and clickable
-  const glowIntensity = (hovered && isInteractive) ? 0.8 : 0.3;
+  const glowIntensity = (hovered && (isInteractive || overlayJustDismissed)) ? 0.8 : 0.3;
   
   return (
     <group 
       ref={chestRef}
       position={[chestPositionRef.current.x, 0.5, chestPositionRef.current.z]}
-      onClick={(e) => {
-        e.stopPropagation();
-        handleChestClick();
-      }}
+      onClick={handleChestClick}
       onPointerOver={() => setHovered(true)}
       onPointerOut={() => setHovered(false)}
     >
@@ -158,7 +185,7 @@ const TreasureChest = () => {
           roughness={0.3}
           metalness={0.8}
           emissive="#FFD700"
-          emissiveIntensity={0.2}
+          emissiveIntensity={glowIntensity} // Glow changes with hover state
         />
       </mesh>
       

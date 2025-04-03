@@ -2,3 +2,23 @@
   width: 100%;
   height: 100%;
 }
+
+/* Global styles for mobile support */
+html, body, #root {
+  overscroll-behavior: none;
+}
+
+/* Mobile-specific touch handling */
+@media (max-width: 768px) {
+  /* Ensure overlays don't prevent touch events for look-around */
+  .message-overlay-3d, 
+  .action-overlay {
+    touch-action: none !important;
+    pointer-events: auto !important;
+  }
+  
+  /* Ensure canvas receives touch events */
+  canvas {
+    touch-action: none !important;
+  }
+}

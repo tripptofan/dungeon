@@ -17,6 +17,8 @@ const OverlayContainer = styled.div`
   opacity: ${props => props.visible ? 1 : 0};
   transition: opacity 0.5s ease;
   pointer-events: ${props => props.visible ? 'auto' : 'none'};
+  /* Add className for touch handling */
+  class-name: action-overlay;
 `;
 
 const ActionButton = styled.button`
@@ -94,7 +96,7 @@ const ActionOverlay = () => {
   };
   
   return (
-    <OverlayContainer visible={showActionOverlay}>
+    <OverlayContainer visible={showActionOverlay} className="action-overlay">
       {renderActionButton()}
     </OverlayContainer>
   );

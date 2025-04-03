@@ -9,14 +9,14 @@ import OutlinedSword from './outlinedSword';
 export const staticItemRefs = [];
 
 // Individual item component that handles both static display and animation
-const ItemObject = ({ experience, isActive, isInteractive }) => {
+const ItemObject = ({ experience, isActive }) => {
   const { camera } = useThree();
   const groupRef = useRef();
   const [hovered, setHovered] = useState(false);
+  const clickedRef = useRef(false);
   
   // Get animation state from store
   const itemAnimationPhase = useGameStore(state => state.itemAnimationPhase);
-  const handleItemClick = useGameStore(state => state.handleItemClick);
   const showMessageOverlay = useGameStore(state => state.showMessageOverlay);
   
   // Item height
@@ -54,6 +54,13 @@ const ItemObject = ({ experience, isActive, isInteractive }) => {
       }
     };
   }, [itemType]);
+
+  // Reset clicked state when overlay appears
+  useEffect(() => {
+    if (showMessageOverlay) {
+      clickedRef.current = false;
+    }
+  }, [showMessageOverlay]);
   
   // Animation for all items
   useFrame((state, delta) => {
@@ -107,13 +114,42 @@ const ItemObject = ({ experience, isActive, isInteractive }) => {
     }
   });
   
-  // FIX: Modified visibility logic to keep sword visible during message overlay
+  // Modified visibility logic to keep sword visible during message overlay
   const isSwordItem = itemType === 'Toy Wooden Sword';
   const isVisible = isSwordItem ? true : !(isActive && itemAnimationPhase === 'acquired');
   
   // For glow effect when hovered and clickable
-  const glowScale = (hovered && isInteractive) ? 1 : 1.0;
+  const isInteractive = isActive && !showMessageOverlay;
+  const glowScale = (hovered && isInteractive) ? 1.05 : 1.0;
   const glowIntensity = (hovered && isInteractive) ? 0.8 : 0.3;
+  
+  // ONE-CLICK SOLUTION: Direct acquisition on click
+  const handleItemObjectClick = (e) => {
+    e.stopPropagation();
+    
+    // Only process if item is active and not showing message overlay
+    if (isActive && !showMessageOverlay && !clickedRef.current) {
+      console.log(`Item ${itemType} clicked - starting acquisition immediately!`);
+      
+      // Mark as clicked to prevent multiple acquisition attempts
+      clickedRef.current = true;
+      
+      // DIRECTLY modify the game state to acquire the item
+      const store = useGameStore.getState();
+      
+      // 1. Make sure the item is displayed
+      store.setShowItemDisplay(true);
+      
+      // 2. Force the item into acquiring state - bypass clickable state entirely
+      store.setItemAnimationPhase('acquiring');
+      
+      // 3. Ensure overlay is closed
+      store.setShowMessageOverlay(false);
+      store.setMessageBoxVisible(false);
+      
+      console.log(`Item ${itemType} acquisition started!`);
+    }
+  };
   
   const renderItemModel = () => {
     switch(itemType) {
@@ -169,19 +205,12 @@ const ItemObject = ({ experience, isActive, isInteractive }) => {
         experience.itemPosition.z
       ]}
       visible={isVisible}
-      onClick={(e) => {
-        e.stopPropagation();
-        // Only allow click if item is in clickable state
-        if (isActive && isInteractive && itemAnimationPhase === 'clickable') {
-          handleItemClick();
-        }
-      }}
+      onClick={handleItemObjectClick}
       onPointerOver={() => setHovered(true)}
       onPointerOut={() => setHovered(false)}
       scale={[glowScale, glowScale, glowScale]} // Grow slightly when hovered
     >
       {renderItemModel()}
-      
     </group>
   );
 };
@@ -193,17 +222,33 @@ const StaticItems = () => {
   const showMessageOverlay = useGameStore(state => state.showMessageOverlay);
   const isMovingCamera = useGameStore(state => state.isMovingCamera);
   const showItemDisplay = useGameStore(state => state.showItemDisplay);
-  const itemAnimationPhase = useGameStore(state => state.itemAnimationPhase);
   const inventory = useGameStore(state => state.inventory);
   
-  // FIX: Add special handling for the sword experience
+  // Add special handling for the sword experience
   const currentExperience = currentExperienceIndex >= 0 && currentExperienceIndex < experiences.length 
     ? experiences[currentExperienceIndex] 
     : null;
   const isSwordExperience = currentExperience?.type === 'item' && 
     currentExperience?.item?.name === 'Toy Wooden Sword';
   
-  // FIX: Force the sword to display when it's the current experience
+  // Track overlay dismissal
+  const [lastOverlayState, setLastOverlayState] = useState(false);
+  
+  // Track overlay state changes
+  useEffect(() => {
+    // Reset clickable state whenever overlay changes
+    if (lastOverlayState !== showMessageOverlay) {
+      // If overlay was just dismissed and it's an item experience
+      if (lastOverlayState && !showMessageOverlay && currentExperience?.type === 'item') {
+        console.log("Overlay just dismissed - item should be clickable now");
+      }
+      
+      // Update the last overlay state
+      setLastOverlayState(showMessageOverlay);
+    }
+  }, [showMessageOverlay, lastOverlayState, currentExperience]);
+  
+  // Force the sword to display when it's the current experience
   useEffect(() => {
     if (isSwordExperience) {
       useGameStore.getState().setForceItemsVisible(true);
@@ -226,22 +271,18 @@ const StaticItems = () => {
         // If the item is already in inventory, skip rendering it in the world
         if (isInInventory) return null;
 
-        // FIX: Modified active experience logic to handle the sword special case
+        // Modified active experience logic to handle the sword special case
         const isActiveExperience = index === currentExperienceIndex;
         const isSword = experience.item.name === 'Toy Wooden Sword';
         
-        // FIX: Force the sword to be active during its experience
+        // Force the sword to be active during its experience
         const isActive = isActiveExperience && (isSword || (showItemDisplay && !isMovingCamera));
-        
-        // Item is only interactive if it's active, not showing message, and in clickable phase
-        const isInteractive = isActive && !showMessageOverlay && itemAnimationPhase === 'clickable';
         
         return (
           <ItemObject 
             key={`item-${index}`}
             experience={experience}
             isActive={isActive}
-            isInteractive={isInteractive}
           />
         );
       })}

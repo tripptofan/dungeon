@@ -17,7 +17,7 @@ const IndicatorContainer = styled.div`
   pointer-events: none;
   opacity: ${props => props.visible ? 0.8 : 0};
   transition: opacity 0.3s ease;
-  z-index: 50;
+  z-index: 2000; /* Very high z-index to appear over all overlays */
 `;
 
 const ArrowContainer = styled.div`
@@ -49,20 +49,17 @@ const LookAroundIndicator = () => {
   const isMobile = useGameStore(state => state.isMobile);
   const isMovingCamera = useGameStore(state => state.isMovingCamera);
   const cameraShaking = useGameStore(state => state.cameraShaking);
-  const showOverlay = useGameStore(state => 
-    state.showMessageOverlay || state.showActionOverlay
-  );
   
-  // Only show the indicator when player can look around
+  // Always show the indicator on mobile when not moving camera or shaking,
+  // regardless of overlay state
   useEffect(() => {
-    // Only show on mobile and when no overlays or camera movement
+    // Only show on mobile and when not camera movement
     const canLookAround = isMobile && 
                           !isMovingCamera && 
-                          !cameraShaking.isShaking && 
-                          !showOverlay;
+                          !cameraShaking.isShaking;
     
     setVisible(canLookAround);
-  }, [isMobile, isMovingCamera, cameraShaking.isShaking, showOverlay]);
+  }, [isMobile, isMovingCamera, cameraShaking.isShaking]);
   
   // Skip rendering if not mobile
   if (!isMobile) return null;
