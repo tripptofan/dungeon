@@ -6,11 +6,12 @@ import useGameStore from './store';
 // Import the TextureProvider
 import { TextureProvider } from './utils/textureManagement';
 
+// Import 3D Scene Components
 import Dungeon from './components/dungeon';
 import Player from './components/player';
 import FadeOutPlane from './components/fadeOutPlane';
 import ForceRender from './components/forceRender';
-import MessageOverlay from './components/messageOverlay';
+import MessageOverlay3D from './components/messageOverlay3D';
 import ActionOverlay from './components/actionOverlay';
 import StaticItems from './components/staticItems';
 import AcquiredItems from './components/acquiredItems';
@@ -22,7 +23,7 @@ import LookAroundControl from './components/lookAroundControl';
 import LookAroundIndicator from './components/lookAroundIndicator';
 import Prize from './components/prize';
 import PrizeButtons from './components/prizeButtons';
-// import AnimatedEnemy from './components/animatedEnemy';
+import AmbientNightLight from './components/ambientNightLight';
 
 // Loading indicator shown during initial scene loading
 const LoadingIndicator = styled.div`
@@ -199,10 +200,9 @@ function App() {
         <Canvas
           key={canvasKey}
           style={{ background: 'rgb(2,0,20)' }}
-
           gl={{
             powerPreference: "high-performance",
-            antialias: isMobile ? false : true, // Disable antialiasing on mobile
+            antialias: isMobile ? false : true,
             stencil: false,
             depth: true
           }}
@@ -219,6 +219,7 @@ function App() {
             <Suspense fallback={null}>
               <Dungeon />
               <Player />
+              <AmbientNightLight />
               <StaticItems />
               {loadingFade && <FadeOutPlane />}
               <ForceRender />
@@ -226,8 +227,15 @@ function App() {
               <AcquiredItems />
               <Enemy />
               <Prize />
-              {/* <AnimatedEnemy /> */}
               <LookAroundControl />
+              
+              {/* 3D Scene Overlays */}
+              {sceneReady && (
+                <>
+                  <MessageOverlay3D />
+                  <PrizeButtons />
+                </>
+              )}
             </Suspense>
           </TextureProvider>
         </Canvas>
@@ -248,10 +256,8 @@ function App() {
 
         {sceneReady && (
           <>
-            <MessageOverlay />
             <ActionOverlay />
             <LookAroundIndicator />
-            <PrizeButtons />
           </>
         )}
 
