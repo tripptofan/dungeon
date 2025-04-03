@@ -9,14 +9,14 @@ import TreasureChest from './treasureChest';
 import NightSky from './nightSky';
 
 // Define culling distance threshold - reduced for tighter culling
-const CULLING_DISTANCE = 100; // Only render objects within 25 units of the camera
+const CULLING_DISTANCE = 150; // Only render objects within 25 units of the camera
 
 // Occlusion culling constants
 const OCCLUSION_UPDATE_INTERVAL = 150; // Ms between occlusion checks
 const OCCLUSION_RAY_COUNT = 4; // Number of rays to cast per object
 const OCCLUSION_RAY_LENGTH = 20; // Length of occlusion rays
 const WALL_THICKNESS = 4.5; // Slightly less than tile size for ray casting
-const LOD_DISTANCE = 18; 
+const LOD_DISTANCE = 20; 
 
 // Component for instanced rendering of floor tiles
 const InstancedFloors = ({ tilePositions, tileSize }) => {
@@ -132,9 +132,10 @@ const InstancedWalls = ({ wallPositions, tileSize }) => {
     wallPositions.forEach(pos => {
       const distance = new THREE.Vector3(pos.x, tileSize/2, pos.z).distanceTo(camera.position);
       
-      if (distance <= LOD_DISTANCE) {
+      // Adjust the LOD_DISTANCE and culling logic
+      if (distance <= 25) { // Increased from 18
         high.push(pos);
-      } else {
+      } else if (distance <= 150) { // Increased culling distance
         low.push(pos);
       }
     });
