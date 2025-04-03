@@ -22,8 +22,9 @@ import SimpleFpsLimiter from './components/SimpleFpsLimiter';
 import LookAroundControl from './components/lookAroundControl';
 import LookAroundIndicator from './components/lookAroundIndicator';
 import Prize from './components/prize';
-import PrizeButtons from './components/prizeButtons';
+// import PrizeButtons from './components/prizeButtons';
 import AmbientNightLight from './components/ambientNightLight';
+import PrizeInteractionOverlay from './components/prizeInteractionOverlay';
 
 // Loading indicator shown during initial scene loading
 const LoadingIndicator = styled.div`
@@ -244,7 +245,7 @@ function App() {
               {sceneReady && (
                 <>
                   <MessageOverlay3D />
-                  <PrizeButtons />
+                  {/* <PrizeButtons /> */}
                 </>
               )}
             </Suspense>
@@ -268,7 +269,8 @@ function App() {
         {sceneReady && (
           <>
             <ActionOverlay />
-            <LookAroundIndicator />
+            {/* <LookAroundIndicator /> */}
+            <PrizeInteractionOverlay />
           </>
         )}
 

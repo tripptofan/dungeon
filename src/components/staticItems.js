@@ -127,29 +127,46 @@ const ItemObject = ({ experience, isActive }) => {
   const handleItemObjectClick = (e) => {
     e.stopPropagation();
     
-    // Only process if item is active and not showing message overlay
-    if (isActive && !showMessageOverlay && !clickedRef.current) {
-      console.log(`Item ${itemType} clicked - starting acquisition immediately!`);
+    // Get current state to check item clickability
+    const store = useGameStore.getState();
+    const currentExperienceIndex = store.currentExperienceIndex;
+    const currentExperience = store.experienceScript.experiences[currentExperienceIndex];
+    const isMessageVisible = store.showMessageOverlay;
+    const animationPhase = store.itemAnimationPhase;
+    
+    // Item should be clickable if:
+    // 1. It's the active item for the current experience
+    // 2. No message overlay is showing
+    // 3. The item is in "clickable" phase OR the overlay was just dismissed
+    const isCurrentItemExperience = 
+      isActive && 
+      currentExperience?.type === 'item' && 
+      currentExperience?.item?.name === itemType;
+    
+    const isClickable = 
+      isCurrentItemExperience && 
+      !isMessageVisible && 
+      (animationPhase === 'clickable' || animationPhase === 'hidden');
+    
+    console.log(`Item ${itemType} clicked - Clickable: ${isClickable}, Phase: ${animationPhase}`);
+    
+    // Only process if item is determined to be clickable
+    if (isClickable && !clickedRef.current) {
+      console.log(`Item ${itemType} clicked - starting acquisition!`);
       
       // Mark as clicked to prevent multiple acquisition attempts
       clickedRef.current = true;
       
       // DIRECTLY modify the game state to acquire the item
-      const store = useGameStore.getState();
-      
-      // 1. Make sure the item is displayed
       store.setShowItemDisplay(true);
-      
-      // 2. Force the item into acquiring state - bypass clickable state entirely
       store.setItemAnimationPhase('acquiring');
-      
-      // 3. Ensure overlay is closed
       store.setShowMessageOverlay(false);
       store.setMessageBoxVisible(false);
       
       console.log(`Item ${itemType} acquisition started!`);
     }
   };
+  
   
   const renderItemModel = () => {
     switch(itemType) {
