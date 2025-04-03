@@ -15,6 +15,10 @@ const Enemy = () => {
   const [enemyPosition, setEnemyPosition] = useState(null);
   const { camera } = useThree();
   
+  // FIX: Track overlay state for improved click handling
+  const [lastOverlayState, setLastOverlayState] = useState(false);
+  const [overlayJustDismissed, setOverlayJustDismissed] = useState(false);
+  
   // Create video texture on component mount
   useEffect(() => {
     // Create video element
@@ -58,6 +62,26 @@ const Enemy = () => {
   const handleEnemyClick = useGameStore(state => state.handleEnemyClick);
   const swordSwinging = useGameStore(state => state.swordSwinging);
   const debugMode = useGameStore(state => state.debugMode);
+  const showMessageOverlay = useGameStore(state => state.showMessageOverlay);
+  
+  // FIX: Track overlay state changes to detect dismissal
+  useEffect(() => {
+    // If overlay was showing, and now it's not, mark as just dismissed
+    if (lastOverlayState && !showMessageOverlay) {
+      console.log("Overlay just dismissed, marking enemy as ready for interaction");
+      setOverlayJustDismissed(true);
+      
+      // Reset after a short delay
+      const timer = setTimeout(() => {
+        setOverlayJustDismissed(false);
+      }, 500); // Allow 500ms window for click after dismissal
+      
+      return () => clearTimeout(timer);
+    }
+    
+    // Update the last overlay state
+    setLastOverlayState(showMessageOverlay);
+  }, [showMessageOverlay, lastOverlayState]);
   
   // For debug mode, force enemy to be visible
   useEffect(() => {
@@ -240,12 +264,35 @@ const Enemy = () => {
     }
   });
   
+  // FIX: Improved enemy click handling to prevent double-click issues
+  const handleEnemyMeshClick = (e) => {
+    e.stopPropagation();
+    
+    console.log("Enemy clicked!");
+    
+    // FIX: Calculate if enemy is clickable with improved conditions
+    const enemyClickable = useGameStore.getState().enemyClickable;
+    const enemyHit = useGameStore.getState().enemyHit;
+    
+    // FIX: Enemy is clickable if: regular conditions OR overlay just dismissed
+    const isClickable = (enemyClickable && !showMessageOverlay && !enemyHit) || 
+                        (enemyClickable && overlayJustDismissed && !enemyHit);
+      
+    if (isClickable) {
+      console.log("Triggering enemy click handler");
+      handleEnemyClick();
+    } else {
+      console.log("Enemy not clickable or already hit:", 
+        {clickable: enemyClickable, dismissed: overlayJustDismissed, hit: enemyHit});
+    }
+  };
+  
   // Don't render if not visible
   if (!isVisible || !enemyPosition) return null;
   
   // Calculate if enemy is clickable
   const enemyClickable = useGameStore.getState().enemyClickable && 
-                        !useGameStore.getState().showMessageOverlay;
+                        (!showMessageOverlay || overlayJustDismissed);
   
   // Create a more visible animated enemy
   return (
@@ -254,17 +301,7 @@ const Enemy = () => {
       <mesh 
         ref={enemyRef}
         position={[enemyPosition.x, enemyPosition.y, enemyPosition.z]}
-        onClick={(e) => {
-          console.log("Enemy clicked!");
-          e.stopPropagation();
-          if (enemyClickable && !useGameStore.getState().enemyHit) {
-            console.log("Triggering enemy click handler");
-            handleEnemyClick();
-          } else {
-            console.log("Enemy not clickable or already hit:", 
-              {clickable: enemyClickable, hit: useGameStore.getState().enemyHit});
-          }
-        }}
+        onClick={handleEnemyMeshClick}
       >
         <boxGeometry args={[3, 4.5, 1]} /> {/* LARGER dimensions */}
         <meshStandardMaterial 
@@ -281,13 +318,7 @@ const Enemy = () => {
       {/* Add a more obvious glow effect for better visibility */}
       <mesh 
         position={[enemyPosition.x, enemyPosition.y, enemyPosition.z - 0.2]}
-        onClick={(e) => {
-          console.log("Enemy glow clicked!");
-          e.stopPropagation();
-          if (enemyClickable && !useGameStore.getState().enemyHit) {
-            handleEnemyClick();
-          }
-        }}
+        onClick={handleEnemyMeshClick}
       >
         <boxGeometry args={[3.5, 6.5, 0.1]} />
         <meshBasicMaterial 

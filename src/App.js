@@ -81,12 +81,23 @@ const CanvasWrapper = styled.div`
   overflow: hidden;
 `;
 
+
 const StyledCanvasWrapper = styled(CanvasWrapper)`
+  /* Always disable default touch actions on mobile for custom touch handling */
   ${props => props.$isMobile && `
     touch-action: none;
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-touch-callout: none;
   `}
+  
+  /* Ensure look-around functionality always works with overlays */
+  @media (max-width: 768px) {
+    canvas {
+      touch-action: none !important;
+    }
+  }
 `;
-
 // Performance info overlay for development
 const PerformanceInfo = styled.div`
   position: fixed;

@@ -15,9 +15,6 @@ const LookAroundControl = () => {
   const isMobile = useGameStore(state => state.isMobile);
   const isMovingCamera = useGameStore(state => state.isMovingCamera);
   const cameraShaking = useGameStore(state => state.cameraShaking);
-  const showOverlay = useGameStore(state => 
-    state.showMessageOverlay || state.showActionOverlay
-  );
   
   // Maximum rotation angle in radians (90 degrees = π/2)
   const MAX_ROTATION = Math.PI / 2;
@@ -36,11 +33,14 @@ const LookAroundControl = () => {
     if (!isMobile) return;
     
     const handlePointerDown = (event) => {
-      // Skip if overlays are showing or camera is moving/shaking
-      if (showOverlay || isMovingCamera || cameraShaking.isShaking) return;
+      // Skip if camera is moving/shaking - but allow during overlays
+      if (isMovingCamera || cameraShaking.isShaking) return;
+      
+      // Prevent default to avoid unwanted scrolling or clicking
+      event.preventDefault();
       
       isDragging.current = true;
-      startX.current = event.clientX;
+      startX.current = event.clientX || (event.touches && event.touches[0] ? event.touches[0].clientX : 0);
       
       // Remember the current rotation as starting point
       currentRotation.current = targetRotation.current;
@@ -49,8 +49,14 @@ const LookAroundControl = () => {
     const handlePointerMove = (event) => {
       if (!isDragging.current) return;
       
+      // Prevent default to avoid unwanted scrolling
+      event.preventDefault();
+      
+      // Get current X position from the appropriate event property
+      const currentX = event.clientX || (event.touches && event.touches[0] ? event.touches[0].clientX : 0);
+      
       // Calculate drag distance
-      const deltaX = event.clientX - startX.current;
+      const deltaX = currentX - startX.current;
       
       // Calculate new target rotation (negative deltaX = positive rotation = look right)
       const newRotation = currentRotation.current - deltaX * ROTATION_SENSITIVITY;
@@ -61,16 +67,13 @@ const LookAroundControl = () => {
     
     const handlePointerUp = () => {
       isDragging.current = false;
-      
-      // Start returning to center
-      // We don't immediately set targetRotation to 0 to allow for smooth transition
     };
     
     const handleTouchStart = (event) => {
       if (event.touches.length === 1) {
         handlePointerDown({
-          clientX: event.touches[0].clientX,
-          clientY: event.touches[0].clientY
+          preventDefault: () => event.preventDefault(),
+          touches: event.touches
         });
       }
     };
@@ -78,8 +81,8 @@ const LookAroundControl = () => {
     const handleTouchMove = (event) => {
       if (event.touches.length === 1) {
         handlePointerMove({
-          clientX: event.touches[0].clientX,
-          clientY: event.touches[0].clientY
+          preventDefault: () => event.preventDefault(),
+          touches: event.touches
         });
       }
     };
@@ -91,14 +94,17 @@ const LookAroundControl = () => {
     // Add event listeners
     const canvas = gl.domElement;
     
+    // Use non-passive event listeners to allow preventDefault
+    const options = { passive: false };
+    
     // Mouse events
-    canvas.addEventListener('pointerdown', handlePointerDown);
-    window.addEventListener('pointermove', handlePointerMove);
+    canvas.addEventListener('pointerdown', handlePointerDown, options);
+    window.addEventListener('pointermove', handlePointerMove, options);
     window.addEventListener('pointerup', handlePointerUp);
     
     // Touch events
-    canvas.addEventListener('touchstart', handleTouchStart);
-    window.addEventListener('touchmove', handleTouchMove);
+    canvas.addEventListener('touchstart', handleTouchStart, options);
+    window.addEventListener('touchmove', handleTouchMove, options);
     window.addEventListener('touchend', handleTouchEnd);
     
     // Cleanup
@@ -111,7 +117,7 @@ const LookAroundControl = () => {
       window.removeEventListener('touchmove', handleTouchMove);
       window.removeEventListener('touchend', handleTouchEnd);
     };
-  }, [gl, isMobile, isMovingCamera, showOverlay, cameraShaking.isShaking]);
+  }, [gl, isMobile, isMovingCamera, cameraShaking.isShaking]);
   
   // Handle the camera rotation in animation frame
   useFrame((state, delta) => {
