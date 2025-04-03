@@ -1,7 +1,8 @@
 import React, { useRef, useEffect, useState } from 'react';
-import { useFrame, useThree } from '@react-three/fiber';
+import { useFrame, useThree, useLoader } from '@react-three/fiber';
 import * as THREE from 'three';
 import useGameStore from '../store';
+import { PlainAnimator } from 'three-plain-animator/lib/plain-animator'
 
 const Enemy = () => {
   const enemyRef = useRef();
@@ -10,6 +11,10 @@ const Enemy = () => {
   const [animationStarted, setAnimationStarted] = useState(false);
   const [enemyPosition, setEnemyPosition] = useState(null);
   const { camera } = useThree();
+  const textureSrc = '/gems.gif';
+  const spriteTexture = useLoader(THREE.TextureLoader, textureSrc);
+  const [animator] = useState(() => new PlainAnimator(spriteTexture, 1, 1, 16, 20))
+
   
   // Get relevant state from the store
   const currentExperienceIndex = useGameStore(state => state.currentExperienceIndex);
@@ -91,8 +96,9 @@ const Enemy = () => {
   
   // Handle the rising animation
   useFrame((state, delta) => {
+    animator.animate();
     if (!enemyRef.current || !isVisible || !enemyPosition) return;
-    
+
     // Update position
     enemyRef.current.position.x = enemyPosition.x;
     enemyRef.current.position.z = enemyPosition.z;
@@ -199,11 +205,12 @@ const Enemy = () => {
       >
         <boxGeometry args={[3, 6, 1]} /> {/* LARGER dimensions */}
         <meshStandardMaterial 
-          color="#ff0000" /* BRIGHTER red */
+          // color="#ff0000" /* BRIGHTER red */
           transparent={true} 
-          opacity={1.0}
-          emissive="#ff5555"
-          emissiveIntensity={1.0} /* Increased intensity */
+          map={spriteTexture}
+          // opacity={1.0}
+          // emissive="#ff5555"
+          // emissiveIntensity={1.0} /* Increased intensity */
         />
       </mesh>
       

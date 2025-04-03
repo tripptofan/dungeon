@@ -554,12 +554,12 @@ const OptimizedDungeon = () => {
       <TreasureChest />
       
       {/* Debug info component - only active in debugMode */}
-      {useGameStore(state => state.debugMode) && (
+      {/* {useGameStore(state => state.debugMode) && (
         <DungeonDebugInfo 
           renderCount={renderCount} 
           cullingDistance={isMobile ? CULLING_DISTANCE * 0.8 : CULLING_DISTANCE}
         />
-      )}
+      )} */}
     </>
   );
 };
