@@ -10,6 +10,7 @@ const LookAroundControl = () => {
   const currentRotation = useRef(0);
   const targetRotation = useRef(0);
   const originalRotation = useRef(new THREE.Euler());
+  const originalCameraPosition = useRef(new THREE.Vector3());
   
   // Get mobile state from store
   const isMobile = useGameStore(state => state.isMobile);
@@ -23,18 +24,19 @@ const LookAroundControl = () => {
   // Return to center speed
   const RETURN_SPEED = 0.1;
   
-  // Store original camera rotation when component mounts
+  // Store original camera rotation and position when component mounts
   useEffect(() => {
     originalRotation.current.copy(camera.rotation);
+    originalCameraPosition.current.copy(camera.position);
   }, [camera]);
-  
+
   // Set up event listeners
   useEffect(() => {
     if (!isMobile) return;
     
     const handlePointerDown = (event) => {
-      // Skip if camera is moving/shaking - but allow during overlays
-      if (isMovingCamera || cameraShaking.isShaking) return;
+      // Allow looking around during camera movement, but skip if shaking
+      if (cameraShaking.isShaking) return;
       
       // Prevent default to avoid unwanted scrolling or clicking
       event.preventDefault();
@@ -117,13 +119,13 @@ const LookAroundControl = () => {
       window.removeEventListener('touchmove', handleTouchMove);
       window.removeEventListener('touchend', handleTouchEnd);
     };
-  }, [gl, isMobile, isMovingCamera, cameraShaking.isShaking]);
+  }, [gl, isMobile, cameraShaking.isShaking]);
   
   // Handle the camera rotation in animation frame
   useFrame((state, delta) => {
-    // Skip if camera is moving or shaking
-    if (isMovingCamera || cameraShaking.isShaking) {
-      // Reset target rotation when camera is moving
+    // Skip if camera is shaking
+    if (cameraShaking.isShaking) {
+      // Reset target rotation when camera is shaking
       targetRotation.current = 0;
       return;
     }
@@ -134,8 +136,9 @@ const LookAroundControl = () => {
     }
     
     // Apply rotation to Y axis only
-    // We need to preserve the original X and Z rotation
-    camera.rotation.y = originalRotation.current.y + targetRotation.current;
+    // Preserve the original X and Z rotation
+    const newRotationY = originalRotation.current.y + targetRotation.current;
+    camera.rotation.y = newRotationY;
   });
   
   // No visual component
