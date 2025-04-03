@@ -20,6 +20,8 @@ import Enemy from './components/enemy';
 import SimpleFpsLimiter from './components/SimpleFpsLimiter';
 import LookAroundControl from './components/lookAroundControl';
 import LookAroundIndicator from './components/lookAroundIndicator';
+import Prize from './components/prize';
+import PrizeButtons from './components/prizeButtons';
 // import AnimatedEnemy from './components/animatedEnemy';
 
 // Loading indicator shown during initial scene loading
@@ -223,9 +225,9 @@ function App() {
               <CameraShake />
               <AcquiredItems />
               <Enemy />
+              <Prize />
               {/* <AnimatedEnemy /> */}
               <LookAroundControl />
-
             </Suspense>
           </TextureProvider>
         </Canvas>
@@ -249,6 +251,7 @@ function App() {
             <MessageOverlay />
             <ActionOverlay />
             <LookAroundIndicator />
+            <PrizeButtons />
           </>
         )}
 

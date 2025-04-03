@@ -1,4 +1,4 @@
-import React, { useRef, useState, useEffect } from 'react';
+import React, { useRef, useState, useEffect, memo } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import useGameStore from '../store';
@@ -10,30 +10,41 @@ export const treasureChestRefs = [];
 const TreasureChest = () => {
   const chestRef = useRef();
   const [hovered, setHovered] = useState(false);
+  const messageSentRef = useRef(false);
+  const initializedRef = useRef(false);
+  const chestPositionRef = useRef({ x: 5, z: 86 });
   
   // Get relevant state from the store
-  const tileSize = useGameStore(state => state.tileSize);
-  const dungeon = useGameStore(state => state.dungeon);
   const currentExperienceIndex = useGameStore(state => state.currentExperienceIndex);
   const experiences = useGameStore(state => state.experienceScript.experiences);
-  const handleItemClick = useGameStore(state => state.handleItemClick);
   const showMessageOverlay = useGameStore(state => state.showMessageOverlay);
+  const chestOpened = useGameStore(state => state.chestOpened);
+  const isMovingCamera = useGameStore(state => state.isMovingCamera);
   
-  // We'll position the chest at the same position defined in the 
-  // chest experience (experience 6) but slightly ahead of where the player will stand
-  const chestExperience = experiences.find(exp => exp.type === 'chest');
-  // If chest experience is defined, use its position, otherwise fallback to default
-  const chestPosition = chestExperience 
-    ? { x: chestExperience.position.x, z: chestExperience.position.z + 4 } // 3 units in front of where player will stop
-    : { x: 5, z: (dungeon[0].length - 3) * tileSize }; // Fallback - second to last tile
+  // Get actions from store
+  const setChestOpened = useGameStore(state => state.setChestOpened);
+  const setMessageText = useGameStore(state => state.setCurrentMessage);
+  const showMessage = useGameStore(state => state.setShowMessageOverlay);
+  const setMessageBoxVisible = useGameStore(state => state.setMessageBoxVisible);
+  const setTypingInProgress = useGameStore(state => state.setTypingInProgress);
   
-  // Determine whether this is the active experience
-  const isChestExperience = currentExperienceIndex >= 0 && 
-    currentExperienceIndex < experiences.length && 
-    experiences[currentExperienceIndex].type === 'chest';
-  
-  // Determine if the chest is interactive (active and no overlay showing)
-  const isInteractive = isChestExperience && !showMessageOverlay;
+  // Initialize chest position once on mount
+  useEffect(() => {
+    if (!initializedRef.current) {
+      // Find chest experience
+      const chestExp = experiences.find(exp => exp.type === 'chest');
+      
+      // If chest experience is defined, use its position
+      if (chestExp) {
+        chestPositionRef.current = {
+          x: chestExp.position.x,
+          z: chestExp.position.z + 4 // 3 units in front of where player will stop
+        };
+      }
+      
+      initializedRef.current = true;
+    }
+  }, [experiences]);
   
   // Add ref to the static array when mounted, remove when unmounted
   useEffect(() => {
@@ -51,26 +62,77 @@ const TreasureChest = () => {
     };
   }, []);
   
-  // No animation - chest should remain stationary on the floor
-  useFrame(() => {
-    if (!chestRef.current) return;
+  // Show "a reward for the hero..." message when chest experience starts
+  // ONLY when the player has stopped moving
+  useEffect(() => {
+    // Check if this is the chest experience and player is not moving
+    const isChestExperience = currentExperienceIndex === 5 && 
+      experiences[currentExperienceIndex]?.type === 'chest';
+      
+    if (isChestExperience && !chestOpened && !messageSentRef.current && !isMovingCamera) {
+      // Wait a short delay after the player stops to show the message
+      // This ensures player has come to a complete stop
+      const timer = setTimeout(() => {
+        // Double-check that we're still in the chest experience and not moving
+        if (currentExperienceIndex === 5 && !isMovingCamera) {
+          // Mark message as sent to prevent repeated messages
+          messageSentRef.current = true;
+          
+          setMessageText("A reward for the hero...");
+          showMessage(true);
+          setMessageBoxVisible(true);
+          setTypingInProgress(true);
+        }
+      }, 800); // Slightly longer delay for better timing
+      
+      return () => clearTimeout(timer);
+    }
+  }, [
+    currentExperienceIndex, 
+    experiences, 
+    chestOpened, 
+    isMovingCamera, 
+    setMessageText, 
+    showMessage, 
+    setMessageBoxVisible, 
+    setTypingInProgress
+  ]);
+  
+  // Handle chest click
+  const handleChestClick = () => {
+    // Determine if chest is currently interactive
+    const isChestExperience = currentExperienceIndex === 5 && 
+      experiences[currentExperienceIndex]?.type === 'chest';
+    const isInteractive = isChestExperience && !showMessageOverlay && !chestOpened;
     
-    // Ensure chest stays firmly on the ground
-    chestRef.current.position.y = 0.5; // Half the height of the chest to sit on floor
+    if (isInteractive) {
+      console.log("Chest clicked! Opening...");
+      setChestOpened(true);
+    }
+  };
+  
+  // Simplified useFrame - just ensure chest position is correct
+  useFrame(() => {
+    if (chestRef.current && chestRef.current.position.y !== 0.5) {
+      chestRef.current.position.y = 0.5;
+    }
   });
   
-  // For glow effect when hovered and clickable - no scaling of the chest itself
+  // Determine if chest is currently interactive - computed value
+  const isChestExperience = currentExperienceIndex === 5 && 
+    experiences[currentExperienceIndex]?.type === 'chest';
+  const isInteractive = isChestExperience && !showMessageOverlay && !chestOpened;
+  
+  // For glow effect when hovered and clickable
   const glowIntensity = (hovered && isInteractive) ? 0.8 : 0.3;
   
   return (
     <group 
       ref={chestRef}
-      position={[chestPosition.x, 0.5, chestPosition.z]} // Positioned based on the experience configuration
+      position={[chestPositionRef.current.x, 0.5, chestPositionRef.current.z]}
       onClick={(e) => {
         e.stopPropagation();
-        if (isInteractive) {
-          handleItemClick();
-        }
+        handleChestClick();
       }}
       onPointerOver={() => setHovered(true)}
       onPointerOut={() => setHovered(false)}
@@ -109,7 +171,6 @@ const TreasureChest = () => {
         />
       </mesh>
       
-      
       {/* Add a light source to make the chest more visible */}
       <pointLight
         color="#FFD700"
@@ -122,4 +183,4 @@ const TreasureChest = () => {
   );
 };
 
-export default React.memo(TreasureChest);
+export default memo(TreasureChest);
