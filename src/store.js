@@ -3,7 +3,7 @@ import { create } from 'zustand';
 // Create a store with optimized structure and enhanced experience flow
 const useGameStore = create((set, get) => ({
   // Development testing flags
-  debugMode: true, // Enable for additional logging and testing features
+  debugMode: false, // Enable for additional logging and testing features
   
   // Scene loading state
   sceneLoaded: false,
