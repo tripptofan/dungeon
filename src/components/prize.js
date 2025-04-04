@@ -129,23 +129,17 @@ useEffect(() => {
     }
   }, [prizeText]);
 
-  // Handle timing for inspect state and message overlay
+  // Handle transition to inspect state
   useEffect(() => {
     if (prizeState === 'inspecting') {
       // Disable any 3D message overlay
       useGameStore.getState().setShowMessageOverlay(false);
       useGameStore.getState().setMessageBoxVisible(false);
       
-      // Show prize interaction overlay after 3 seconds
-      inspectTimerRef.current = setTimeout(() => {
-        MessageService.showPrizeInteractionMessage();
-      }, 3000);
-      
-      return () => {
-        if (inspectTimerRef.current) {
-          clearTimeout(inspectTimerRef.current);
-        }
-      };
+      // Clear any existing timer just to be safe
+      if (inspectTimerRef.current) {
+        clearTimeout(inspectTimerRef.current);
+      }
     }
   }, [prizeState]);
   
@@ -189,22 +183,6 @@ useEffect(() => {
       setPrizeState('rising');
     }
   }, [chestOpened, prizeState, setPrizeState]);
-  
-  // Handle timing for inspect state and message overlay
-  useEffect(() => {
-    if (prizeState === 'inspecting') {
-      // Show message overlay after 3 seconds
-      inspectTimerRef.current = setTimeout(() => {
-        MessageService.showPrizeInteractionMessage();
-      }, 3000);
-      
-      return () => {
-        if (inspectTimerRef.current) {
-          clearTimeout(inspectTimerRef.current);
-        }
-      };
-    }
-  }, [prizeState]);
   
   // Handle the prize animation (optimized version)
   useFrame((state, delta) => {
