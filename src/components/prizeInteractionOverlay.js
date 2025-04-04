@@ -1,5 +1,5 @@
 // In src/components/prizeInteractionOverlay.js
-// Implementation with updated prize text and calendar functionality
+// Implementation with updated prize text, calendar functionality, and close button
 
 import React, { useState, useEffect, useRef } from 'react';
 import styled from 'styled-components';
@@ -47,6 +47,15 @@ const InteractionButton = styled.button`
     stroke: white;
     stroke-width: 1.5;
     fill: none;
+  }
+`;
+
+const CloseButton = styled(InteractionButton)`
+  background-color: rgba(255, 120, 120, 0.2);
+  border-color: rgba(255, 255, 255, 0.8);
+  
+  &:hover {
+    background-color: rgba(255, 120, 120, 0.4);
   }
 `;
 
@@ -345,6 +354,17 @@ const PrizeInteractionOverlay = () => {
     }
   };
 
+  // Handle close button click - transition to acquiring state
+  const handleCloseClick = () => {
+    console.log("Close button clicked - transitioning prize to acquiring state");
+    
+    // Change prize state to acquiring so it will animate towards the player
+    setPrizeState('acquiring');
+    
+    // Hide this overlay
+    setIsVisible(false);
+  };
+
   return (
     <OverlayContainer visible={isVisible}>
       <InteractionButton onClick={handleCalendarClick}>
@@ -363,6 +383,13 @@ const PrizeInteractionOverlay = () => {
           <line x1="12" y1="15" x2="12" y2="3"></line>
         </svg>
       </InteractionButton>
+      
+      <CloseButton onClick={handleCloseClick}>
+        <svg viewBox="0 0 24 24">
+          <line x1="18" y1="6" x2="6" y2="18"></line>
+          <line x1="6" y1="6" x2="18" y2="18"></line>
+        </svg>
+      </CloseButton>
     </OverlayContainer>
   );
 };

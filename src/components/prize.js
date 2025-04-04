@@ -36,12 +36,13 @@ const Prize = () => {
   const textTextureRef = useRef(null);
   
   // Use refs instead of state for animation values to avoid re-renders
-  const animationStateRef = useRef('hidden'); // hidden, rising, floating, inspecting
+  const animationStateRef = useRef('hidden'); // hidden, rising, floating, inspecting, acquiring
   const floatPhaseRef = useRef(0);
   const prizePositionRef = useRef(null);
   const initializedRef = useRef(false);
   const lastUpdateTimeRef = useRef(0);
   const inspectTimerRef = useRef(null);
+  const acquisitionCompleteRef = useRef(false);
   
   // Get relevant state from the store
   const prizeState = useGameStore(state => state.prizeState);
@@ -140,6 +141,11 @@ useEffect(() => {
       if (inspectTimerRef.current) {
         clearTimeout(inspectTimerRef.current);
       }
+    }
+    
+    // Reset acquisition state when prize state changes
+    if (prizeState === 'acquiring') {
+      acquisitionCompleteRef.current = false;
     }
   }, [prizeState]);
   
@@ -257,6 +263,57 @@ useEffect(() => {
       // Make prize face directly at the camera
       prizeRef.current.lookAt(camera.position);
     } 
+    else if (animationState === 'acquiring') {
+      // Similar to the item acquisition animation
+      // Move toward player with shrinking effect
+      
+      // Get player's position
+      const playerX = camera.position.x;
+      const playerY = camera.position.y - 0.5; // Target slightly below player's center
+      const playerZ = camera.position.z;
+      
+      // Calculate distance to player
+      const distanceToPlayer = new THREE.Vector3(playerX, playerY, playerZ)
+        .distanceTo(new THREE.Vector3(
+          prizePositionRef.current.x, 
+          prizePositionRef.current.y, 
+          prizePositionRef.current.z
+        ));
+      
+      // Add a downward arc as it approaches the player
+      const downwardArc = Math.max(0, Math.min(0.5, distanceToPlayer * 0.2)) * 
+                           Math.sin(state.clock.elapsedTime * 2);
+      
+      // Move toward player position
+      prizePositionRef.current.x += (playerX - prizePositionRef.current.x) * 0.1;
+      prizePositionRef.current.y += ((playerY - downwardArc) - prizePositionRef.current.y) * 0.1;
+      prizePositionRef.current.z += (playerZ - prizePositionRef.current.z) * 0.1;
+      
+      // Scale down as it approaches the player
+      if (prizeRef.current) {
+        const currentScale = prizeRef.current.scale.x;
+        const newScale = Math.max(0.01, currentScale - 0.02);
+        prizeRef.current.scale.set(newScale, newScale, newScale);
+      }
+      
+      // Increase rotation speed for dramatic effect
+      prizeRef.current.rotation.y += 0.1;
+      
+      // Check if prize has reached player
+      if (distanceToPlayer < 0.3 || (prizeRef.current && prizeRef.current.scale.x <= 0.01)) {
+        // Prize has been fully acquired
+        if (!acquisitionCompleteRef.current) {
+          acquisitionCompleteRef.current = true;
+          console.log("Prize animation complete!");
+          
+          // Just change prize state to acquired (which will hide it)
+          // We don't add it to the inventory - this is purely visual
+          setTimeout(() => {
+            setPrizeState('acquired');
+          }, 100);
+        }
+      }
+    }
     
     // Apply the position directly to the mesh
     if (prizeRef.current) {
@@ -268,8 +325,8 @@ useEffect(() => {
     }
   });
   
-  // Don't render if hidden
-  if (prizeState === 'hidden') return null;
+  // Don't render if hidden or acquired
+  if (prizeState === 'hidden' || prizeState === 'acquired') return null;
   
   // Create a glowing effect when hovered
   const glowIntensity = hovered ? 0.8 : 0.4;
@@ -370,5 +427,4 @@ useEffect(() => {
     </group>
   );
 };
-
 export default React.memo(Prize);

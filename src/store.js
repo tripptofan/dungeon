@@ -79,7 +79,9 @@ const useGameStore = create((set, get) => ({
   tileLocations: [],
   wallLocations: [],
   isMobile: false,
-  
+  chestOpened: false,
+  prizeState: 'hidden', // 'hidden', 'rising', 'floating', 'inspecting', 'acquiring', 'acquired'
+  prizeClicked: false,
   
   // Experience content - simplified flow with just item interactions and shaking events
   experienceScript: {
@@ -215,9 +217,14 @@ const useGameStore = create((set, get) => ({
         forceItemsVisible: true
       });
       
+      // For prize item, show a completion message or move to final state
+      if (item.name === "Ancient Artifact") {
+        console.log("Prize added to inventory!");
+        // You could add any final experience state transition here
+      }
       // Show action overlay after a delay
-      setTimeout(() => {
-        if (state.currentExperienceIndex < state.experienceScript.experiences.length - 1) {
+      else if (state.currentExperienceIndex < state.experienceScript.experiences.length - 1) {
+        setTimeout(() => {
           set({
             showActionOverlay: true,
             actionType: 'move',
@@ -226,8 +233,8 @@ const useGameStore = create((set, get) => ({
             showItemDisplay: true,
             forceItemsVisible: true
           });
-        }
-      }, 1000);
+        }, 1000);
+      }
     }
   },
   
