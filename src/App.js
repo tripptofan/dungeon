@@ -26,6 +26,7 @@ import Prize from './components/prize';
 // import PrizeButtons from './components/prizeButtons';
 import AmbientNightLight from './components/ambientNightLight';
 import PrizeInteractionOverlay from './components/prizeInteractionOverlay';
+import BlackScreen from './components/BlackScreen';
 
 // Loading indicator shown during initial scene loading
 const LoadingIndicator = styled.div`
@@ -273,6 +274,7 @@ function App() {
             <ActionOverlay />
             {/* <LookAroundIndicator /> */}
             <PrizeInteractionOverlay />
+            <BlackScreen /> 
           </>
         )}
 

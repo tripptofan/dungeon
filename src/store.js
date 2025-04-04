@@ -13,6 +13,12 @@ const useGameStore = create((set, get) => ({
   playerPosition: { x: 0, y: 2, z: 0 },
   playerHealth: 100,
   inventory: [], // Player's inventory
+  doorClickable: false,
+isDoorClicked: false,
+movingToDoor: false,
+doorPosition: { x: 0, y: 0, z: 0 },
+fadingToBlack: false,
+blackScreenOpacity: 0,
   
   // Message overlay state
   showMessageOverlay: false,
@@ -159,6 +165,7 @@ const useGameStore = create((set, get) => ({
     [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2],
     [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
   ],
+  setDoorClickable: (value) => set({ doorClickable: value }),
   
   // Core action dispatchers
   setSceneLoaded: (value) => set({ sceneLoaded: value }),
@@ -193,7 +200,28 @@ const useGameStore = create((set, get) => ({
       });
     }, 1000);
   },
-  
+  handleDoorClick: (position) => {
+    const state = get();
+    
+    // Only process if door is clickable and not already clicked
+    if (state.doorClickable && !state.isDoorClicked) {
+      console.log("Door clicked! Starting movement toward door");
+      
+      // Store door position
+      set({ 
+        isDoorClicked: true,
+        doorPosition: position,
+        movingToDoor: true 
+      });
+      
+      // Close any open overlays
+      set({
+        showMessageOverlay: false,
+        messageBoxVisible: false,
+        showActionOverlay: false
+      });
+    }
+  },
   // Viewport size management
   updateViewportSize: (dimensions) => set({ viewportSize: dimensions }),
   
@@ -237,7 +265,10 @@ const useGameStore = create((set, get) => ({
       }
     }
   },
-  
+  startFadeToBlack: () => set({ fadingToBlack: true }),
+
+// Update black screen opacity
+updateBlackScreenOpacity: (opacity) => set({ blackScreenOpacity: opacity }),
   // Message overlay actions
   setShowMessageOverlay: (value) => {
     // When showing message overlay, ensure items remain visible if they're already visible
