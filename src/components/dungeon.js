@@ -320,13 +320,15 @@ const OptimizedDungeon = () => {
   const lastFrustumUpdateRef = useRef(0);
   const lastOcclusionUpdateRef = useRef(0);
   const raycasterRef = useRef(new THREE.Raycaster());
-  
+  const { materials } = useTextures();
   const tileSize = useGameStore((state) => state.tileSize);
   const dungeon = useGameStore((state) => state.dungeon);
   const setTileLocations = useGameStore((state) => state.setTileLocations);
   const setWallLocations = useGameStore((state) => state.setWallLocations);
   const playerPosition = useGameStore((state) => state.playerPosition);
   const isMobile = useGameStore((state) => state.isMobile);
+  const doorClickable = useGameStore(state => state.doorClickable);
+  const handleDoorClick = useGameStore(state => state.handleDoorClick);
 
   // Calculate dungeon dimensions
   const dungeonWidth = useMemo(() => dungeon.length * tileSize, [dungeon.length, tileSize]);
@@ -676,10 +678,38 @@ useFrame(() => {
         tileSize={tileSize}
       />
       
-      <InstancedDoors
-        doorPositions={visibleDoors.map(door => door.position)}
-        tileSize={tileSize}
-      />
+      {visibleDoors.map((door, index) => {
+
+    
+    return (
+      <mesh
+        key={`door-${index}`}
+        position={[door.position.x, tileSize / 2, door.position.z]}
+        castShadow={true}
+        receiveShadow={true}
+        onClick={(e) => {
+          e.stopPropagation();
+          if (doorClickable) {
+            // Handle the door click with the door position
+            handleDoorClick(door.position);
+            console.log("Door clicked at position:", door.position);
+          }
+        }}
+        onPointerOver={(e) => {
+          e.stopPropagation();
+          if (doorClickable) {
+            document.body.style.cursor = 'pointer';
+          }
+        }}
+        onPointerOut={() => {
+          document.body.style.cursor = 'auto';
+        }}
+      >
+        <boxGeometry args={[tileSize, tileSize, tileSize]} />
+        <primitive object={materials.doorMaterial} />
+      </mesh>
+    );
+  })}
       
       {/* Night sky instead of ceiling */}
       <NightSky />
