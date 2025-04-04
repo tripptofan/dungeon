@@ -13,10 +13,10 @@ export const prizeRefs = [];
 
 // Text rendering configuration
 const TEXT_CONFIG = {
-  fontSize: 24,
-  fontFamily: 'Georgia, serif',
+  fontSize: 48,
+  fontFamily: "Georgia, serif",
   textColor: '#333',
-  lineHeight: 1.3,
+  lineHeight: 1.8,
   padding: 10,
   maxWidth: 600, // Narrower text container
   textAlign: 'center'
@@ -63,8 +63,8 @@ const Prize = () => {
       : { x: 5, z: 86 }
   ).current;
   
-// Create canvas texture for text
-useEffect(() => {
+  // Create canvas texture for text
+  useEffect(() => {
     const canvas = textCanvasRef.current;
     canvas.width = 1024;
     canvas.height = 512;
@@ -73,51 +73,66 @@ useEffect(() => {
     // Clear canvas
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     
-    // Calculate crop margins (3% on each side)
-    const cropMargin = canvas.width * 0.03;
-    
     // Set text styles
     ctx.font = `${TEXT_CONFIG.fontSize}px ${TEXT_CONFIG.fontFamily}`;
     ctx.fillStyle = TEXT_CONFIG.textColor;
-    ctx.textAlign = 'center';
+    ctx.textAlign = TEXT_CONFIG.textAlign;
     ctx.textBaseline = 'middle';
     
-    // Wrap text logic
+    // Improved wrap text logic that properly handles newline characters
     const wrapText = (text, x, y, maxWidth, lineHeight) => {
-      const words = text.split(' ');
-      let line = '';
+      if (!text || text.length === 0) return;
+      
+      // First split by newline characters to respect line breaks
+      const paragraphs = text.split('\\n');
       const lines = [];
       
-      words.forEach((word) => {
-        const testLine = line + word + ' ';
-        const metrics = ctx.measureText(testLine);
-        
-        if (metrics.width > maxWidth && line !== '') {
-          lines.push(line);
-          line = word + ' ';
-        } else {
-          line = testLine;
+      // Process each paragraph separately, respecting manual line breaks
+      paragraphs.forEach(paragraph => {
+        if (paragraph.trim() === '') {
+          // Handle empty lines
+          lines.push('');
+          return;
         }
+        
+        const words = paragraph.split(' ');
+        let line = '';
+        
+        // Process words within each paragraph for width-based wrapping
+        words.forEach(word => {
+          const testLine = line + word + ' ';
+          const metrics = ctx.measureText(testLine);
+          
+          if (metrics.width > maxWidth && line !== '') {
+            lines.push(line);
+            line = word + ' ';
+          } else {
+            line = testLine;
+          }
+        });
+        
+        // Add the last line of this paragraph
+        if (line) lines.push(line);
       });
       
-      if (line) lines.push(line);
-      
-      // Render lines
+      // Calculate total height for vertical centering
       const totalHeight = lines.length * lineHeight;
-      const startY = y - totalHeight / 2;
+      const startY = y - (totalHeight / 2);
       
-      lines.forEach((l, index) => {
-        ctx.fillText(l, x, startY + index * lineHeight);
+      // Render each line
+      lines.forEach((line, index) => {
+        const lineY = startY + (index * lineHeight);
+        ctx.fillText(line, x, lineY);
       });
     };
     
-    // Draw text in the center of the cropped canvas, slightly higher
+    // Draw text with improved wrapping (centered both horizontally and vertically)
     wrapText(
       prizeText, 
       canvas.width / 2, 
-      canvas.height / 2 - canvas.height * 0.05, // Slightly higher 
-      canvas.width - (cropMargin * 2), 
-      TEXT_CONFIG.fontSize * TEXT_CONFIG.lineHeight
+      canvas.height / 2, 
+      canvas.width - 120, 
+      36
     );
     
     // Create or update texture

@@ -1,6 +1,4 @@
-// In src/components/prizeInteractionOverlay.js
-// Implementation with updated prize text, calendar functionality, and close button
-
+// src/components/prizeInteractionOverlay.js
 import React, { useState, useEffect, useRef } from 'react';
 import styled from 'styled-components';
 import useGameStore from '../store';
@@ -8,7 +6,7 @@ import useGameStore from '../store';
 // Styled components for the overlay
 const OverlayContainer = styled.div`
   position: fixed;
-  bottom: 15%; // Raised up a bit more
+  bottom: 15%;
   left: 50%;
   transform: translateX(-50%);
   display: flex;
@@ -18,6 +16,7 @@ const OverlayContainer = styled.div`
   z-index: 1000;
   opacity: ${props => props.visible ? 1 : 0};
   transition: opacity 0.3s ease;
+  pointer-events: ${props => props.visible ? 'auto' : 'none'};
 `;
 
 const InteractionButton = styled.button`
@@ -87,10 +86,7 @@ const generatePrizeImage = async (prizeText) => {
     // Draw the paper texture as background, filling the entire canvas
     ctx.drawImage(paperTexture, 0, 0, canvas.width, canvas.height);
     
-    // Add a subtle golden border to match the prize in the 3D world
-    ctx.strokeStyle = '#f0e68c'; // Golden color
-    ctx.lineWidth = 8;
-    ctx.strokeRect(10, 10, canvas.width - 20, canvas.height - 20);
+    // No border - removed as requested
     
     // Configure text rendering
     ctx.font = 'bold 36px Georgia, serif';
@@ -98,17 +94,7 @@ const generatePrizeImage = async (prizeText) => {
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     
-    // Add a title at the top with some padding
-    ctx.font = 'bold 44px Georgia, serif';
-    ctx.fillText('Ancient Artifact', canvas.width / 2, 80);
-    
-    // Draw a decorative line
-    ctx.beginPath();
-    ctx.moveTo(100, 140);
-    ctx.lineTo(canvas.width - 100, 140);
-    ctx.strokeStyle = '#8B4513';
-    ctx.lineWidth = 2;
-    ctx.stroke();
+    // No title - just leave space for the centered text
     
     // Wrap and draw the main text
     const wrapText = (text, x, y, maxWidth, lineHeight) => {
@@ -137,15 +123,22 @@ const generatePrizeImage = async (prizeText) => {
         lines.push(''); // Add an empty line between paragraphs
       });
       
+      // Calculate the total height of the text to center it vertically
+      const totalTextHeight = lines.length * lineHeight;
+      // Calculate the starting Y position to center the text vertically
+      const startY = (canvas.height - totalTextHeight) / 2;
+      
       // Draw each line
-      ctx.font = '30px Georgia, serif';
+      ctx.font = '36px Georgia, serif'; // Increased font size
       lines.forEach((line, index) => {
-        ctx.fillText(line, x, y + index * lineHeight);
+        ctx.fillText(line, x, startY + index * lineHeight);
       });
+      
+      return lines.length; // Return line count for reference
     };
     
-    // Draw the prize text centered in the canvas
-    wrapText(prizeText, canvas.width / 2, canvas.height / 2, canvas.width - 120, 50);
+    // Draw the prize text properly centered in the canvas
+    wrapText(prizeText, canvas.width / 2, canvas.height / 2, canvas.width - 160, 60);
     
     // Add a subtle glow effect to enhance the magical artifact feel
     ctx.shadowColor = '#f0e68c'; // Golden glow
@@ -165,25 +158,70 @@ const generatePrizeImage = async (prizeText) => {
     ctx.fillStyle = gradient;
     ctx.fillRect(0, 0, canvas.width, canvas.height);
     
-    // Continue with text rendering
-    ctx.font = 'bold 44px Georgia, serif';
+    // Continue with text rendering - no title, just centered prize text
+    ctx.font = '36px Georgia, serif';
     ctx.fillStyle = '#333';
     ctx.textAlign = 'center';
-    ctx.fillText('Ancient Artifact', canvas.width / 2, 80);
     
-    // Wrap and render the prize text
+    // Wrap and render the prize text, centered vertically
     const lines = prizeText.split('\n');
-    ctx.font = '30px Georgia, serif';
+    const lineHeight = 60;
+    const totalTextHeight = lines.length * lineHeight;
+    const startY = (canvas.height - totalTextHeight) / 2;
+    
     lines.forEach((line, index) => {
-      ctx.fillText(line, canvas.width / 2, canvas.height / 2 - 50 + (index * 50));
+      ctx.fillText(line, canvas.width / 2, startY + (index * lineHeight));
     });
     
     return canvas.toDataURL('image/png');
   }
 };
 
+// Function to generate an iCalendar (.ics) file for the event
+const generateCalendarFile = () => {
+  // Parse the event details from the prize text
+  const eventTitle = "Unreal Together";
+  const eventLocation = "French Fried Vintage, 7 Emory Pl, Knoxville, TN 37917";
+  
+  // Set the event date and time (May 2, 2025 at 6:00 PM Eastern Time)
+  const eventDate = new Date(2025, 4, 2, 18, 0, 0); // Month is 0-indexed, so 4 = May
+  const eventEndDate = new Date(eventDate.getTime() + 2 * 60 * 60 * 1000); // Event lasts 2 hours
+  
+  // Format dates for iCalendar format (YYYYMMDDTHHMMSSZ)
+  const formatDateForCalendar = (date) => {
+    return date.toISOString().replace(/-|:|\.\d+/g, '');
+  };
+  
+  const now = new Date();
+  
+  // Create the iCalendar content
+  const icsContent = [
+    'BEGIN:VCALENDAR',
+    'VERSION:2.0',
+    'PRODID:-//Unreal Together//EN',
+    'CALSCALE:GREGORIAN',
+    'METHOD:PUBLISH',
+    'BEGIN:VEVENT',
+    `UID:${new Date().getTime()}@unrealtogether.com`,
+    `DTSTAMP:${formatDateForCalendar(now)}`,
+    `DTSTART:${formatDateForCalendar(eventDate)}`,
+    `DTEND:${formatDateForCalendar(eventEndDate)}`,
+    `SUMMARY:${eventTitle}`,
+    `LOCATION:${eventLocation}`,
+    'DESCRIPTION:Join us for the Unreal Together event at French Fried Vintage!',
+    'STATUS:CONFIRMED',
+    'SEQUENCE:0',
+    'END:VEVENT',
+    'END:VCALENDAR'
+  ].join('\r\n');
+  
+  return icsContent;
+};
+
 const PrizeInteractionOverlay = () => {
   const [isVisible, setIsVisible] = useState(false);
+  const [isMounted, setIsMounted] = useState(false);
+  const [isFadingOut, setIsFadingOut] = useState(false);
   const prizeState = useGameStore(state => state.prizeState);
   const setPrizeState = useGameStore(state => state.setPrizeState);
   
@@ -194,7 +232,7 @@ const PrizeInteractionOverlay = () => {
   useEffect(() => {
     if (prizeState === 'inspecting') {
       // Set the updated event details for the prize text
-      prizeTextRef.current = "Unreal Together\nMay 2, 2025 6:00 P.M.\nFrench Fried Vintage\n7 Emory Pl, Knoxville, TN 37917";
+      prizeTextRef.current = "Unreal Together\\nMay 2, 2025 6:00 P.M.\\nFrench Fried Vintage\\n7 Emory Pl, Knoxville, TN 37917";
       
       // Also update the text in the original game state if needed
       const experiences = useGameStore.getState().experienceScript.experiences;
@@ -205,60 +243,33 @@ const PrizeInteractionOverlay = () => {
     }
   }, [prizeState]);
 
-  // Control visibility based on prize state
+  // Handle component mounting/unmounting based on prize state
   useEffect(() => {
     if (prizeState === 'inspecting') {
+      // Mount the component when prize is being inspected
+      setIsMounted(true);
+      setIsFadingOut(false);
+      
       // Delay the appearance of buttons slightly
       const timer = setTimeout(() => {
         setIsVisible(true);
       }, 3000);
 
       return () => clearTimeout(timer);
-    } else {
+    } else if (isMounted) {
+      // Start fade out when prize state changes from 'inspecting' to something else
       setIsVisible(false);
+      setIsFadingOut(true);
+      
+      // Unmount after fade out animation completes
+      const timer = setTimeout(() => {
+        setIsMounted(false);
+        setIsFadingOut(false);
+      }, 300); // Match transition duration
+      
+      return () => clearTimeout(timer);
     }
-  }, [prizeState]);
-
-  // Function to generate an iCalendar (.ics) file for the event
-  const generateCalendarFile = () => {
-    // Parse the event details from the prize text
-    const eventTitle = "Unreal Together";
-    const eventLocation = "French Fried Vintage, 7 Emory Pl, Knoxville, TN 37917";
-    
-    // Set the event date and time (May 2, 2025 at 6:00 PM Eastern Time)
-    const eventDate = new Date(2025, 4, 2, 18, 0, 0); // Month is 0-indexed, so 4 = May
-    const eventEndDate = new Date(eventDate.getTime() + 2 * 60 * 60 * 1000); // Event lasts 2 hours
-    
-    // Format dates for iCalendar format (YYYYMMDDTHHMMSSZ)
-    const formatDateForCalendar = (date) => {
-      return date.toISOString().replace(/-|:|\.\d+/g, '');
-    };
-    
-    const now = new Date();
-    
-    // Create the iCalendar content
-    const icsContent = [
-      'BEGIN:VCALENDAR',
-      'VERSION:2.0',
-      'PRODID:-//Unreal Together//EN',
-      'CALSCALE:GREGORIAN',
-      'METHOD:PUBLISH',
-      'BEGIN:VEVENT',
-      `UID:${new Date().getTime()}@unrealtogether.com`,
-      `DTSTAMP:${formatDateForCalendar(now)}`,
-      `DTSTART:${formatDateForCalendar(eventDate)}`,
-      `DTEND:${formatDateForCalendar(eventEndDate)}`,
-      `SUMMARY:${eventTitle}`,
-      `LOCATION:${eventLocation}`,
-      'DESCRIPTION:Join us for the Unreal Together event at French Fried Vintage!',
-      'STATUS:CONFIRMED',
-      'SEQUENCE:0',
-      'END:VEVENT',
-      'END:VCALENDAR'
-    ].join('\r\n');
-    
-    return icsContent;
-  };
+  }, [prizeState, isMounted]);
 
   // Handle calendar button click
   const handleCalendarClick = () => {
@@ -266,7 +277,6 @@ const PrizeInteractionOverlay = () => {
     const originalInnerHTML = document.activeElement.innerHTML;
     try {
       // Show some visual feedback that the calendar file is being generated
-
       if (document.activeElement.tagName === 'BUTTON') {
         document.activeElement.innerHTML = '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" stroke="white" stroke-width="2" fill="none" stroke-dasharray="40" stroke-dashoffset="0"><animateTransform attributeName="transform" type="rotate" from="0 12 12" to="360 12 12" dur="1s" repeatCount="indefinite" /></circle></svg>';
       }
@@ -317,7 +327,6 @@ const PrizeInteractionOverlay = () => {
     const originalInnerHTML = document.activeElement.innerHTML;
     try {
       // Show some visual feedback that the download is being prepared
-
       if (document.activeElement.tagName === 'BUTTON') {
         document.activeElement.innerHTML = '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" stroke="white" stroke-width="2" fill="none" stroke-dasharray="40" stroke-dashoffset="0"><animateTransform attributeName="transform" type="rotate" from="0 12 12" to="360 12 12" dur="1s" repeatCount="indefinite" /></circle></svg>';
       }
@@ -358,12 +367,24 @@ const PrizeInteractionOverlay = () => {
   const handleCloseClick = () => {
     console.log("Close button clicked - transitioning prize to acquiring state");
     
+    // Start fade out
+    setIsVisible(false);
+    setIsFadingOut(true);
+    
     // Change prize state to acquiring so it will animate towards the player
     setPrizeState('acquiring');
     
-    // Hide this overlay
-    setIsVisible(false);
+    // Unmount after fade out animation completes
+    setTimeout(() => {
+      setIsMounted(false);
+      setIsFadingOut(false);
+    }, 300); // Match transition duration
   };
+
+  // Only render if component should be mounted
+  if (!isMounted && !isFadingOut) {
+    return null;
+  }
 
   return (
     <OverlayContainer visible={isVisible}>
