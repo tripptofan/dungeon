@@ -78,13 +78,14 @@ const MessageService = {
       MessageService.showMessage(message, options);
     }, delay);
   },
+  
+  /**
+   * Show prize interaction message - DISABLED
+   * This function is intentionally empty to prevent showing the prize message
+   */
   showPrizeInteractionMessage: () => {
-    const store = useGameStore.getState();
-    
-    store.setCurrentMessage("A mysterious artifact rests in your hands. Its secrets await...");
-    store.setShowMessageOverlay(true);
-    store.setMessageBoxVisible(true);
-    store.setTypingInProgress(true);
+    // Intentionally do nothing - disable prize message
+    console.log("Prize interaction message disabled");
   },
   
   /**

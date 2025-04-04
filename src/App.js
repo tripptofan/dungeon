@@ -19,7 +19,8 @@ import CameraShake from './components/cameraShake';
 import DeviceDetection from './DeviceDetection';
 import Enemy from './components/enemy';
 import SimpleFpsLimiter from './components/SimpleFpsLimiter';
-import LookAroundControl from './components/lookAroundControl';
+// Commenting out LookAroundControl to disable it
+// import LookAroundControl from './components/lookAroundControl';
 import LookAroundIndicator from './components/lookAroundIndicator';
 import Prize from './components/prize';
 // import PrizeButtons from './components/prizeButtons';
@@ -239,7 +240,8 @@ function App() {
               <AcquiredItems />
               <Enemy />
               <Prize />
-              <LookAroundControl />
+              {/* Commenting out LookAroundControl to disable it */}
+              {/* <LookAroundControl /> */}
               
               {/* 3D Scene Overlays */}
               {sceneReady && (
