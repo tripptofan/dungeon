@@ -18,30 +18,28 @@ const Player = () => {
   const [initialized, setInitialized] = useState(false);
   
   // Head bobbing state
-  const headBobRef = useRef({
-    timer: 0,
-    bobHeight: 0,
-  });
+  const headBobRef = useRef({ timer: 0, bobHeight: 0 });
   
   // Create a ref for fade animation timing
   const fadeStartTimeRef = useRef(null);
   
   // Get state from the store
-  const tileSize = useGameStore(state => state.tileSize);
-  const setPlayerPosition = useGameStore(state => state.setPlayerPosition);
-  const sceneLoaded = useGameStore(state => state.sceneLoaded);
-  const isMovingCamera = useGameStore(state => state.isMovingCamera);
-  const targetCameraPosition = useGameStore(state => state.targetCameraPosition);
-  const moveSpeed = useGameStore(state => state.moveSpeed);
-  const stopCameraMovement = useGameStore(state => state.stopCameraMovement);
-  const cameraShaking = useGameStore(state => state.cameraShaking);
-  
-  // Door interaction state
-  const movingToDoor = useGameStore(state => state.movingToDoor);
-  const doorPosition = useGameStore(state => state.doorPosition);
-  const fadingToBlack = useGameStore(state => state.fadingToBlack);
-  const updateBlackScreenOpacity = useGameStore(state => state.updateBlackScreenOpacity);
-  const startFadeToBlack = useGameStore(state => state.startFadeToBlack);
+  const {
+    tileSize,
+    setPlayerPosition,
+    sceneLoaded,
+    isMovingCamera,
+    targetCameraPosition,
+    moveSpeed,
+    stopCameraMovement,
+    cameraShaking,
+    movingToDoor,
+    doorPosition,
+    fadingToBlack,
+    updateBlackScreenOpacity,
+    startFadeToBlack,
+    experienceScript: { experiences }
+  } = useGameStore();
   
   // Set up initial position
   useEffect(() => {
@@ -167,132 +165,145 @@ const Player = () => {
     
     // Handle camera movement to target position
     if (isMovingCamera && targetCameraPosition) {
-      const currentPos = playerRef.current.position.clone();
-      const targetPos = new THREE.Vector3(
-        currentPos.x,  // Keep X position constant
-        targetCameraPosition.y,
-        targetCameraPosition.z
-      );
-      
-      // Calculate distance to target (only in Z direction)
-      const distance = Math.abs(targetPos.z - currentPos.z);
-      
-      // Move if not at destination
-      if (distance > MOVEMENT_THRESHOLD) {
-        // Update the head bob timer when moving
-        headBobRef.current.timer += delta * 10; // Control bob speed
-        
-        // Calculate the bobbing using a sine wave
-        const bobAmount = Math.sin(headBobRef.current.timer) * BOBBING_SCALE;
-        headBobRef.current.bobHeight = bobAmount;
-        
-        // Use constant movement speed regardless of distance
-        const step = Math.min(moveSpeed, distance);
-        
-        // Always move POSITIVE Z direction (up the track)
-        const zMovement = step;
-        playerRef.current.position.z += zMovement;
-        
-        // Apply position to camera with head bob offset
-        camera.position.set(
-          playerRef.current.position.x,
-          playerRef.current.position.y + bobAmount,
-          playerRef.current.position.z
-        );
-        
-        // Update position in store (without the bob height)
-        setPlayerPosition({
-          x: playerRef.current.position.x,
-          y: playerRef.current.position.y,
-          z: playerRef.current.position.z
-        });
-        
-        // Force a render
-        invalidate();
-      } else {
-        // Snap to exact position when close enough
-        playerRef.current.position.z = targetPos.z;
-        camera.position.z = targetPos.z;
-        
-        // Reset head bob
-        headBobRef.current.bobHeight = 0;
-        // Stop movement
-        stopCameraMovement();
-        // Update position in store
-        setPlayerPosition({
-          x: playerRef.current.position.x,
-          y: playerRef.current.position.y,
-          z: targetPos.z
-        });
-        
-        // Get current experience data
-        const experienceIndex = useGameStore.getState().currentExperienceIndex;
-        const experiences = useGameStore.getState().experienceScript.experiences;
-        
-        if (experienceIndex >= 0 && experienceIndex < experiences.length) {
-          const currentExperience = experiences[experienceIndex];
-          
-          // Handle different experience types
-          if (currentExperience.type === 'item') {
-            // IMPORTANT: Force acquired items to remain visible at all times
-            const inventory = useGameStore.getState().inventory;
-            const isSwordExperience = currentExperience.item.name === "Toy Wooden Sword";
-            
-            // For item experiences, show the item text
-            setTimeout(() => {
-              // Use the MessageService instead of direct store actions
-              const options = {
-                preserveItemVisibility: true,
-                forceSwordVisibility: isSwordExperience
-              };
-              
-              MessageService.showMessage(currentExperience.item.text, options);
-            }, 100); // Very short delay for better feel
-          } else if (currentExperience.type === 'shake') {
-            // Start the camera shake
-            useGameStore.getState().startCameraShake(
-              currentExperience.shakeConfig,
-              () => {
-                // After shake completes, show the message using MessageService
-                setTimeout(() => {
-                  MessageService.showMessage(currentExperience.shakeConfig.message, {
-                    preserveItemVisibility: true
-                  });
-                }, 500); // Short delay after shake completes
-              }
-            );
-          }
-        }
-        
-        // Force a render
-        invalidate();
-      }
+      handleCameraMovement(delta);
     } else {
-      // When not moving, smoothly reset any remaining head bob
-      if (Math.abs(headBobRef.current.bobHeight) > BOB_MINIMUM) {
-        // Reduce bob height gradually
-        headBobRef.current.bobHeight *= BOB_RESET_FACTOR;
-        
-        // Apply diminishing head bob to camera only
-        camera.position.y = playerRef.current.position.y + headBobRef.current.bobHeight;
-        
-        // Force a render
-        invalidate();
-      } else if (headBobRef.current.bobHeight !== 0) {
-        // Reset to exactly zero when very small
-        headBobRef.current.bobHeight = 0;
-        camera.position.y = playerRef.current.position.y;
-        
-        // Force a render
-        invalidate();
-      } else {
-        // Ensure camera and player are in sync when not shaking
-        if (!cameraShaking.isShaking) {
-          camera.position.copy(playerRef.current.position);
-        }
-      }
+      handleHeadBobReset();
     }
   });
+
+  // Handle camera movement to target position
+  const handleCameraMovement = (delta) => {
+    const store = useGameStore.getState();
+    const currentPos = playerRef.current.position.clone();
+    const targetPos = new THREE.Vector3(
+      currentPos.x,  // Keep X position constant
+      targetCameraPosition.y,
+      targetCameraPosition.z
+    );
+    
+    // Calculate distance to target (only in Z direction)
+    const distance = Math.abs(targetPos.z - currentPos.z);
+    
+    // Move if not at destination
+    if (distance > MOVEMENT_THRESHOLD) {
+      // Update the head bob timer when moving
+      headBobRef.current.timer += delta * 10; // Control bob speed
+      
+      // Calculate the bobbing using a sine wave
+      const bobAmount = Math.sin(headBobRef.current.timer) * BOBBING_SCALE;
+      headBobRef.current.bobHeight = bobAmount;
+      
+      // Use constant movement speed regardless of distance
+      const step = Math.min(moveSpeed, distance);
+      
+      // Always move POSITIVE Z direction (up the track)
+      playerRef.current.position.z += step;
+      
+      // Apply position to camera with head bob offset
+      camera.position.set(
+        playerRef.current.position.x,
+        playerRef.current.position.y + bobAmount,
+        playerRef.current.position.z
+      );
+      
+      // Update position in store (without the bob height)
+      setPlayerPosition({
+        x: playerRef.current.position.x,
+        y: playerRef.current.position.y,
+        z: playerRef.current.position.z
+      });
+      
+      // Force a render
+      invalidate();
+    } else {
+      // Snap to exact position when close enough
+      playerRef.current.position.z = targetPos.z;
+      camera.position.z = targetPos.z;
+      
+      // Reset head bob
+      headBobRef.current.bobHeight = 0;
+      // Stop movement
+      stopCameraMovement();
+      // Update position in store
+      setPlayerPosition({
+        x: playerRef.current.position.x,
+        y: playerRef.current.position.y,
+        z: targetPos.z
+      });
+      
+      handleExperienceTrigger();
+      
+      // Force a render
+      invalidate();
+    }
+  };
+  
+  // Handle resetting head bob when not moving
+  const handleHeadBobReset = () => {
+    // When not moving, smoothly reset any remaining head bob
+    if (Math.abs(headBobRef.current.bobHeight) > BOB_MINIMUM) {
+      // Reduce bob height gradually
+      headBobRef.current.bobHeight *= BOB_RESET_FACTOR;
+      
+      // Apply diminishing head bob to camera only
+      camera.position.y = playerRef.current.position.y + headBobRef.current.bobHeight;
+      
+      // Force a render
+      invalidate();
+    } else if (headBobRef.current.bobHeight !== 0) {
+      // Reset to exactly zero when very small
+      headBobRef.current.bobHeight = 0;
+      camera.position.y = playerRef.current.position.y;
+      
+      // Force a render
+      invalidate();
+    } else {
+      // Ensure camera and player are in sync when not shaking
+      if (!cameraShaking.isShaking) {
+        camera.position.copy(playerRef.current.position);
+      }
+    }
+  };
+  
+  // Handle triggering appropriate experience events when reaching destination
+  const handleExperienceTrigger = () => {
+    const store = useGameStore.getState();
+    const experienceIndex = store.currentExperienceIndex;
+    
+    if (experienceIndex >= 0 && experienceIndex < experiences.length) {
+      const currentExperience = experiences[experienceIndex];
+      
+      // Handle different experience types
+      if (currentExperience.type === 'item') {
+        // Check if this is the sword experience
+        const isSwordExperience = currentExperience.item.name === "Toy Wooden Sword";
+        
+        // Show the item text after a short delay
+        setTimeout(() => {
+          // Use the MessageService with appropriate options
+          const options = {
+            preserveItemVisibility: true,
+            forceSwordVisibility: isSwordExperience
+          };
+          
+          MessageService.showMessage(currentExperience.item.text, options);
+        }, 100);
+      } else if (currentExperience.type === 'shake') {
+        // Start the camera shake
+        store.startCameraShake(
+          currentExperience.shakeConfig,
+          () => {
+            // After shake completes, show the message using MessageService
+            setTimeout(() => {
+              MessageService.showMessage(currentExperience.shakeConfig.message, {
+                preserveItemVisibility: true
+              });
+            }, 500);
+          }
+        );
+      }
+    }
+  };
 
   return (
     <mesh 
