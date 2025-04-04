@@ -10,11 +10,18 @@ const LookAroundControl = () => {
   const currentRotation = useRef(0);
   const targetRotation = useRef(0);
   const originalRotation = useRef(new THREE.Euler());
+  const originalCameraPosition = useRef(new THREE.Vector3());
   
   // Get mobile state from store
   const isMobile = useGameStore(state => state.isMobile);
   const isMovingCamera = useGameStore(state => state.isMovingCamera);
   const cameraShaking = useGameStore(state => state.cameraShaking);
+  
+  // NEW: Get item-related state to determine if we should disable look-around
+  const currentExperienceIndex = useGameStore(state => state.currentExperienceIndex);
+  const experiences = useGameStore(state => state.experienceScript.experiences);
+  const itemAnimationPhase = useGameStore(state => state.itemAnimationPhase);
+  const showMessageOverlay = useGameStore(state => state.showMessageOverlay);
   
   // Maximum rotation angle in radians (90 degrees = π/2)
   const MAX_ROTATION = Math.PI / 2;
@@ -23,18 +30,50 @@ const LookAroundControl = () => {
   // Return to center speed
   const RETURN_SPEED = 0.1;
   
-  // Store original camera rotation when component mounts
+  // Store original camera rotation and position when component mounts
   useEffect(() => {
     originalRotation.current.copy(camera.rotation);
+    originalCameraPosition.current.copy(camera.position);
   }, [camera]);
-  
+
+  // Determine if current experience is an item that could be clickable
+  const isItemExperience = React.useMemo(() => {
+    if (currentExperienceIndex >= 0 && currentExperienceIndex < experiences.length) {
+      const experience = experiences[currentExperienceIndex];
+      return experience.type === 'item';
+    }
+    return false;
+  }, [currentExperienceIndex, experiences]);
+
+  // NEW: Determine if look-around should be disabled
+  const shouldDisableLookAround = React.useMemo(() => {
+    // Always disable during camera shaking
+    if (cameraShaking.isShaking) return true;
+    
+    // Disable when item is clickable or being acquired
+    if (isItemExperience && (itemAnimationPhase === 'clickable' || itemAnimationPhase === 'acquiring')) {
+      return true;
+    }
+    
+    // Disable when message overlay is showing (for better experience)
+    if (showMessageOverlay) return true;
+    
+    // Disable during camera movement
+    if (isMovingCamera) return true;
+    
+    return false;
+  }, [cameraShaking.isShaking, isItemExperience, itemAnimationPhase, showMessageOverlay, isMovingCamera]);
+
   // Set up event listeners
   useEffect(() => {
-    if (!isMobile) return;
+    if (!isMobile) return; // Only use touch controls on mobile
     
     const handlePointerDown = (event) => {
-      // Skip if camera is moving/shaking - but allow during overlays
-      if (isMovingCamera || cameraShaking.isShaking) return;
+      // NEW: Skip if look-around should be disabled
+      if (shouldDisableLookAround) {
+        console.log("Look-around disabled during item interaction");
+        return;
+      }
       
       // Prevent default to avoid unwanted scrolling or clicking
       event.preventDefault();
@@ -48,6 +87,12 @@ const LookAroundControl = () => {
     
     const handlePointerMove = (event) => {
       if (!isDragging.current) return;
+      
+      // NEW: Skip if look-around should be disabled (cancel any in-progress drag)
+      if (shouldDisableLookAround) {
+        isDragging.current = false;
+        return;
+      }
       
       // Prevent default to avoid unwanted scrolling
       event.preventDefault();
@@ -117,25 +162,30 @@ const LookAroundControl = () => {
       window.removeEventListener('touchmove', handleTouchMove);
       window.removeEventListener('touchend', handleTouchEnd);
     };
-  }, [gl, isMobile, isMovingCamera, cameraShaking.isShaking]);
+  }, [gl, isMobile, shouldDisableLookAround]);
   
   // Handle the camera rotation in animation frame
   useFrame((state, delta) => {
-    // Skip if camera is moving or shaking
-    if (isMovingCamera || cameraShaking.isShaking) {
-      // Reset target rotation when camera is moving
+    // Skip if camera is shaking
+    if (cameraShaking.isShaking) {
+      // Reset target rotation when camera is shaking
       targetRotation.current = 0;
       return;
     }
     
+    // NEW: If look-around should be disabled, gradually return to center
+    if (shouldDisableLookAround) {
+      targetRotation.current *= (1 - RETURN_SPEED * 2); // Faster return to center
+    }
     // If not dragging, gradually return to center
-    if (!isDragging.current && Math.abs(targetRotation.current) > 0.01) {
+    else if (!isDragging.current && Math.abs(targetRotation.current) > 0.01) {
       targetRotation.current *= (1 - RETURN_SPEED);
     }
     
     // Apply rotation to Y axis only
-    // We need to preserve the original X and Z rotation
-    camera.rotation.y = originalRotation.current.y + targetRotation.current;
+    // Preserve the original X and Z rotation
+    const newRotationY = originalRotation.current.y + targetRotation.current;
+    camera.rotation.y = newRotationY;
   });
   
   // No visual component

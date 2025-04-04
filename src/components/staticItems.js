@@ -15,6 +15,9 @@ const ItemObject = ({ experience, isActive }) => {
   const [hovered, setHovered] = useState(false);
   const clickedRef = useRef(false);
   
+  // NEW: Add acquisition tracking ref
+  const acquisitionStartTimeRef = useRef(null);
+  
   // Get animation state from store
   const itemAnimationPhase = useGameStore(state => state.itemAnimationPhase);
   const showMessageOverlay = useGameStore(state => state.showMessageOverlay);
@@ -63,6 +66,7 @@ const ItemObject = ({ experience, isActive }) => {
   }, [showMessageOverlay]);
   
   // Animation for all items
+// Animation for all items
   useFrame((state, delta) => {
     if (!groupRef.current) return;
     
@@ -81,6 +85,15 @@ const ItemObject = ({ experience, isActive }) => {
     
     // Special animation only during acquisition
     if (isActive && itemAnimationPhase === 'acquiring') {
+      // Track acquisition start time if not already tracking
+      if (!acquisitionStartTimeRef.current) {
+        acquisitionStartTimeRef.current = state.clock.elapsedTime;
+        console.log(`${itemType} acquisition started at time: ${acquisitionStartTimeRef.current}`);
+      }
+      
+      // Calculate elapsed acquisition time
+      const acquisitionElapsedTime = state.clock.elapsedTime - acquisitionStartTimeRef.current;
+      
       // Move toward player
       const playerX = camera.position.x;
       const playerY = camera.position.y - 0.5; // Target slightly below player's center for better effect
@@ -93,23 +106,51 @@ const ItemObject = ({ experience, isActive }) => {
       // Add a downward arc as it approaches the player
       const downwardArc = Math.max(0, Math.min(0.5, distanceToPlayer * 0.2)) * Math.sin(state.clock.elapsedTime * 2);
       
-      groupRef.current.position.x += (playerX - groupRef.current.position.x) * 0.1;
-      groupRef.current.position.y += ((playerY - downwardArc) - groupRef.current.position.y) * 0.1;
-      groupRef.current.position.z += (playerZ - groupRef.current.position.z) * 0.1;
+      // IMPROVED: Faster movement toward player (0.1 increased to 0.15)
+      groupRef.current.position.x += (playerX - groupRef.current.position.x) * 0.15;
+      groupRef.current.position.y += ((playerY - downwardArc) - groupRef.current.position.y) * 0.15;
+      groupRef.current.position.z += (playerZ - groupRef.current.position.z) * 0.15;
       
-      // Scale down as it approaches the player
-      groupRef.current.scale.x = Math.max(0.01, groupRef.current.scale.x - 0.02);
-      groupRef.current.scale.y = Math.max(0.01, groupRef.current.scale.y - 0.02);
-      groupRef.current.scale.z = Math.max(0.01, groupRef.current.scale.z - 0.02);
+      // IMPROVED: Scale down faster (0.02 increased to 0.05)
+      const scaleReduction = 0.05; 
+      groupRef.current.scale.x = Math.max(0.01, groupRef.current.scale.x - scaleReduction);
+      groupRef.current.scale.y = Math.max(0.01, groupRef.current.scale.y - scaleReduction);
+      groupRef.current.scale.z = Math.max(0.01, groupRef.current.scale.z - scaleReduction);
       
       // Increase rotation speed
       groupRef.current.rotation.y += 0.1;
       
-      // Check if item has reached player
-      if (distanceToPlayer < 0.3 || groupRef.current.scale.x <= 0.01) {
-        // Item has been fully acquired
+      // IMPROVED: Check for acquisition completion with more generous thresholds
+      const isCloseEnough = distanceToPlayer < 0.5; // Was 0.3, now more generous
+      const isSmallEnough = groupRef.current.scale.x <= 0.05; // More generous scale threshold
+      const hasTimedOut = acquisitionElapsedTime > 3.0; // Timeout after 3 seconds
+      
+      // Complete acquisition if ANY completion condition is met
+      if (isCloseEnough || isSmallEnough || hasTimedOut) {
+        // Debug which condition triggered completion
+        if (isCloseEnough) console.log(`${itemType} acquired - close enough to player`);
+        if (isSmallEnough) console.log(`${itemType} acquired - scaled down enough`);
+        if (hasTimedOut) console.log(`${itemType} acquired - timeout reached`);
+        
+        // Item has been fully acquired - add to inventory
         const addToInventory = useGameStore.getState().addToInventory;
-        addToInventory(experience.item);
+        
+        // Ensure item isn't already in inventory before adding
+        const inventory = useGameStore.getState().inventory;
+        const alreadyInInventory = inventory.some(item => item.name === experience.item.name);
+        
+        if (!alreadyInInventory) {
+          console.log(`${itemType} adding to inventory...`);
+          addToInventory(experience.item);
+          
+          // Reset scale to avoid weird visuals if item remains in scene briefly
+          groupRef.current.scale.set(0.01, 0.01, 0.01);
+          
+          // Reset acquisition tracking
+          acquisitionStartTimeRef.current = null;
+        } else {
+          console.log(`${itemType} already in inventory, skipping addition`);
+        }
       }
     }
   });
@@ -124,48 +165,92 @@ const ItemObject = ({ experience, isActive }) => {
   const glowIntensity = (hovered && isInteractive) ? 0.8 : 0.3;
   
   // ONE-CLICK SOLUTION: Direct acquisition on click
-  const handleItemObjectClick = (e) => {
-    e.stopPropagation();
+// ONE-CLICK SOLUTION: Direct acquisition on click with enhanced debugging
+// ONE-CLICK SOLUTION: Direct acquisition on click with blocking support
+// ONE-CLICK SOLUTION: Direct acquisition on click with improved reliability
+const handleItemObjectClick = (e) => {
+  e.stopPropagation();
+  
+  // Get current state to check item clickability
+  const store = useGameStore.getState();
+  
+  // Check if item clicks are blocked - exit early if they are
+  if (store.blockItemClicks) {
+    console.log(`Item ${itemType} clicked but clicks are blocked by overlay`);
+    return;
+  }
+  
+  console.log(`Item ${itemType} clicked - checking if clickable`);
+  
+  const currentExperienceIndex = store.currentExperienceIndex;
+  const currentExperience = store.experienceScript.experiences[currentExperienceIndex];
+  const isMessageVisible = store.showMessageOverlay;
+  const animationPhase = store.itemAnimationPhase;
+  
+  // Log all relevant state for debugging
+  console.log("Item click state:", {
+    itemType,
+    currentExperienceIndex,
+    isCurrentExperience: currentExperience?.item?.name === itemType,
+    isMessageVisible,
+    animationPhase,
+    clicked: clickedRef.current
+  });
+  
+  // Item should be clickable if:
+  // 1. It's the active item for the current experience
+  // 2. No message overlay is showing
+  // 3. The item is in "clickable" phase
+  // 4. Item clicks are not blocked
+  const isCurrentItemExperience = 
+    isActive && 
+    currentExperience?.type === 'item' && 
+    currentExperience?.item?.name === itemType;
+  
+  const isClickable = 
+    isCurrentItemExperience && 
+    !isMessageVisible && 
+    !store.blockItemClicks &&
+    (animationPhase === 'clickable' || animationPhase === 'hidden');
+  
+  console.log(`Item ${itemType} click analysis - Clickable: ${isClickable}, Phase: ${animationPhase}`);
+  
+  // IMPROVEMENT: For debugging, also check if item has already been acquired
+  const isAlreadyInInventory = store.inventory.some(item => item.name === itemType);
+  if (isAlreadyInInventory) {
+    console.log(`Item ${itemType} is already in inventory - skipping acquisition`);
+    return;
+  }
+  
+  // Only process if item is determined to be clickable
+  if (isClickable && !clickedRef.current) {
+    console.log(`Item ${itemType} starting acquisition!`);
     
-    // Get current state to check item clickability
-    const store = useGameStore.getState();
-    const currentExperienceIndex = store.currentExperienceIndex;
-    const currentExperience = store.experienceScript.experiences[currentExperienceIndex];
-    const isMessageVisible = store.showMessageOverlay;
-    const animationPhase = store.itemAnimationPhase;
+    // Mark as clicked to prevent multiple acquisition attempts
+    clickedRef.current = true;
     
-    // Item should be clickable if:
-    // 1. It's the active item for the current experience
-    // 2. No message overlay is showing
-    // 3. The item is in "clickable" phase OR the overlay was just dismissed
-    const isCurrentItemExperience = 
-      isActive && 
-      currentExperience?.type === 'item' && 
-      currentExperience?.item?.name === itemType;
+    // DIRECTLY modify the game state to acquire the item
+    store.setShowItemDisplay(true);
+    store.setItemAnimationPhase('acquiring');
+    store.setShowMessageOverlay(false);
+    store.setMessageBoxVisible(false);
     
-    const isClickable = 
-      isCurrentItemExperience && 
-      !isMessageVisible && 
-      (animationPhase === 'clickable' || animationPhase === 'hidden');
+    console.log(`Item ${itemType} acquisition started!`);
     
-    console.log(`Item ${itemType} clicked - Clickable: ${isClickable}, Phase: ${animationPhase}`);
-    
-    // Only process if item is determined to be clickable
-    if (isClickable && !clickedRef.current) {
-      console.log(`Item ${itemType} clicked - starting acquisition!`);
+    // Add verification timeout to ensure the acquisition proceeds
+    setTimeout(() => {
+      // Check if the item is in the animation phase after starting
+      const currentPhase = useGameStore.getState().itemAnimationPhase;
+      console.log(`VERIFICATION: Item ${itemType} acquisition phase: ${currentPhase}`);
       
-      // Mark as clicked to prevent multiple acquisition attempts
-      clickedRef.current = true;
-      
-      // DIRECTLY modify the game state to acquire the item
-      store.setShowItemDisplay(true);
-      store.setItemAnimationPhase('acquiring');
-      store.setShowMessageOverlay(false);
-      store.setMessageBoxVisible(false);
-      
-      console.log(`Item ${itemType} acquisition started!`);
-    }
-  };
+      // If somehow the phase got stuck, force it to acquiring
+      if (currentPhase !== 'acquiring' && currentPhase !== 'acquired') {
+        console.log("Forcing item animation phase to acquiring");
+        useGameStore.getState().setItemAnimationPhase('acquiring');
+      }
+    }, 100);
+  }
+};
   
   
   const renderItemModel = () => {

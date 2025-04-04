@@ -157,6 +157,10 @@ const useGameStore = create((set, get) => ({
     [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2],
     [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
   ],
+  blockItemClicks: false, // Flag to block item clicks when overlay is active
+
+  // Add this action to the action section
+  setBlockItemClicks: (value) => set({ blockItemClicks: value }),
   
   // Core action dispatchers
   setSceneLoaded: (value) => set({ sceneLoaded: value }),
@@ -199,38 +203,47 @@ const useGameStore = create((set, get) => ({
   setForceItemsVisible: (value) => set({ forceItemsVisible: value }),
   
   // Inventory management
-  addToInventory: (item) => {
-    const state = get();
-    // Only add if not already in inventory
-    if (!state.inventory.some(invItem => invItem.name === item.name)) {
-      // Create new inventory with the added item
-      const updatedInventory = [...state.inventory, item];
-      
-      set({ 
-        inventory: updatedInventory,
-        itemAnimationPhase: 'acquired',
-        // Always ensure item display is enabled when item is acquired
-        showItemDisplay: true,
-        // Force items to be visible when acquired
-        forceItemsVisible: true
-      });
-      
-      // Show action overlay after a delay
-      setTimeout(() => {
-        if (state.currentExperienceIndex < state.experienceScript.experiences.length - 1) {
-          set({
-            showActionOverlay: true,
-            actionType: 'move',
-            actionDirection: 'forward',
-            // Make sure items stay visible during action overlay
-            showItemDisplay: true,
-            forceItemsVisible: true
-          });
-        }
-      }, 1000);
-    }
-  },
+// Inventory management
+addToInventory: (item) => {
+  const state = get();
+  console.log(`Adding ${item.name} to inventory...`);
   
+  // Only add if not already in inventory
+  if (!state.inventory.some(invItem => invItem.name === item.name)) {
+    console.log(`${item.name} not in inventory yet, adding it...`);
+    
+    // Create new inventory with the added item
+    const updatedInventory = [...state.inventory, item];
+    
+    set({ 
+      inventory: updatedInventory,
+      itemAnimationPhase: 'acquired',
+      // Always ensure item display is enabled when item is acquired
+      showItemDisplay: true,
+      // Force items to be visible when acquired
+      forceItemsVisible: true
+    });
+    
+    console.log(`${item.name} successfully added to inventory!`);
+    
+    // Show action overlay after a delay
+    setTimeout(() => {
+      if (state.currentExperienceIndex < state.experienceScript.experiences.length - 1) {
+        console.log(`Showing action overlay after ${item.name} acquisition`);
+        set({
+          showActionOverlay: true,
+          actionType: 'move',
+          actionDirection: 'forward',
+          // Make sure items stay visible during action overlay
+          showItemDisplay: true,
+          forceItemsVisible: true
+        });
+      }
+    }, 1000);
+  } else {
+    console.log(`${item.name} already in inventory, skipping...`);
+  }
+},
   // Message overlay actions
   setShowMessageOverlay: (value) => {
     // When showing message overlay, ensure items remain visible if they're already visible
@@ -405,129 +418,176 @@ const useGameStore = create((set, get) => ({
   },
   
   // Progress to the next step in the experience
-  progressExperience: () => {
-    const state = get();
-    const { currentExperienceIndex, experienceScript, inventory, forceItemsVisible } = state;
-    
-    console.log("Progressing experience, current index:", currentExperienceIndex);
-    
-    // Always preserve item visibility if we have items
-    const hasAcquiredItems = inventory.length > 0;
-    
-    // Check if we have the sword in inventory for special handling
-    const hasSword = inventory.some(item => item.name === "Toy Wooden Sword");
-    
-    // Check if current experience is sword related
-    const isSwordExperience = currentExperienceIndex >= 0 && 
-      currentExperienceIndex < experienceScript.experiences.length &&
-      experienceScript.experiences[currentExperienceIndex].type === 'item' && 
-      experienceScript.experiences[currentExperienceIndex].item?.name === "Toy Wooden Sword";
-    
-    // If we're in the sword experience, always force visibility on
-    if (isSwordExperience) {
-      set({
-        showItemDisplay: true,
-        forceItemsVisible: true
-      });
-    }
-    
-    // Handle different stages of progression
-    if (currentExperienceIndex === -1) {
-      // Prologue finished, show the action overlay to move forward
-      set({
-        showMessageOverlay: false,
-        messageBoxVisible: false,
-        showActionOverlay: true,
-        actionType: 'move',
-        actionDirection: 'forward',
-        // Keep items visible if we have any
-        showItemDisplay: hasAcquiredItems ? true : state.showItemDisplay,
-        // Preserve force flag if it was set
-        forceItemsVisible: forceItemsVisible || hasSword || isSwordExperience
-      });
-    } else {
-      // Within an experience, check what's displayed
-      if (state.showMessageOverlay) {
-        // Get the current experience
-        const experience = experienceScript.experiences[currentExperienceIndex];
-        
-        // Special case for Toy Wooden Sword
-        const isSwordExperience = experience.type === 'item' && 
-                                 experience.item.name === "Toy Wooden Sword";
-        
-        if (experience.type === 'shake' && state.currentMessage === experience.shakeConfig.message) {
-          // Special handling for the second shake message (experience 4)
-          if (currentExperienceIndex === 3) { // index 3 is the 4th experience
-            // Move directly to the enemy experience without action overlay
-            const nextExperienceIndex = currentExperienceIndex + 1;
-            console.log("Progressing directly to enemy experience (index 4)");
-            
-            set({
-              showMessageOverlay: false,
-              messageBoxVisible: false,
-              currentExperienceIndex: nextExperienceIndex,
-              showItemDisplay: true,
-              forceItemsVisible: true,
-              // Reset enemy state
-              enemyClickable: false,
-              enemyHit: false,
-              enemyFadingOut: false
-            });
-            
-            console.log("Enemy experience activated. Current state:", {
-              experienceIndex: nextExperienceIndex,
-              playerPosition: get().playerPosition
-            });
-          } else {
-            // For other shake messages, show move forward action
-            set({
-              showMessageOverlay: false,
-              messageBoxVisible: false,
-              showActionOverlay: true,
-              actionType: 'move',
-              actionDirection: 'forward',
-              // Keep items visible if we have any
-              showItemDisplay: hasAcquiredItems ? true : state.showItemDisplay,
-              // Preserve force flag if it was set or we have the sword
-              forceItemsVisible: forceItemsVisible || hasSword || isSwordExperience
-            });
-          }
-        } 
-        else if (experience.type === 'item' && state.currentMessage === experience.item.text) {
-          // Item text dismissed, make item clickable - FIXED VERSION
-          console.log("Item message dismissed, making item clickable");
+// Progress to the next step in the experience
+// Progress to the next step in the experience
+// Progress to the next step in the experience
+// Progress to the next step in the experience
+progressExperience: () => {
+  const state = get();
+  const { currentExperienceIndex, experienceScript, inventory, forceItemsVisible } = state;
+  
+  console.log("Progressing experience, current index:", currentExperienceIndex);
+  
+  // Always preserve item visibility if we have items
+  const hasAcquiredItems = inventory.length > 0;
+  
+  // Check if we have the sword in inventory for special handling
+  const hasSword = inventory.some(item => item.name === "Toy Wooden Sword");
+  
+  // Check if current experience is sword related
+  const isSwordExperience = currentExperienceIndex >= 0 && 
+    currentExperienceIndex < experienceScript.experiences.length &&
+    experienceScript.experiences[currentExperienceIndex].type === 'item' && 
+    experienceScript.experiences[currentExperienceIndex].item?.name === "Toy Wooden Sword";
+  
+  // If we're in the sword experience, always force visibility on
+  if (isSwordExperience) {
+    set({
+      showItemDisplay: true,
+      forceItemsVisible: true
+    });
+  }
+  
+  // Handle different stages of progression
+  if (currentExperienceIndex === -1) {
+    // Prologue finished, just hide the message overlay
+    // The overlay component will handle showing the action button after fade
+    set({
+      showMessageOverlay: false,
+      messageBoxVisible: false,
+      // Keep items visible if we have any
+      showItemDisplay: hasAcquiredItems ? true : state.showItemDisplay,
+      // Preserve force flag if it was set
+      forceItemsVisible: forceItemsVisible || hasSword || isSwordExperience,
+      // Always block item clicks until fade completes
+      blockItemClicks: true,
+      // Don't show action overlay yet - will be shown after fade completes
+      showActionOverlay: false
+    });
+  } else {
+    // Within an experience, check what's displayed
+    if (state.showMessageOverlay) {
+      // Get the current experience
+      const experience = experienceScript.experiences[currentExperienceIndex];
+      
+      // Special case for Toy Wooden Sword
+      const isSwordExperience = experience?.type === 'item' && 
+                               experience?.item?.name === "Toy Wooden Sword";
+      
+      if (experience?.type === 'shake' && state.currentMessage === experience.shakeConfig?.message) {
+        // Special handling for the second shake message (experience 4)
+        if (currentExperienceIndex === 3) { // index 3 is the 4th experience
+          // Move directly to the enemy experience without action overlay
+          const nextExperienceIndex = currentExperienceIndex + 1;
+          console.log("Progressing directly to enemy experience (index 4)");
           
-          // Always set the correct animation phase and ensure item is visible
           set({
             showMessageOverlay: false,
             messageBoxVisible: false,
+            currentExperienceIndex: nextExperienceIndex,
             showItemDisplay: true,
-            itemAnimationPhase: 'clickable', // Explicitly set to clickable
-            forceItemsVisible: true // Ensure item remains visible
+            forceItemsVisible: true,
+            // Reset enemy state
+            enemyClickable: false,
+            enemyHit: false,
+            enemyFadingOut: false,
+            // Continue blocking clicks
+            blockItemClicks: true,
+            // Don't show action overlay
+            showActionOverlay: false
           });
-        }
-        else if (experience.type === 'enemy' && state.currentMessage === experience.message) {
-          // Enemy message dismissed, make enemy clickable
+          
+          console.log("Enemy experience activated. Current state:", {
+            experienceIndex: nextExperienceIndex,
+            playerPosition: get().playerPosition
+          });
+        } else {
+          // For other shake messages, just hide the overlay
+          // The action button will appear after the fade is complete
           set({
             showMessageOverlay: false,
             messageBoxVisible: false,
-            showItemDisplay: true, // Keep items visible
-            forceItemsVisible: true, // Force items visible for sword
-            enemyClickable: true // Make enemy clickable
+            // Keep items visible if we have any
+            showItemDisplay: hasAcquiredItems ? true : state.showItemDisplay,
+            // Preserve force flag if it was set or we have the sword
+            forceItemsVisible: forceItemsVisible || hasSword || isSwordExperience,
+            // Continue blocking clicks
+            blockItemClicks: true,
+            // Don't show action overlay yet
+            showActionOverlay: false
           });
         }
-        else if (experience.type === 'chest' && state.currentMessage === experience.message) {
-          // Chest message dismissed, make chest clickable
-          set({
-            showMessageOverlay: false,
-            messageBoxVisible: false,
-            showItemDisplay: true, // Keep items visible
-            forceItemsVisible: true // Force items visible
-          });
-        }
+      } 
+      else if (experience?.type === 'item' && state.currentMessage === experience.item?.text) {
+        // Item text dismissed, but keep item non-clickable until fade completes
+        console.log("Item message dismissed, overlay fading out");
+        
+        set({
+          showMessageOverlay: false,
+          messageBoxVisible: false,
+          showItemDisplay: true,
+          // Keep item in hidden phase until fade completes
+          itemAnimationPhase: 'hidden', 
+          forceItemsVisible: true, // Ensure item remains visible
+          // Keep item clicks blocked during fade-out
+          blockItemClicks: true
+        });
+        
+        // The fade-out completion in MessageOverlay3D will enable clicks
+      }
+      else if (experience?.type === 'enemy' && state.currentMessage === experience.message) {
+        // Enemy message dismissed, but don't make enemy clickable until fade completes
+        set({
+          showMessageOverlay: false,
+          messageBoxVisible: false,
+          showItemDisplay: true, // Keep items visible
+          forceItemsVisible: true, // Force items visible for sword
+          // Keep enemy non-clickable until fade completes
+          enemyClickable: false,
+          // The MessageOverlay3D will enable enemy clicks after fade
+          blockItemClicks: true
+        });
+      }
+      else if (experience?.type === 'chest' && state.currentMessage === experience.message) {
+        // Chest message dismissed, but don't make chest clickable until fade completes
+        set({
+          showMessageOverlay: false,
+          messageBoxVisible: false,
+          showItemDisplay: true, // Keep items visible
+          forceItemsVisible: true, // Force items visible
+          // Block clicks until fade completes
+          blockItemClicks: true
+        });
       }
     }
-  },
+  }
+},
+// Add this action to the state section in the useGameStore
+setBlockItemClicks: (value) => {
+  console.log(`Setting blockItemClicks to ${value}`);
+  set({ blockItemClicks: value });
+  
+  // If we're unblocking item clicks, also check if we need to make the item clickable
+  if (value === false) {
+    const state = get();
+    const currentExperienceIndex = state.currentExperienceIndex;
+    
+    // Check if this is an item experience
+    if (currentExperienceIndex >= 0 && 
+        currentExperienceIndex < state.experienceScript.experiences.length) {
+      
+      const experience = state.experienceScript.experiences[currentExperienceIndex];
+      
+      if (experience.type === 'item' && 
+          state.itemAnimationPhase !== 'acquiring' && 
+          state.itemAnimationPhase !== 'acquired') {
+        
+        console.log("Unblocked item clicks and setting animation phase to clickable");
+        set({ itemAnimationPhase: 'clickable' });
+      }
+    }
+  }
+},
   debugItemState: () => {
     const state = get();
     console.log({

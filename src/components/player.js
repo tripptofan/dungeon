@@ -84,14 +84,13 @@ const Player = () => {
     if (isMovingCamera && targetCameraPosition) {
       const currentPos = playerRef.current.position.clone();
       const targetPos = new THREE.Vector3(
-        targetCameraPosition.x,
+        currentPos.x,  // Keep X position constant
         targetCameraPosition.y,
         targetCameraPosition.z
       );
       
-      // Calculate direction and distance
-      const direction = targetPos.clone().sub(currentPos).normalize();
-      const distance = currentPos.distanceTo(targetPos);
+      // Calculate distance to target (only in Z direction)
+      const distance = Math.abs(targetPos.z - currentPos.z);
       
       // Move if not at destination
       if (distance > MOVEMENT_THRESHOLD) {
@@ -105,9 +104,9 @@ const Player = () => {
         // Use constant movement speed regardless of distance
         const step = Math.min(moveSpeed, distance);
         
-        // Apply movement to the player
-        const movement = direction.multiplyScalar(step);
-        playerRef.current.position.add(movement);
+        // Always move POSITIVE Z direction (up the track)
+        const zMovement = step;
+        playerRef.current.position.z += zMovement;
         
         // Apply position to camera with head bob offset
         camera.position.set(
@@ -127,8 +126,8 @@ const Player = () => {
         invalidate();
       } else {
         // Snap to exact position when close enough
-        playerRef.current.position.copy(targetPos);
-        camera.position.copy(targetPos);
+        playerRef.current.position.z = targetPos.z;
+        camera.position.z = targetPos.z;
         
         // Reset head bob
         headBobRef.current.bobHeight = 0;
@@ -136,8 +135,8 @@ const Player = () => {
         stopCameraMovement();
         // Update position in store
         setPlayerPosition({
-          x: targetPos.x,
-          y: targetPos.y,
+          x: playerRef.current.position.x,
+          y: playerRef.current.position.y,
           z: targetPos.z
         });
         
@@ -147,6 +146,15 @@ const Player = () => {
         
         if (experienceIndex >= 0 && experienceIndex < experiences.length) {
           const currentExperience = experiences[experienceIndex];
+          
+          // IMPROVED: Block all item clicks and set animation phase to 'hidden'
+          // This ensures items cannot be acquired before their message overlay
+          if (currentExperience.type === 'item') {
+            useGameStore.getState().setBlockItemClicks(true);
+            useGameStore.getState().setItemAnimationPhase('hidden');
+            
+            console.log("Arrived at item experience - disabling item clicks until message dismissed");
+          }
           
           // Handle different experience types
           if (currentExperience.type === 'item') {
@@ -177,6 +185,19 @@ const Player = () => {
                 }, 500); // Short delay after shake completes
               }
             );
+          } else if (currentExperience.type === 'enemy') {
+            // Block clicks on the enemy until message is shown and dismissed
+            useGameStore.getState().setEnemyClickable(false);
+            
+            // Show enemy message
+            setTimeout(() => {
+              MessageService.showEnemyMessage();
+            }, 100);
+          } else if (currentExperience.type === 'chest') {
+            // Show chest message
+            setTimeout(() => {
+              MessageService.showChestMessage();
+            }, 100);
           }
         }
         

@@ -5,10 +5,11 @@ import useGameStore from '../store';
 import MessageService from '../utils/messageService';
 
 const MessageOverlay3D = () => {
-  const { camera, size, clock } = useThree();
+  const { camera, size } = useThree();
   const groupRef = useRef();
   const backgroundPlaneRef = useRef();
   const textPlaneRef = useRef();
+  const blockingPlaneRef = useRef();
   const textCanvasRef = useRef(document.createElement('canvas'));
   const textTextureRef = useRef();
   const [planeWidth, setPlaneWidth] = useState(4);
@@ -27,10 +28,16 @@ const MessageOverlay3D = () => {
   const textTypingTimerRef = useRef(null);
   const [opacity, setOpacity] = useState(0);
   const [displayedText, setDisplayedText] = useState('');
+  const [shouldRender, setShouldRender] = useState(true); // NEW: Control whether component renders at all
   
   // Store the initial plane position in "body forward" direction
   const initialPositionRef = useRef(null);
   const hasSetInitialPosition = useRef(false);
+  
+  // Track fade state for proper enabling of clicks
+  const fadeOutCompleteRef = useRef(true);
+  const isFadingOutRef = useRef(false);
+  const dismissTimerRef = useRef(null); // Track dismiss timer for cleanup
 
   // Adjust plane size based on screen width
   useEffect(() => {
@@ -56,12 +63,93 @@ const MessageOverlay3D = () => {
   const progressExperience = useGameStore(state => state.progressExperience);
   const typingInProgress = useGameStore(state => state.typingInProgress);
   
+  // Function to enable interactions after fade-out is complete
+// Function to enable interactions after fade-out is complete
+const enableInteractions = () => {
+    // Get the current experience to check its type
+    const state = useGameStore.getState();
+    const currentExperienceIndex = state.currentExperienceIndex;
+    const experience = currentExperienceIndex >= 0 && 
+                      currentExperienceIndex < state.experienceScript.experiences.length 
+      ? state.experienceScript.experiences[currentExperienceIndex] 
+      : null;
+      
+    // Enable item clicks
+    useGameStore.getState().setBlockItemClicks(false);
+    console.log("Message overlay fade-out complete - interactions now enabled");
+
+    // Handle different experience types
+    if (experience?.type === 'item') {
+      // For item experiences, make the item clickable
+      useGameStore.getState().setItemAnimationPhase('clickable');
+      console.log("Fade-out complete - item animation phase set to clickable");
+    } 
+    else if (experience?.type === 'enemy') {
+      // For enemy experiences, make the enemy clickable
+      useGameStore.getState().setEnemyClickable(true);
+      console.log("Fade-out complete - enemy is now clickable");
+    }
+    else if (experience?.type === 'chest') {
+      // For chest experiences, nothing special needed
+      console.log("Fade-out complete - chest is now clickable");
+    }
+    else if (currentExperienceIndex === -1) {
+      // This was the prologue - show move forward button
+      console.log("Prologue complete - showing move forward button");
+      // FIXED: Use setShowActionOverlay with parameters instead of individual action setters
+      useGameStore.getState().setShowActionOverlay(true, 'move', 'forward');
+    }
+    else if (experience?.type === 'shake') {
+      // After shake message, show move forward button
+      console.log("Shake message complete - showing move forward button");
+      // FIXED: Use setShowActionOverlay with parameters instead of individual action setters
+      useGameStore.getState().setShowActionOverlay(true, 'move', 'forward');
+    }
+  };
+  
+  // Function to explicitly block clicks on items when overlay is active
+  useEffect(() => {
+    if (showMessageOverlay) {
+      // Block item clicks when overlay is showing
+      useGameStore.getState().setBlockItemClicks(true);
+      useGameStore.getState().setItemAnimationPhase('hidden');
+      fadeOutCompleteRef.current = false;
+      isFadingOutRef.current = false;
+      setShouldRender(true); // Ensure the component is rendered when overlay should show
+      
+      console.log("Message overlay visible - blocking item clicks");
+    } else if (!fadeOutCompleteRef.current) {
+      // Keep blocking clicks during the fade-out
+      isFadingOutRef.current = true;
+      console.log("Message overlay fading out - still blocking item clicks");
+    }
+    
+    // Cleanup on unmount - ensure clicks are unblocked
+    return () => {
+      if (dismissTimerRef.current) {
+        clearTimeout(dismissTimerRef.current);
+        dismissTimerRef.current = null;
+      }
+      
+      if (!fadeOutCompleteRef.current) {
+        // Just in case the component unmounts during a fade, ensure interactions are enabled
+        enableInteractions();
+        fadeOutCompleteRef.current = true;
+      }
+    };
+  }, [showMessageOverlay]);
+  
   // Handle all animations when overlay appears or disappears
   useEffect(() => {
     // Clean up any existing animations
     if (textTypingTimerRef.current) {
       clearInterval(textTypingTimerRef.current);
       textTypingTimerRef.current = null;
+    }
+    
+    if (dismissTimerRef.current) {
+      clearTimeout(dismissTimerRef.current);
+      dismissTimerRef.current = null;
     }
     
     if (showMessageOverlay) {
@@ -72,9 +160,9 @@ const MessageOverlay3D = () => {
       hasSetInitialPosition.current = false;
       floatPhaseRef.current = Math.random() * Math.PI * 2;
       animationStartTimeRef.current = performance.now();
+      setShouldRender(true); // Ensure we're rendering when showing the overlay
       
-      // Start the typing animation, but don't use setState inside setInterval
-      // to avoid potential conflicts with the fade animation
+      // Start the typing animation
       if (currentMessage) {
         // Use a ref to keep track of the current index
         const textIndexRef = { current: 0 };
@@ -97,7 +185,8 @@ const MessageOverlay3D = () => {
         }, 40);
       }
     } else {
-      // Fast fade-out animation handled in the useFrame hook
+      // Mark as fading out
+      isFadingOutRef.current = true;
     }
     
     // Clean up on unmount or when overlay state changes
@@ -105,6 +194,11 @@ const MessageOverlay3D = () => {
       if (textTypingTimerRef.current) {
         clearInterval(textTypingTimerRef.current);
         textTypingTimerRef.current = null;
+      }
+      
+      if (dismissTimerRef.current) {
+        clearTimeout(dismissTimerRef.current);
+        dismissTimerRef.current = null;
       }
     };
   }, [showMessageOverlay, currentMessage]);
@@ -247,12 +341,38 @@ const MessageOverlay3D = () => {
         groupRef.current.rotation.z = rotationOffset * fadeEaseProgress;
       }
     } 
-    else if (opacity > 0) {
+    else if (isFadingOutRef.current && opacity > 0) {
       // --- Handle fade-out ---
       
-      // Fast fade-out (100ms)
+      // MUCH FASTER fade-out (100ms)
       const fadeOutSpeed = 0.1 / 0.1; // 0.1 opacity per 0.1 seconds
-      setOpacity(Math.max(0, opacity - fadeOutSpeed * delta));
+      const newOpacity = Math.max(0, opacity - fadeOutSpeed * delta);
+      setOpacity(newOpacity);
+      
+      // Check if fade-out is complete
+      if (newOpacity <= 0.01) {
+        // Fade-out is complete
+        if (!fadeOutCompleteRef.current) {
+          // Clear any existing timeout
+          if (dismissTimerRef.current) {
+            clearTimeout(dismissTimerRef.current);
+          }
+          
+          // Mark fade as complete immediately
+          fadeOutCompleteRef.current = true;
+          isFadingOutRef.current = false;
+          
+          // Set up a new timeout to handle post-fade interactions
+          dismissTimerRef.current = setTimeout(() => {
+            // Enable interactions
+            enableInteractions();
+            
+            // Remove the overlay completely from the scene
+            setShouldRender(false);
+            console.log("Overlay completely removed from scene after fade-out");
+          }, 100); // Short delay to ensure opacity update is applied
+        }
+      }
     }
     
     // Always make the group face the camera
@@ -327,6 +447,11 @@ const MessageOverlay3D = () => {
       // Only dismiss if the text is already completed
       else if (textCompletedRef.current) {
         console.log("Text completed, dismissing overlay");
+        
+        // Set fading out state before progressing the experience
+        isFadingOutRef.current = true;
+        fadeOutCompleteRef.current = false;
+        
         // Progress to next experience (dismiss)
         progressExperience();
       }
@@ -337,11 +462,36 @@ const MessageOverlay3D = () => {
     isDraggingRef.current = false;
   };
   
-  // Don't render if no overlay or completely faded out
-  if (!showMessageOverlay && opacity <= 0.01) return null;
+  // Don't render if:
+  // 1. The overlay shouldn't be shown (showMessageOverlay is false)
+  // 2. The component is marked as not needing to render (shouldRender is false)
+  // 3. The overlay has completely faded out (opacity <= 0.01)
+  if ((!showMessageOverlay && !isFadingOutRef.current) || !shouldRender || (!showMessageOverlay && opacity <= 0.01)) {
+    return null;
+  }
   
   return (
     <group ref={groupRef}>
+      {/* Blocking plane - large enough to catch all clicks but not disrupt raycasting elsewhere */}
+      <mesh
+        ref={blockingPlaneRef}
+        renderOrder={9998}
+        onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
+        onPointerUp={handlePointerUp}
+        position={[0, 0, -0.015]}
+      >
+        {/* Use a large plane to block clicks in the message area */}
+        <planeGeometry args={[planeWidth * 5, planeHeight * 5]} />
+        <meshBasicMaterial 
+          color="white"
+          transparent={true}
+          opacity={0.001} // Nearly invisible but still blocks raycasts
+          side={THREE.DoubleSide}
+          depthTest={false}
+        />
+      </mesh>
+      
       {/* Background Plane - Semi-transparent, emissive, and clickable */}
       <mesh 
         ref={backgroundPlaneRef} 

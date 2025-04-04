@@ -20,7 +20,6 @@ import DeviceDetection from './DeviceDetection';
 import Enemy from './components/enemy';
 import SimpleFpsLimiter from './components/SimpleFpsLimiter';
 import LookAroundControl from './components/lookAroundControl';
-import LookAroundIndicator from './components/lookAroundIndicator';
 import Prize from './components/prize';
 // import PrizeButtons from './components/prizeButtons';
 import AmbientNightLight from './components/ambientNightLight';

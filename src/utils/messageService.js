@@ -18,6 +18,17 @@ const MessageService = {
     const currentExperienceIndex = store.currentExperienceIndex;
     const experiences = store.experienceScript.experiences;
     
+    // Block item clicks when showing any message
+    store.setBlockItemClicks(true);
+    
+    // If this is an item experience, ensure the item is not clickable during message
+    if (currentExperienceIndex >= 0 && 
+        currentExperienceIndex < experiences.length && 
+        experiences[currentExperienceIndex].type === 'item') {
+      store.setItemAnimationPhase('hidden');
+      console.log("Item message showing - explicitly hiding item clickability");
+    }
+    
     // Check if we have the sword in inventory
     const hasSword = inventory.some(item => item.name === "Toy Wooden Sword");
     
@@ -78,6 +89,10 @@ const MessageService = {
       MessageService.showMessage(message, options);
     }, delay);
   },
+  
+  /**
+   * Show prize interaction message
+   */
   showPrizeInteractionMessage: () => {
     const store = useGameStore.getState();
     
@@ -91,6 +106,11 @@ const MessageService = {
    * Show an enemy encounter message
    */
   showEnemyMessage: () => {
+    const store = useGameStore.getState();
+    
+    // Block enemy clicks until message is dismissed
+    store.setEnemyClickable(false);
+    
     MessageService.showMessage("Not all problems can be solved with words....", {
       forceSwordVisibility: true
     });
