@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
 import useGameStore from '../store';
 
@@ -71,14 +71,58 @@ const ActionOverlay = () => {
   const actionDirection = useGameStore(state => state.actionDirection);
   const handleAction = useGameStore(state => state.handleAction);
   
-  if (!showActionOverlay) return null;
+  // New state for component mounting and animations
+  const [isMounted, setIsMounted] = useState(false);
+  const [isVisible, setIsVisible] = useState(false);
+  const [isFadingOut, setIsFadingOut] = useState(false);
+  
+  // Handle mounting/unmounting based on showActionOverlay state
+  useEffect(() => {
+    if (showActionOverlay) {
+      // Mount the component
+      setIsMounted(true);
+      setIsFadingOut(false);
+      
+      // Short delay before showing to ensure smooth animation
+      const timer = setTimeout(() => {
+        setIsVisible(true);
+      }, 50);
+      
+      return () => clearTimeout(timer);
+    } else if (isMounted) {
+      // Start fade out
+      setIsVisible(false);
+      setIsFadingOut(true);
+      
+      // Unmount after fade out animation completes
+      const timer = setTimeout(() => {
+        setIsMounted(false);
+        setIsFadingOut(false);
+      }, 500); // Match transition duration
+      
+      return () => clearTimeout(timer);
+    }
+  }, [showActionOverlay, isMounted]);
+  
+  // Handle action button click with fade out
+  const handleActionButtonClick = () => {
+    // Start fade out
+    setIsVisible(false);
+    setIsFadingOut(true);
+    
+    // Call the action handler
+    handleAction();
+    
+    // No need to unmount here as the showActionOverlay state will change
+    // causing the useEffect to handle unmounting
+  };
   
   // Render different buttons based on action type and direction
   const renderActionButton = () => {
     if (actionType === 'move') {
       if (actionDirection === 'forward') {
         return (
-          <ActionButton onClick={handleAction}>
+          <ActionButton onClick={handleActionButtonClick}>
             <ActionIcon>
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <path d="M12 5V19M5 12l7-7 7 7" />
@@ -95,8 +139,11 @@ const ActionOverlay = () => {
     return null;
   };
   
+  // Don't render anything if not mounted
+  if (!isMounted && !isFadingOut) return null;
+  
   return (
-    <OverlayContainer visible={showActionOverlay} className="action-overlay">
+    <OverlayContainer visible={isVisible} className="action-overlay">
       {renderActionButton()}
     </OverlayContainer>
   );

@@ -198,6 +198,7 @@ if (isFading) {
       onClick={handleChestClick}
       onPointerOver={() => setHovered(true)}
       onPointerOut={() => setHovered(false)}
+      rotation={[0, Math.PI, 0]}
     >
       {/* Main chest body */}
       <mesh>

@@ -14,6 +14,7 @@ const ItemObject = ({ experience, isActive }) => {
   const groupRef = useRef();
   const [hovered, setHovered] = useState(false);
   const clickedRef = useRef(false);
+  const [dismissCooldown, setDismissCooldown] = useState(false);
   
   // Get animation state from store
   const itemAnimationPhase = useGameStore(state => state.itemAnimationPhase);
@@ -61,6 +62,28 @@ const ItemObject = ({ experience, isActive }) => {
       clickedRef.current = false;
     }
   }, [showMessageOverlay]);
+  
+  // Track overlay state changes to add cooldown period after dismissal
+  const [lastOverlayState, setLastOverlayState] = useState(false);
+  
+  useEffect(() => {
+    // If overlay was showing, and now it's not, set dismissal cooldown
+    if (lastOverlayState && !showMessageOverlay) {
+      console.log(`Overlay dismissed, setting cooldown for ${itemType}`);
+      setDismissCooldown(true);
+      
+      // Reset cooldown after a delay to allow overlay to fully transition out
+      const timer = setTimeout(() => {
+        setDismissCooldown(false);
+        console.log(`Cooldown complete, ${itemType} now clickable`);
+      }, 600); // Slightly longer than overlay transition (500ms)
+      
+      return () => clearTimeout(timer);
+    }
+    
+    // Update the last overlay state
+    setLastOverlayState(showMessageOverlay);
+  }, [showMessageOverlay, lastOverlayState, itemType]);
   
   // Animation for all items
   useFrame((state, delta) => {
@@ -119,11 +142,11 @@ const ItemObject = ({ experience, isActive }) => {
   const isVisible = isSwordItem ? true : !(isActive && itemAnimationPhase === 'acquired');
   
   // For glow effect when hovered and clickable
-  const isInteractive = isActive && !showMessageOverlay;
+  const isInteractive = isActive && !showMessageOverlay && !dismissCooldown;
   const glowScale = (hovered && isInteractive) ? 1.05 : 1.0;
   const glowIntensity = (hovered && isInteractive) ? 0.8 : 0.3;
   
-  // ONE-CLICK SOLUTION: Direct acquisition on click
+  // MODIFIED: Improved item click handling with cooldown period
   const handleItemObjectClick = (e) => {
     e.stopPropagation();
     
@@ -137,18 +160,21 @@ const ItemObject = ({ experience, isActive }) => {
     // Item should be clickable if:
     // 1. It's the active item for the current experience
     // 2. No message overlay is showing
-    // 3. The item is in "clickable" phase OR the overlay was just dismissed
+    // 3. The item is in "clickable" phase OR in the initial hidden phase
+    // 4. The dismissal cooldown is not active
     const isCurrentItemExperience = 
       isActive && 
       currentExperience?.type === 'item' && 
       currentExperience?.item?.name === itemType;
     
+    // UPDATED: Added dismissCooldown check to prevent immediate clicks after overlay dismissal
     const isClickable = 
       isCurrentItemExperience && 
       !isMessageVisible && 
+      !dismissCooldown && 
       (animationPhase === 'clickable' || animationPhase === 'hidden');
     
-    console.log(`Item ${itemType} clicked - Clickable: ${isClickable}, Phase: ${animationPhase}`);
+    console.log(`Item ${itemType} clicked - Clickable: ${isClickable}, Phase: ${animationPhase}, Cooldown: ${dismissCooldown}`);
     
     // Only process if item is determined to be clickable
     if (isClickable && !clickedRef.current) {
@@ -157,7 +183,7 @@ const ItemObject = ({ experience, isActive }) => {
       // Mark as clicked to prevent multiple acquisition attempts
       clickedRef.current = true;
       
-      // DIRECTLY modify the game state to acquire the item
+      // Modify the game state to acquire the item
       store.setShowItemDisplay(true);
       store.setItemAnimationPhase('acquiring');
       store.setShowMessageOverlay(false);
@@ -212,6 +238,17 @@ const ItemObject = ({ experience, isActive }) => {
     }
   };
   
+  // Update cursor style based on interactivity
+  const handlePointerOver = () => {
+    setHovered(true);
+    document.body.style.cursor = isInteractive ? 'pointer' : 'auto';
+  };
+  
+  const handlePointerOut = () => {
+    setHovered(false);
+    document.body.style.cursor = 'auto';
+  };
+  
   // Create the scene graph for this item
   return (
     <group 
@@ -223,8 +260,8 @@ const ItemObject = ({ experience, isActive }) => {
       ]}
       visible={isVisible}
       onClick={handleItemObjectClick}
-      onPointerOver={() => setHovered(true)}
-      onPointerOut={() => setHovered(false)}
+      onPointerOver={handlePointerOver}
+      onPointerOut={handlePointerOut}
       scale={[glowScale, glowScale, glowScale]} // Grow slightly when hovered
     >
       {renderItemModel()}
@@ -247,23 +284,6 @@ const StaticItems = () => {
     : null;
   const isSwordExperience = currentExperience?.type === 'item' && 
     currentExperience?.item?.name === 'Toy Wooden Sword';
-  
-  // Track overlay dismissal
-  const [lastOverlayState, setLastOverlayState] = useState(false);
-  
-  // Track overlay state changes
-  useEffect(() => {
-    // Reset clickable state whenever overlay changes
-    if (lastOverlayState !== showMessageOverlay) {
-      // If overlay was just dismissed and it's an item experience
-      if (lastOverlayState && !showMessageOverlay && currentExperience?.type === 'item') {
-        console.log("Overlay just dismissed - item should be clickable now");
-      }
-      
-      // Update the last overlay state
-      setLastOverlayState(showMessageOverlay);
-    }
-  }, [showMessageOverlay, lastOverlayState, currentExperience]);
   
   // Force the sword to display when it's the current experience
   useEffect(() => {

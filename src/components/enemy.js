@@ -131,7 +131,7 @@ const Enemy = () => {
       console.log("Current experience index:", currentExperienceIndex);
       console.log("Player position:", playerPosition);
       
-      // Position the enemy directly in front of player for guaranteed visibility
+      // Position the enemy directly in front of player
       const newPosition = {
         x: playerPosition.x,
         y: -5, // Start below the floor
@@ -193,7 +193,7 @@ const Enemy = () => {
     
     if (isRising) {
       // Rise up from below the floor to a standing position
-      const targetY = 3.0; // Higher final height (center of rectangle)
+      const targetY = 2.0; // Higher final height (center of rectangle)
       const riseSpeed = 0.08; // Faster rise speed
       
       if (enemyRef.current.position.y < targetY) {
@@ -208,9 +208,9 @@ const Enemy = () => {
         if (animationStarted) {
           setAnimationStarted(false);
           
-          // Set enemy to be clickable right away for testing
-          useGameStore.getState().setEnemyClickable(true);
-          console.log("Enemy ready for interaction!");
+          // DO NOT set enemy clickable here
+          // Instead, let MessageService handle this after the message is dismissed
+          console.log("Enemy appearance complete, showing message...");
           
           // Wait a moment before showing the message
           setTimeout(() => {
@@ -302,14 +302,16 @@ const Enemy = () => {
         ref={enemyRef}
         position={[enemyPosition.x, enemyPosition.y, enemyPosition.z]}
         onClick={handleEnemyMeshClick}
+        rotation={[0, Math.PI, 0]}
       >
-        <boxGeometry args={[3, 4.5, 1]} /> {/* LARGER dimensions */}
+        <planeGeometry args={[3, 4.5]} /> {/* LARGER dimensions */}
         <meshStandardMaterial 
           ref={materialRef}
           transparent={true} 
           map={videoTextureRef.current}
-          // emissive="#ffffff"
-          // emissiveIntensity={0.3}
+          // side={THREE.DoubleSide}
+          emissive="#ffffff"
+          emissiveIntensity={0.1}
           // side={THREE.DoubleSide}
           opacity={1.0}
         />
