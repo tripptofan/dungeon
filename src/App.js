@@ -21,9 +21,8 @@ import Enemy from './components/enemy';
 import SimpleFpsLimiter from './components/SimpleFpsLimiter';
 // Commenting out LookAroundControl to disable it
 // import LookAroundControl from './components/lookAroundControl';
-import LookAroundIndicator from './components/lookAroundIndicator';
+
 import Prize from './components/prize';
-// import PrizeButtons from './components/prizeButtons';
 import AmbientNightLight from './components/ambientNightLight';
 import PrizeInteractionOverlay from './components/prizeInteractionOverlay';
 import BlackScreen from './components/BlackScreen';

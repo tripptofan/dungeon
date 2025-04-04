@@ -85,9 +85,6 @@ blackScreenOpacity: 0,
   tileLocations: [],
   wallLocations: [],
   isMobile: false,
-  chestOpened: false,
-  prizeState: 'hidden', // 'hidden', 'rising', 'floating', 'inspecting', 'acquiring', 'acquired'
-  prizeClicked: false,
   
   // Experience content - simplified flow with just item interactions and shaking events
   experienceScript: {
