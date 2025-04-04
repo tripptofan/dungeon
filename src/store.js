@@ -691,7 +691,8 @@ const useGameStore = create((set, get) => ({
       // Let the enemy component handle the fade out instead of progressing immediately
       // This creates a better visual effect
     }
-  }
+  },
+  
 }));
 
 export default useGameStore;

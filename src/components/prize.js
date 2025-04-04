@@ -256,7 +256,7 @@ useEffect(() => {
       
       // Make prize face directly at the camera
       prizeRef.current.lookAt(camera.position);
-    }
+    } 
     
     // Apply the position directly to the mesh
     if (prizeRef.current) {
