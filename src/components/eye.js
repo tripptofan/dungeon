@@ -212,17 +212,19 @@ const Eye = () => {
   
   // Add a light to ensure the eye is visible
   return (
-    <group position={[eyePosition.x, eyePosition.y, eyePosition.z]}>
+    <group position={[eyePosition.x, 2, 6]}>
       {/* Main eye mesh */}
       <mesh 
         ref={eyeRef}
         rotation={[0, Math.PI, 0]} // Ensure the eye faces the correct direction
       >
-        <planeGeometry args={[2, 2]} /> {/* Adjust size as needed */}
+        <planeGeometry args={[.5, .5]} /> {/* Adjust size as needed */}
         <meshStandardMaterial 
           ref={materialRef}
           transparent={true}
           side={THREE.DoubleSide}
+          emissive={'#ffffff'} //white
+          emissiveIntensity={1}
           map={isBlinkingRef.current 
             ? blinkTexturesRef.current[currentFrame] 
             : wiggleTexturesRef.current[currentFrame]
@@ -230,14 +232,8 @@ const Eye = () => {
         />
       </mesh>
       
-      {/* Add a subtle light to make the eye more visible */}
-      <pointLight 
-        color="#ffffff" 
-        intensity={2} 
-        distance={5} 
-        decay={2}
-        position={[0, 0, 1]}
-      />
+      
+
     </group>
   );
 };
