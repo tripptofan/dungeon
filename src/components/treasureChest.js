@@ -15,17 +15,18 @@ const TreasureChest = () => {
   const chestPositionRef = useRef({ x: 5, z: 86 });
 
   const [opacity, setOpacity] = useState(1.0);
-const [isFading, setIsFading] = useState(false);
-const fadeStartRef = useRef(null);
-const prizeState = useGameStore(state => state.prizeState);
-useEffect(() => {
-  // Start fading when prize is acquired (removed from scene)
-  if (prizeState === 'acquired' && !isFading) {
-    console.log("Prize acquired, starting chest fade animation");
-    setIsFading(true);
-    fadeStartRef.current = performance.now();
-  }
-}, [prizeState, isFading]);
+  const [isFading, setIsFading] = useState(false);
+  const fadeStartRef = useRef(null);
+  const prizeState = useGameStore(state => state.prizeState);
+  
+  useEffect(() => {
+    // Start fading when prize is acquired (removed from scene)
+    if (prizeState === 'acquired' && !isFading) {
+      console.log("Prize acquired, starting chest fade animation");
+      setIsFading(true);
+      fadeStartRef.current = performance.now();
+    }
+  }, [prizeState, isFading]);
   
   // Track overlay dismissal to improve click handling
   const [lastOverlayState, setLastOverlayState] = useState(false);
@@ -124,7 +125,7 @@ useEffect(() => {
     isMovingCamera
   ]);
   
-  // FIX: Improved chest click handling to prevent double-click issues
+  // FIX: Improved chest click handling to properly sequence with message
   const handleChestClick = (e) => {
     e.stopPropagation();
     
@@ -132,60 +133,68 @@ useEffect(() => {
     const isChestExperience = currentExperienceIndex === 5 && 
       experiences[currentExperienceIndex]?.type === 'chest';
     
-    // FIX: Make chest interactive if overlay just dismissed or regular conditions
-    const isInteractive = isChestExperience && !chestOpened && 
-                         (!showMessageOverlay || overlayJustDismissed);
+    // FIX: Only make chest interactive if:
+    // 1. It's the chest experience
+    // 2. The chest hasn't been opened yet
+    // 3. The welcome message has been shown (messageSentRef.current is true)
+    // 4. Either: the message overlay is not showing OR it was just dismissed
+    const isMessageShown = messageSentRef.current;
+    const isInteractive = isChestExperience && !chestOpened && isMessageShown &&
+                        (!showMessageOverlay || overlayJustDismissed);
     
-    console.log("Chest clicked, interactive:", isInteractive, "Overlay dismissed:", overlayJustDismissed);
+    console.log("Chest clicked, interactive:", isInteractive, 
+                "Message shown:", isMessageShown,
+                "Overlay dismissed:", overlayJustDismissed);
     
     if (isInteractive) {
       console.log("Chest click is valid! Opening...");
       setChestOpened(true);
+    } else if (isChestExperience && !isMessageShown) {
+      console.log("Chest clicked too early! Wait for the welcome message.");
     }
   };
   
-  // Simplified useFrame - just ensure chest position is correct
+  // Simplified useFrame - just ensure chest position is correct and handle fade animation
   useFrame(() => {
     if (!chestRef.current) return;
+    
     if (chestRef.current && chestRef.current.position.y !== 0.5) {
       chestRef.current.position.y = 0.5;
     }
-  // Handle fade animation if active
-// Add this to the useFrame function in treasureChest.js
-
-// Handle fade animation if active
-if (isFading) {
-  const elapsed = performance.now() - fadeStartRef.current;
-  const fadeDuration = 1500; // 1.5 seconds
-  
-  // Calculate new opacity
-  const newOpacity = Math.max(0, 1 - (elapsed / fadeDuration));
-  setOpacity(newOpacity);
-  
-  // Apply opacity to all child materials
-  chestRef.current.traverse(child => {
-    if (child.isMesh && child.material) {
-      child.material.transparent = true;
-      child.material.opacity = newOpacity;
-    }
-  });
-  
-  // Remove chest when fully transparent
-  if (newOpacity <= 0) {
-    chestRef.current.visible = false;
     
-    // Set door as clickable after chest fades out
-    useGameStore.getState().setDoorClickable(true);
-    console.log("Chest faded out, door is now clickable!");
-  }
-}
-
+    // Handle fade animation if active
+    if (isFading) {
+      const elapsed = performance.now() - fadeStartRef.current;
+      const fadeDuration = 1500; // 1.5 seconds
+      
+      // Calculate new opacity
+      const newOpacity = Math.max(0, 1 - (elapsed / fadeDuration));
+      setOpacity(newOpacity);
+      
+      // Apply opacity to all child materials
+      chestRef.current.traverse(child => {
+        if (child.isMesh && child.material) {
+          child.material.transparent = true;
+          child.material.opacity = newOpacity;
+        }
+      });
+      
+      // Remove chest when fully transparent
+      if (newOpacity <= 0) {
+        chestRef.current.visible = false;
+        
+        // Set door as clickable after chest fades out
+        useGameStore.getState().setDoorClickable(true);
+        console.log("Chest faded out, door is now clickable!");
+      }
+    }
   });
   
   // Determine if chest is currently interactive - computed value
   const isChestExperience = currentExperienceIndex === 5 && 
     experiences[currentExperienceIndex]?.type === 'chest';
-  const isInteractive = isChestExperience && !showMessageOverlay && !chestOpened;
+  const isMessageShown = messageSentRef.current;
+  const isInteractive = isChestExperience && !showMessageOverlay && !chestOpened && isMessageShown;
   
   // For glow effect when hovered and clickable
   const glowIntensity = (hovered && (isInteractive || overlayJustDismissed)) ? 0.8 : 0.3;
@@ -203,40 +212,40 @@ if (isFading) {
       <mesh>
         <boxGeometry args={[2, 1, 1.2]} /> {/* Width, height, depth */}
         <meshStandardMaterial 
-  color="#8B4513" // Brown wooden color
-  roughness={0.7}
-  metalness={0.3}
-  emissive="#8B4513"
-  emissiveIntensity={0.2}
-  transparent={true}  // Add this line
-  opacity={opacity}   // Add this line
-/>
+          color="#8B4513" // Brown wooden color
+          roughness={0.7}
+          metalness={0.3}
+          emissive="#8B4513"
+          emissiveIntensity={0.2}
+          transparent={true}  // Add this line
+          opacity={opacity}   // Add this line
+        />
       </mesh>
       
       {/* Chest lid */}
       <mesh position={[0, 0.5, 0]}>
         <boxGeometry args={[2, 0.3, 1.2]} />
         <meshStandardMaterial 
-  color="#A0522D" // Slightly different brown for contrast
-  roughness={0.6}
-  metalness={0.4}
-  transparent={true}  // Add this line
-  opacity={opacity}   // Add this line
-/>
+          color="#A0522D" // Slightly different brown for contrast
+          roughness={0.6}
+          metalness={0.4}
+          transparent={true}  // Add this line
+          opacity={opacity}   // Add this line
+        />
       </mesh>
       
       {/* Metal details/lock */}
       <mesh position={[0, 0.3, 0.6]}>
         <boxGeometry args={[0.4, 0.4, 0.1]} />
         <meshStandardMaterial 
-  color="#FFD700" // Gold color
-  roughness={0.3}
-  metalness={0.8}
-  emissive="#FFD700"
-  emissiveIntensity={glowIntensity}
-  transparent={true}  // Add this line
-  opacity={opacity}   // Add this line
-/>
+          color="#FFD700" // Gold color
+          roughness={0.3}
+          metalness={0.8}
+          emissive="#FFD700"
+          emissiveIntensity={glowIntensity}
+          transparent={true}  // Add this line
+          opacity={opacity}   // Add this line
+        />
       </mesh>
       
       {/* Add a light source to make the chest more visible */}
