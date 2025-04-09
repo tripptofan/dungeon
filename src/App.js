@@ -26,6 +26,7 @@ import Prize from './components/prize';
 import AmbientNightLight from './components/ambientNightLight';
 import PrizeInteractionOverlay from './components/prizeInteractionOverlay';
 import BlackScreen from './components/BlackScreen';
+import Eye from './components/eye';
 
 // Loading indicator shown during initial scene loading
 const LoadingIndicator = styled.div`
@@ -234,6 +235,7 @@ function App() {
               <Player />
               <AmbientNightLight />
               <StaticItems />
+              <Eye />
               {loadingFade && <FadeOutPlane />}
               <ForceRender />
               <CameraShake />
