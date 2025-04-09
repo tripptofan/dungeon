@@ -3,6 +3,7 @@ import { useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 import useGameStore from '../store';
 import { useTextures } from '../utils/textureManagement';
+import Eye from './eye'
 
 // Constants for performance tuning
 const LOD_DISTANCE = 25; // Distance at which to switch to lower detail
