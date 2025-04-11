@@ -3,7 +3,7 @@ import { useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 import useGameStore from '../store';
 
-const Eye = ({ position = [0, 0, 0], scale = [.5, .5] }) => {
+const Eye = ({ position = [0, 0, 0], scale = [.5, .5], rotation = [0, Math.PI, 0] }) => {
   const eyeRef = useRef();
   const materialRef = useRef();
   const { camera } = useThree();
@@ -216,7 +216,7 @@ const Eye = ({ position = [0, 0, 0], scale = [.5, .5] }) => {
       {/* Main eye mesh */}
       <mesh 
         ref={eyeRef}
-        rotation={[0, Math.PI, 0]} // Ensure the eye faces the correct direction
+        rotation={rotation} // Ensure the eye faces the correct direction
       >
         <planeGeometry args={scale} /> {/* Adjust size as needed */}
         <meshStandardMaterial 
