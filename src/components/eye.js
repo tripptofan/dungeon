@@ -3,7 +3,7 @@ import { useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 import useGameStore from '../store';
 
-const Eye = () => {
+const Eye = ({ position = [0, 0, 0], scale = [.5, .5] }) => {
   const eyeRef = useRef();
   const materialRef = useRef();
   const { camera } = useThree();
@@ -16,8 +16,8 @@ const Eye = () => {
   const isBlinkingRef = useRef(false);
   const framesLoadedRef = useRef(false);
   
-  // Animation sequence tracking - we know exact frame counts now
-  const WIGGLE_FRAME_COUNT = 3; // 3 frames: wiggle1.png to wiggle3.png
+  // Animation sequence tracking - UPDATED for 2 wiggle frames
+  const WIGGLE_FRAME_COUNT = 2; // CHANGED from 3 to 2 frames: wiggle1.png to wiggle2.png
   const BLINK_FRAME_COUNT = 5;  // 5 frames: blink1.png to blink5.png
   
   // Store loaded textures
@@ -49,7 +49,7 @@ const Eye = () => {
     // Create promise arrays for loading
     const loadPromises = [];
     
-    // Load wiggle frames (wiggle1.png through wiggle3.png)
+    // Load wiggle frames (wiggle1.png through wiggle2.png) - UPDATED for 2 frames
     for (let i = 1; i <= WIGGLE_FRAME_COUNT; i++) {
       const framePath = `/eye/wiggle/wiggle${i}.png`;
       
@@ -177,7 +177,7 @@ const Eye = () => {
           }
         }
       } else {
-        // Playing wiggle sequence
+        // Playing wiggle sequence - UPDATED for 2 frames
         const nextFrame = (currentFrame + 1) % WIGGLE_FRAME_COUNT;
         setCurrentFrame(nextFrame);
         
@@ -212,13 +212,13 @@ const Eye = () => {
   
   // Add a light to ensure the eye is visible
   return (
-    <group position={[eyePosition.x, 2, 6]}>
+    <group position={position}>
       {/* Main eye mesh */}
       <mesh 
         ref={eyeRef}
         rotation={[0, Math.PI, 0]} // Ensure the eye faces the correct direction
       >
-        <planeGeometry args={[.5, .5]} /> {/* Adjust size as needed */}
+        <planeGeometry args={scale} /> {/* Adjust size as needed */}
         <meshStandardMaterial 
           ref={materialRef}
           transparent={true}
@@ -231,9 +231,6 @@ const Eye = () => {
           }
         />
       </mesh>
-      
-      
-
     </group>
   );
 };

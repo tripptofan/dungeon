@@ -235,7 +235,14 @@ function App() {
               <Player />
               <AmbientNightLight />
               <StaticItems />
-              <Eye />
+              <Eye
+                position={[5.2, 2, 6]}
+                scale={[.3, .3]}
+              />
+              <Eye
+                position={[4.8, 2, 6]}
+                scale={[.3, .3]}
+              />
               {loadingFade && <FadeOutPlane />}
               <ForceRender />
               <CameraShake />
