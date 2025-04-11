@@ -2,8 +2,14 @@ import React, { useRef } from 'react';
 import { useGLTF } from '@react-three/drei';
 import * as THREE from 'three';
 
-// Component that renders a wooden sword with a white outline
-const OutlinedSword = ({ position = [0, 0, 0], rotation = [0, 0, 0], scale = 1, outlineThickness = 0.05 }) => {
+// Update OutlinedSword to accept and use renderOrder
+const OutlinedSword = ({ 
+  position = [0, 0, 0], 
+  rotation = [0, 0, 0], 
+  scale = 1, 
+  outlineThickness = 0.05,
+  renderOrder = 2000 // Add default renderOrder
+}) => {
   // Load the sword model
   const { nodes, materials } = useGLTF('/woodenSword-smallerTextures.glb');
   
@@ -22,12 +28,14 @@ const OutlinedSword = ({ position = [0, 0, 0], rotation = [0, 0, 0], scale = 1, 
       <mesh 
         geometry={nodes.SWORD.geometry} 
         scale={outlineScale} 
-        renderOrder={1}
+        renderOrder={renderOrder} // Use the prop
       >
         <meshBasicMaterial 
           color="#FFFFFF" 
           side={THREE.BackSide} 
-          depthTest={true} 
+          depthTest={true} // Enable depth test
+          transparent={false} // Make sure it's not transparent
+          opacity={1.0}      // Full opacity
         />
       </mesh>
       
@@ -35,11 +43,16 @@ const OutlinedSword = ({ position = [0, 0, 0], rotation = [0, 0, 0], scale = 1, 
       <mesh 
         geometry={nodes.SWORD.geometry} 
         scale={scale} 
-        renderOrder={2}
+        renderOrder={renderOrder + 1} // One higher than outline
       >
         <meshStandardMaterial 
           {...materials.wood} 
           color="#8B4513" // Brown wooden color
+          depthTest={true} // Enable depth test
+          transparent={false} // Make sure it's not transparent
+          opacity={1.0}      // Full opacity
+          metalness={0.1}    // Slightly metallic (gives more solid appearance)
+          roughness={0.8}    // More rough (less shiny)
         />
       </mesh>
     </group>

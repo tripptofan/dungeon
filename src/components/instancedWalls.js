@@ -3,7 +3,6 @@ import { useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 import useGameStore from '../store';
 import { useTextures } from '../utils/textureManagement';
-import Eye from './eye'
 
 // Constants for performance tuning
 const LOD_DISTANCE = 25; // Distance at which to switch to lower detail
@@ -33,14 +32,125 @@ const InstancedWalls = ({ wallPositions, tileSize }) => {
     return { highDetailPositions: high, lowDetailPositions: low };
   }, [wallPositions, camera.position, tileSize]);
   
+  // Calculate wall plane direction for each wall position
+  const { highDetailConfigs, lowDetailConfigs } = useMemo(() => {
+    const highConfigs = [];
+    const lowConfigs = [];
+    
+    // Function to determine wall face direction based on position
+    const determineWallOrientation = (pos) => {
+      // Create a simplified dungeon layout
+      const dungeonLayout = useGameStore.getState().dungeon;
+      const dungeonWidth = dungeonLayout.length;
+      const dungeonDepth = dungeonLayout[0].length;
+      
+      // Convert world position to grid coordinates
+      const gridX = Math.floor(pos.x / tileSize);
+      const gridZ = Math.floor(pos.z / tileSize);
+      
+      // Check surrounding tiles to determine wall orientation
+      let orientation = { 
+        position: [pos.x, tileSize / 2, pos.z],
+        rotation: [0, 0, 0], 
+        offset: [0, 0, 0]
+      };
+      
+      // Check neighbors if within bounds
+      // Walls should face empty space (value 0) or doors (value 2)
+      
+      // Check if we're at the west edge or there's open space to the west
+      if (gridX === 0 || (gridX > 0 && (dungeonLayout[gridX-1]?.[gridZ] === 0 || dungeonLayout[gridX-1]?.[gridZ] === 2))) {
+        orientation = {
+          position: [pos.x - tileSize/2, tileSize/2, pos.z],
+          rotation: [0, -Math.PI/2, 0], // Face west
+          offset: [-tileSize/2, 0, 0]
+        };
+      }
+      // Check if we're at the east edge or there's open space to the east
+      else if (gridX === dungeonWidth-1 || (gridX < dungeonWidth-1 && (dungeonLayout[gridX+1]?.[gridZ] === 0 || dungeonLayout[gridX+1]?.[gridZ] === 2))) {
+        orientation = {
+          position: [pos.x + tileSize/2, tileSize/2, pos.z],
+          rotation: [0, Math.PI/2, 0], // Face east
+          offset: [tileSize/2, 0, 0]
+        };
+      }
+      // Check if we're at the north edge or there's open space to the north
+      else if (gridZ === 0 || (gridZ > 0 && (dungeonLayout[gridX]?.[gridZ-1] === 0 || dungeonLayout[gridX]?.[gridZ-1] === 2))) {
+        orientation = {
+          position: [pos.x, tileSize/2, pos.z - tileSize/2],
+          rotation: [0, 0, 0], // Face north
+          offset: [0, 0, -tileSize/2]
+        };
+      }
+      // Check if we're at the south edge or there's open space to the south
+      else if (gridZ === dungeonDepth-1 || (gridZ < dungeonDepth-1 && (dungeonLayout[gridX]?.[gridZ+1] === 0 || dungeonLayout[gridX]?.[gridZ+1] === 2))) {
+        orientation = {
+          position: [pos.x, tileSize/2, pos.z + tileSize/2],
+          rotation: [0, Math.PI, 0], // Face south
+          offset: [0, 0, tileSize/2]
+        };
+      }
+      
+      // Special case: If we're on the outer perimeter, ensure walls face inward
+      if (gridX === 0) { // West edge
+        orientation = {
+          position: [pos.x + tileSize/2, tileSize/2, pos.z],
+          rotation: [0, Math.PI/2, 0], // Face east (inward)
+          offset: [tileSize/2, 0, 0]
+        };
+      } else if (gridX === dungeonWidth - 1) { // East edge
+        orientation = {
+          position: [pos.x - tileSize/2, tileSize/2, pos.z],
+          rotation: [0, -Math.PI/2, 0], // Face west (inward)
+          offset: [-tileSize/2, 0, 0]
+        };
+      } else if (gridZ === 0) { // North edge
+        orientation = {
+          position: [pos.x, tileSize/2, pos.z + tileSize/2],
+          rotation: [0, Math.PI, 0], // Face south (inward)
+          offset: [0, 0, tileSize/2]
+        };
+      } else if (gridZ === dungeonDepth - 1) { // South edge
+        orientation = {
+          position: [pos.x, tileSize/2, pos.z - tileSize/2],
+          rotation: [0, 0, 0], // Face north (inward)
+          offset: [0, 0, -tileSize/2]
+        };
+      }
+      
+      return orientation;
+    };
+    
+    // Calculate wall configurations for high detail
+    highDetailPositions.forEach(pos => {
+      highConfigs.push(determineWallOrientation(pos));
+    });
+    
+    // Calculate wall configurations for low detail
+    lowDetailPositions.forEach(pos => {
+      lowConfigs.push(determineWallOrientation(pos));
+    });
+    
+    return { highDetailConfigs: highConfigs, lowDetailConfigs: lowConfigs };
+  }, [highDetailPositions, lowDetailPositions, tileSize]);
+  
   // Set up high detail instances
   const highDetailRef = useRef();
   useEffect(() => {
-    if (highDetailRef.current && highDetailPositions.length > 0) {
+    if (highDetailRef.current && highDetailConfigs.length > 0) {
       // For each high detail wall, set the instance matrix
-      highDetailPositions.forEach((pos, i) => {
+      highDetailConfigs.forEach((config, i) => {
         const matrix = new THREE.Matrix4();
-        matrix.setPosition(pos.x, tileSize / 2, pos.z);
+        
+        // Apply rotation
+        const quaternion = new THREE.Quaternion();
+        quaternion.setFromEuler(new THREE.Euler(...config.rotation));
+        
+        // Apply position with offset
+        const position = new THREE.Vector3(...config.position);
+        
+        // Set matrix
+        matrix.compose(position, quaternion, new THREE.Vector3(1, 1, 1));
         highDetailRef.current.setMatrixAt(i, matrix);
       });
       
@@ -53,23 +163,32 @@ const InstancedWalls = ({ wallPositions, tileSize }) => {
         geometry.setAttribute('uv2', geometry.attributes.uv);
       }
     }
-  }, [highDetailPositions, tileSize]);
+  }, [highDetailConfigs]);
   
   // Set up low detail instances
   const lowDetailRef = useRef();
   useEffect(() => {
-    if (lowDetailRef.current && lowDetailPositions.length > 0) {
+    if (lowDetailRef.current && lowDetailConfigs.length > 0) {
       // For each low detail wall, set the instance matrix
-      lowDetailPositions.forEach((pos, i) => {
+      lowDetailConfigs.forEach((config, i) => {
         const matrix = new THREE.Matrix4();
-        matrix.setPosition(pos.x, tileSize / 2, pos.z);
+        
+        // Apply rotation
+        const quaternion = new THREE.Quaternion();
+        quaternion.setFromEuler(new THREE.Euler(...config.rotation));
+        
+        // Apply position with offset
+        const position = new THREE.Vector3(...config.position);
+        
+        // Set matrix
+        matrix.compose(position, quaternion, new THREE.Vector3(1, 1, 1));
         lowDetailRef.current.setMatrixAt(i, matrix);
       });
       
       // Update matrices
       lowDetailRef.current.instanceMatrix.needsUpdate = true;
     }
-  }, [lowDetailPositions, tileSize]);
+  }, [lowDetailConfigs]);
 
   // Add subtle wall material variations
   const highDetailMaterial = useMemo(() => {
@@ -87,33 +206,34 @@ const InstancedWalls = ({ wallPositions, tileSize }) => {
   if (!materials.wallMaterial || wallPositions.length === 0) return null;
 
   return (
-    <>
-      {/* High detail walls */}
-      {highDetailPositions.length > 0 && (
+    <group>
+      {/* High detail walls - using planes instead of boxes */}
+      {highDetailConfigs.length > 0 && (
         <instancedMesh 
           ref={highDetailRef} 
-          args={[null, null, highDetailPositions.length]}
+          args={[null, null, highDetailConfigs.length]}
           castShadow={true}
           receiveShadow={true}
         >
-          <boxGeometry args={[tileSize, tileSize, tileSize]} />
+          {/* Use plane geometry with the same dimensions as the tile */}
+          <planeGeometry args={[tileSize, tileSize]} />
           <primitive object={highDetailMaterial || materials.wallMaterial} />
         </instancedMesh>
       )}
       
-      {/* Low detail walls */}
-      {lowDetailPositions.length > 0 && (
+      {/* Low detail walls - also using planes */}
+      {lowDetailConfigs.length > 0 && (
         <instancedMesh 
           ref={lowDetailRef} 
-          args={[null, null, lowDetailPositions.length]}
+          args={[null, null, lowDetailConfigs.length]}
           castShadow={false} // Disable shadow casting for performance
           receiveShadow={false} // Disable shadow receiving for performance
         >
-          <boxGeometry args={[tileSize, tileSize, tileSize]} />
+          <planeGeometry args={[tileSize, tileSize]} />
           <primitive object={materials.wallMaterialLod} />
         </instancedMesh>
       )}
-    </>
+    </group>
   );
 };
 

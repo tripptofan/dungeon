@@ -4,15 +4,25 @@ import * as THREE from 'three';
 import useGameStore from '../store';
 import MessageService from '../utils/messageService';
 
+// Define render order constants
+const RENDER_ORDER = {
+  DEFAULT: 0,             // Default render order (uses depth testing)
+  EYES: 2000,             // Glowing eyes
+  MESSAGE_OVERLAY: 15000, // Message overlay appears above most scene elements
+  ACQUIRED_ITEMS: 30000   // Acquired items always render on top of everything
+};
+
 const MessageOverlay3D = () => {
   const { camera, size, clock } = useThree();
   const groupRef = useRef();
-  const backgroundPlaneRef = useRef();
+  const boxRef = useRef();
+  const boxWireframeRef = useRef();
   const textPlaneRef = useRef();
   const textCanvasRef = useRef(document.createElement('canvas'));
   const textTextureRef = useRef();
   const [planeWidth, setPlaneWidth] = useState(4);
   const [planeHeight, setPlaneHeight] = useState(2);
+  const boxDepth = 0.2; // Shallow box depth
   
   // Track for click-to-dismiss functionality
   const pointerDownTimeRef = useRef(0);
@@ -32,19 +42,27 @@ const MessageOverlay3D = () => {
   const initialPositionRef = useRef(null);
   const hasSetInitialPosition = useRef(false);
 
+  // Add fade-in animation for the overlay and its light
+
+  // First, add a ref for the point light
+  const lightRef = useRef();
+
+  // Add state to track light intensity (initial 0)
+  const [lightIntensity, setLightIntensity] = useState(0);
+
   // Adjust plane size based on screen width
   useEffect(() => {
     const aspectRatio = size.width / size.height;
     
     // Calculate a much narrower width to ensure visible gaps at the sides
-    const baseWidth = Math.min(Math.max(1.8 * aspectRatio, 2), 3);
+    const baseWidth = Math.min(Math.max(1.5 * aspectRatio, 2.4), 2.5); // Reduced base width range
     
-    // Increase the margin for better fit
-    const marginFactor = 0.5; // 20% margin on each side
+    // Further reduce width with a smaller scale factor
+    const marginFactor = 0.4; // Reduced from 0.5 to 0.4 (40% of baseWidth)
     const newWidth = baseWidth * marginFactor;
     
     // Keep the height proportional but slightly taller for better text display
-    const newHeight = newWidth * 1.4;
+    const newHeight = newWidth * 1.5; // Increased height ratio for better text visibility
     
     setPlaneWidth(newWidth);
     setPlaneHeight(newHeight);
@@ -66,7 +84,8 @@ const MessageOverlay3D = () => {
     
     if (showMessageOverlay) {
       // Reset all animation state
-      setOpacity(0);
+      setOpacity(0); // Start at 0 opacity
+      setLightIntensity(0); // Start with light off
       setDisplayedText('');
       textCompletedRef.current = false;
       hasSetInitialPosition.current = false;
@@ -228,6 +247,10 @@ const MessageOverlay3D = () => {
       const newOpacity = fadeEaseProgress * 0.9; // Target max opacity of 0.9
       setOpacity(newOpacity);
       
+      // Update light intensity (target max intensity is 4)
+      const newLightIntensity = fadeEaseProgress * 4;
+      setLightIntensity(newLightIntensity);
+      
       // Update floating animation
       floatPhaseRef.current += delta * 0.3; // Slow speed for gentle movement
       
@@ -253,6 +276,9 @@ const MessageOverlay3D = () => {
       // Fast fade-out (100ms)
       const fadeOutSpeed = 0.1 / 0.1; // 0.1 opacity per 0.1 seconds
       setOpacity(Math.max(0, opacity - fadeOutSpeed * delta));
+      
+      // Also fade out the light
+      setLightIntensity(Math.max(0, lightIntensity - fadeOutSpeed * 4 * delta));
     }
     
     // Always make the group face the camera
@@ -261,12 +287,21 @@ const MessageOverlay3D = () => {
     }
     
     // Apply the current opacity to materials
-    if (backgroundPlaneRef.current?.material) {
-      backgroundPlaneRef.current.material.opacity = opacity;
+    if (boxRef.current?.material) {
+      boxRef.current.material.opacity = opacity * 0.6; // Make the fill slightly more transparent
+    }
+
+    if (boxWireframeRef.current?.material) {
+      boxWireframeRef.current.material.opacity = opacity;
     }
     
     if (textPlaneRef.current?.material) {
       textPlaneRef.current.material.opacity = opacity;
+    }
+    
+    // Apply current light intensity to the point light
+    if (lightRef.current) {
+      lightRef.current.intensity = lightIntensity;
     }
   });
   
@@ -342,42 +377,78 @@ const MessageOverlay3D = () => {
   
   return (
     <group ref={groupRef}>
-      {/* Background Plane - Semi-transparent, emissive, and clickable */}
+      {/* Point light */}
+      <pointLight 
+        ref={lightRef}
+        position={[0, 0, 1]}
+        intensity={lightIntensity}
+        distance={4}
+        decay={2}
+        color="#ffffff"
+        castShadow={true}
+      />
+      
+      {/* Semi-transparent box fill */}
       <mesh 
-        ref={backgroundPlaneRef} 
-        renderOrder={10000}
+        ref={boxRef} 
+        renderOrder={RENDER_ORDER.MESSAGE_OVERLAY}
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
+        castShadow={true}
+        receiveShadow={true}
       >
-        <planeGeometry args={[planeWidth, planeHeight]} />
-        <meshStandardMaterial 
-          color="white"
-          emissive="white"
-          emissiveIntensity={0.9}
+        <boxGeometry args={[planeWidth, planeHeight, boxDepth]} />
+        <meshPhysicalMaterial 
+          color="#f8f8f8"
           transparent={true}
-          opacity={opacity}
+          opacity={0.7}
+          roughness={0.4}
+          metalness={0.05}
+          transmission={0.5} // Increase transmission to allow more visibility through
           side={THREE.DoubleSide}
-          depthTest={false} // Ensure it renders on top of other objects
+          depthTest={true}
+          depthWrite={false} // Disable depth writing to prevent blocking the enemy
+          clearcoat={0.5}
+          clearcoatRoughness={0.3}
+        />
+      </mesh>
+      
+      {/* Wireframe to show the 3D structure */}
+      <mesh
+        ref={boxWireframeRef}
+        renderOrder={RENDER_ORDER.MESSAGE_OVERLAY + 1}
+      >
+        <boxGeometry args={[planeWidth, planeHeight, boxDepth]} />
+        <meshPhongMaterial
+          color="yellow"
+          wireframe={true}
+          transparent={true}
+          opacity={0.6}         // Reduced from 0.8
+          emissive="yellow"
+          emissiveIntensity={0.6}
+          shininess={100}
+          depthWrite={false}    // Changed to false to prevent depth conflicts
         />
       </mesh>
 
-      {/* Text Plane - Transparent with text */}
+      {/* Text Plane - Only on front face */}
       <mesh 
         ref={textPlaneRef} 
-        renderOrder={10001}
-        position={[0, 0, 0.01]} // Slightly in front to avoid z-fighting
+        renderOrder={RENDER_ORDER.MESSAGE_OVERLAY + 2}
+        position={[0, 0, boxDepth/2 + 0.001]}
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
       >
-        <planeGeometry args={[planeWidth - 0.2, planeHeight - 0.2]} /> {/* Even smaller for better margin */}
+        <planeGeometry args={[planeWidth - 0.3, planeHeight - 0.3]} />
         <meshBasicMaterial 
           map={textTextureRef.current}
           transparent={true}
           opacity={opacity}
-          side={THREE.DoubleSide}
-          depthTest={false} // Ensure it renders on top of other objects
+          side={THREE.FrontSide}
+          depthTest={false}
+          depthWrite={false}    // Added to ensure text doesn't block eyes
         />
       </mesh>
     </group>

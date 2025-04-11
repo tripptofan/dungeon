@@ -268,14 +268,24 @@ const Enemy = () => {
     
     // Handle fade out animation
     const isFadingOut = useGameStore.getState().enemyFadingOut;
-    if (isFadingOut && materialRef.current) {
-      // Reduce opacity
-      materialRef.current.opacity -= 0.02;
-      
-      // When fully transparent, hide the enemy
-      if (materialRef.current.opacity <= 0) {
-        setIsVisible(false);
-        useGameStore.getState().completeEnemyFadeOut();
+    if (isFadingOut) {
+      // Check if material references exist
+      if (materialRef.current) {
+        // Reduce opacity
+        materialRef.current.opacity -= 0.02;
+        
+        // Apply to all meshes in the group
+        enemyRef.current?.parent?.traverse(child => {
+          if (child.isMesh && child.material && child !== enemyRef.current) {
+            child.material.opacity -= 0.02;
+          }
+        });
+        
+        // When fully transparent, hide the enemy
+        if (materialRef.current.opacity <= 0) {
+          setIsVisible(false);
+          useGameStore.getState().completeEnemyFadeOut();
+        }
       }
     }
   });
@@ -310,35 +320,69 @@ const Enemy = () => {
   const enemyClickable = useGameStore.getState().enemyClickable && 
                         (!showMessageOverlay || overlayJustDismissed);
   
+  // Add render order constants to match the app-wide standards
+  const RENDER_ORDER = {
+    DEFAULT: 0,             // Default render order (uses depth testing)
+    EYES: 2000,             // Glowing eyes
+    ENEMY: 9000,            // Enemy should be visible through overlay but below acquired items
+    MESSAGE_OVERLAY: 15000, // Message overlay appears above most scene elements
+    ACQUIRED_ITEMS: 30000   // Acquired items always render on top of everything
+  };
+
   // Create a more visible animated enemy
   return (
     <group>
-      {/* Main enemy mesh - ENLARGED for better visibility */}
+      {/* Main enemy mesh with improved visibility settings */}
       <mesh 
         ref={enemyRef}
         position={[enemyPosition.x, enemyPosition.y, enemyPosition.z]}
         onClick={handleEnemyMeshClick}
         rotation={[0, Math.PI, 0]}
+        renderOrder={RENDER_ORDER.ENEMY + 1}
       >
-        <planeGeometry args={[3, 4.5]} /> {/* LARGER dimensions */}
+        <planeGeometry args={[3, 4.5]} />
         <meshStandardMaterial 
           ref={materialRef}
           transparent={true}
           map={framesLoadedRef.current ? textureArrayRef.current[currentFrame] : null}
           opacity={1.0}
+          emissive="#333333" // Use string format instead of THREE.Color
+          emissiveIntensity={1.5}
+          depthTest={false}
+          depthWrite={false}
         />
       </mesh>
       
-      {/* Add a more obvious glow effect for better visibility */}
+      {/* Enhanced glow effect for better visibility through overlay */}
       <mesh 
         position={[enemyPosition.x, enemyPosition.y, enemyPosition.z - 0.2]}
         onClick={handleEnemyMeshClick}
+        renderOrder={RENDER_ORDER.ENEMY}
       >
         <boxGeometry args={[3.5, 6.5, 0.1]} />
-        <meshBasicMaterial 
-          color="#ffff00" /* Bright yellow glow */
+        <meshBasicMaterial  // meshBasicMaterial doesn't support emissive
+          color="#ffff00"
           transparent={true} 
           opacity={0.4}
+          // Remove emissive properties from meshBasicMaterial
+          depthTest={false}
+          depthWrite={false}
+        />
+      </mesh>
+      
+      {/* Add a bright outline to help enemy stand out through overlay */}
+      <mesh
+        position={[enemyPosition.x, enemyPosition.y, enemyPosition.z - 0.1]}
+        onClick={handleEnemyMeshClick}
+        renderOrder={RENDER_ORDER.ENEMY + 2}
+      >
+        <planeGeometry args={[3.2, 4.7]} /> {/* Slightly larger than main mesh */}
+        <meshBasicMaterial // meshBasicMaterial doesn't support emissive
+          color="#ffffff"
+          transparent={true}
+          opacity={0.7}
+          depthTest={false}
+          depthWrite={false}
         />
       </mesh>
     </group>

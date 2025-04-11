@@ -13,8 +13,11 @@ import InstancedDoors from './instancedDoors';
 import TreasureChest from './treasureChest';
 import NightSky from './nightSky';
 
+// Import Eye component
+import Eye from './eye';
+
 // Define culling distance threshold
-const CULLING_DISTANCE = 150; // Only render objects within this distance of the camera
+const CULLING_DISTANCE = 100; // Only render objects within this distance of the camera
 
 // Occlusion culling constants
 const OCCLUSION_UPDATE_INTERVAL = 150; // Ms between occlusion checks
@@ -427,6 +430,9 @@ const OptimizedDungeon = () => {
       {/* Night sky instead of ceiling */}
       <NightSky />
       
+      {/* Add eyes along the path */}
+      <PathEyes tileSize={tileSize} />
+      
       {/* Treasure chest is a unique component, no instancing needed */}
       <TreasureChest />
       
@@ -455,6 +461,210 @@ const DungeonDebugInfo = ({ renderCount, cullingDistance }) => {
   });
   
   return null; // This is just for debugging information
+};
+
+// Add this new component for path eyes
+const PathEyes = ({ tileSize }) => {
+  const { camera } = useThree();
+  
+  // Generate eyes along a path to the treasure (existing code remains the same)
+  const pathEyes = useMemo(() => {
+    const eyes = [];
+    // Get player starting position from store
+    const playerPosition = useGameStore.getState().playerPosition;
+    
+    // Define how many eyes to place
+    const numberOfEyes = 50;
+    
+    // Generate eyes
+    for (let i = 0; i < numberOfEyes; i++) {
+      // Create a seed for stable randomization
+      const random = Math.random;
+      
+      // Random x position between 2.6 and 7.4
+      const x = 2.85 + random() * 4.55;
+      
+      // Random y position between 1 and 5
+      const y = .3 + random() * 6;
+      
+      // Random z position between 3 and the end of dungeon
+      // Assuming the treasure chest is at the end of the dungeon path
+      const z = 1 + random() * (100 - 3);
+      
+      eyes.push({
+        key: `path-eye-${i}`,
+        position: [x, y, z],
+        // Use default rotation by not specifying a rotation prop
+        scale: [0.8, 0.9] // Fixed scale
+      });
+    }
+    
+    return eyes;
+  }, [tileSize]); // Only recalculate if tileSize changes
+  
+  // Track visible eyes with distance-based culling and intensity
+  const [visibleEyes, setVisibleEyes] = useState([]);
+  
+  // Reference for the frustum
+  const frustumRef = useRef(new THREE.Frustum());
+  const projScreenMatrixRef = useRef(new THREE.Matrix4());
+  
+  // Configurable intensity parameters for fine-tuning the J-curve
+  const intensityParams = {
+    cullDistance: 40,           // Maximum distance at which eyes are visible
+    fullIntensityDistance: 2,   // Distance at which eyes are at full brightness
+    minIntensity: 0.005,        // Minimum intensity at cull distance
+    falloffExponent: 3          // Lower exponent for initial calculation
+  };
+
+  // Update visible eyes on every frame
+  useFrame(() => {
+    const cameraPosVec = new THREE.Vector3(
+      camera.position.x,
+      camera.position.y,
+      camera.position.z
+    );
+    
+    // Update the frustum for culling checks
+    // Use a slightly wider FOV than the camera to prevent pop-in during rotation
+    const widerFOV = 100; // Wider than default (75) but not as wide as for walls/doors
+    const frustumCamera = camera.clone();
+    frustumCamera.fov = widerFOV;
+    frustumCamera.updateProjectionMatrix();
+    
+    projScreenMatrixRef.current.multiplyMatrices(
+      frustumCamera.projectionMatrix,
+      frustumCamera.matrixWorldInverse
+    );
+    frustumRef.current.setFromProjectionMatrix(projScreenMatrixRef.current);
+    
+    // Get camera direction for behind-player checks
+    const cameraDirection = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion);
+    const cameraForwardXZ = new THREE.Vector2(cameraDirection.x, cameraDirection.z).normalize();
+    
+    // Function to determine if an object is behind the player
+    const isBehindPlayer = (objPos) => {
+      const toCameraXZ = new THREE.Vector2(
+        objPos.x - cameraPosVec.x,
+        objPos.z - cameraPosVec.z
+      ).normalize();
+      
+      // If dot product < -0.2, it's more than approximately 100 degrees from forward direction
+      // Using a less strict threshold than walls (making the cone of visibility wider)
+      const dotProduct = cameraForwardXZ.dot(toCameraXZ);
+      return dotProduct < -0.2;
+    };
+    
+    // Use the configurable parameters
+    const {
+      cullDistance,
+      fullIntensityDistance,
+      minIntensity,
+      falloffExponent
+    } = intensityParams;
+    
+    // Reusable objects to prevent garbage collection
+    const tempPosition = new THREE.Vector3();
+    const boundingSphere = new THREE.Sphere();
+    const sphereRadius = 0.5; // Appropriate size for an eye
+    
+    // Calculate which eyes are visible and their emissive intensity
+    const visible = pathEyes.map(eye => {
+      // Create a Vector3 from the eye position array
+      tempPosition.set(eye.position[0], eye.position[1], eye.position[2]);
+      
+      // Calculate distance to camera
+      const distanceToCam = tempPosition.distanceTo(cameraPosVec);
+      
+      // Minimum distance to prevent eyes from being too close to the camera
+      const MIN_EYE_DISTANCE = 1.0; // Don't render eyes closer than 1 unit from camera
+      
+      // First distance checks - both minimum and maximum
+      if (distanceToCam < MIN_EYE_DISTANCE || distanceToCam > cullDistance) {
+        return null;
+      }
+      
+      // Check if the eye is behind the player
+      if (isBehindPlayer(tempPosition) && distanceToCam > 5) {
+        // Cull eyes that are behind the player, except very close ones
+        return null;
+      }
+      
+      // Frustum culling check
+      boundingSphere.center.copy(tempPosition);
+      boundingSphere.radius = sphereRadius;
+      
+      if (!frustumRef.current.intersectsSphere(boundingSphere) && distanceToCam > 5) {
+        // Cull eyes outside the frustum, except very close ones
+        return null;
+      }
+      
+      // Calculate eye position relative to camera view direction
+      // This helps prevent eyes that are directly in the player's face
+      const eyeDirection = new THREE.Vector3().subVectors(tempPosition, cameraPosVec).normalize();
+      const forwardDot = eyeDirection.dot(cameraDirection);
+      
+      // If the eye is too directly in front of the camera and very close, don't render it
+      if (forwardDot > 0.9 && distanceToCam < 2.0) {
+        return null;
+      }
+      
+      // If eye passes all culling checks, calculate intensity
+      let emissiveIntensity;
+      
+      // If within full intensity distance, use full intensity
+      if (distanceToCam <= fullIntensityDistance) {
+        emissiveIntensity = 1.0;
+      } else {
+        // Create a smooth J-curve for intensity falloff
+        
+        // 1. Normalize the distance to a 0-1 range
+        const fadeZoneSize = cullDistance - fullIntensityDistance;
+        const distanceInFadeZone = distanceToCam - fullIntensityDistance;
+        const normalizedDistance = distanceInFadeZone / fadeZoneSize;
+        
+        // 2. Initial calculation with lower exponent
+        const basicFalloff = Math.pow(normalizedDistance, falloffExponent);
+        const invertedBasic = 1 - basicFalloff;
+        
+        // 3. Apply an additional curve transformation for J-curve
+        const jCurveValue = Math.pow(invertedBasic, 3);
+        
+        // 4. Scale to our desired intensity range
+        emissiveIntensity = minIntensity + jCurveValue * (1.0 - minIntensity);
+      }
+      
+      // Check if message overlay is showing
+      const overlayVisible = useGameStore.getState().showMessageOverlay;
+      
+      // If overlay is visible, boost the intensity slightly to help eyes shine through
+      if (overlayVisible && emissiveIntensity > 0.1) {
+        // Boost intensity by 70% when overlay is visible, but maintain the J-curve
+        emissiveIntensity = Math.min(1.0, emissiveIntensity * 1.7);
+      }
+      
+      return {
+        ...eye,
+        emissiveIntensity
+      };
+    }).filter(Boolean); // Remove null entries (culled eyes)
+    
+    // Update state with visible eyes
+    setVisibleEyes(visible);
+  });
+  
+  return (
+    <>
+      {visibleEyes.map(eye => (
+        <Eye 
+          key={eye.key}
+          position={eye.position}
+          scale={eye.scale}
+          emissiveIntensity={eye.emissiveIntensity}
+        />
+      ))}
+    </>
+  );
 };
 
 export default React.memo(OptimizedDungeon);

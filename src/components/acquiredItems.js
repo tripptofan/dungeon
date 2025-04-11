@@ -36,6 +36,14 @@ const ACQUIRED_ITEMS_CONFIG = {
   }
 };
 
+// Define consistent render order constants globally to maintain correct stacking order
+const RENDER_ORDER = {
+  DEFAULT: 0,             // Default render order (uses depth testing)
+  EYES: 2000,             // Glowing eyes
+  MESSAGE_OVERLAY: 15000, // Message overlay appears above most scene elements
+  ACQUIRED_ITEMS: 30000   // Acquired items always render on top of everything
+};
+
 // Individual acquired item component that renders regardless of overlay state
 const AcquiredItem = ({ item }) => {
   const groupRef = useRef();
@@ -56,6 +64,8 @@ const AcquiredItem = ({ item }) => {
   const swingProgress = useGameStore(state => state.swingProgress);
   const swingType = useGameStore(state => state.swingType || 'default');
   const updateSwordSwing = useGameStore(state => state.updateSwordSwing);
+  const overlayVisible = useGameStore(state => state.showMessageOverlay);
+  
   
   // Add ref to the static array when mounted, remove when unmounted
   useEffect(() => {
@@ -143,9 +153,124 @@ const AcquiredItem = ({ item }) => {
   useFrame((state, delta) => {
     if (!groupRef.current || !adjustedConfig) return;
 
+    // Get overlay visibility state
+
+    
+    // Determine which render order to use
+    const currentRenderOrder = RENDER_ORDER.ACQUIRED_ITEMS;
+    
+    // Set render order on group
+    if (groupRef.current.renderOrder !== currentRenderOrder) {
+      groupRef.current.renderOrder = currentRenderOrder;
+    }
+    
+    // Update render order and material settings for all child meshes
+    if (!groupRef.current.userData.orderApplied) {
+      groupRef.current.traverse(child => {
+        if (child.isMesh) {
+          child.renderOrder = currentRenderOrder;
+          
+          // Ensure proper material settings for acquired items
+          if (child.material) {
+            const updateMaterial = (material) => {
+              // For opaque materials, ensure proper settings
+              if (!material.transparent) {
+                material.depthTest = true;
+                material.depthWrite = true;
+                material.opacity = 1.0;
+              } 
+              // For transparent materials, increase opacity but maintain transparency
+              else if (material.transparent) {
+                material.depthTest = true;
+                material.depthWrite = true;
+              }
+            };
+            
+            if (Array.isArray(child.material)) {
+              child.material.forEach(mat => updateMaterial(mat));
+            } else {
+              updateMaterial(child.material);
+            }
+          }
+        }
+      });
+      
+      groupRef.current.userData.orderApplied = true;
+    }
+    
+    // Rest of the existing frame update code...
+
+    // Check if message overlay is visible
+
+    
     // IMPORTANT: Ensure visibility during message overlay and when forceVisible is true
-    if (forceVisible && !groupRef.current.visible) {
+    if ((forceVisible || overlayVisible) && !groupRef.current.visible) {
       groupRef.current.visible = true;
+    }
+    
+    // Set extremely high renderOrder when overlay is visible to ensure items appear on top
+    if (overlayVisible) {
+      // Set renderOrder higher than the message overlay (which uses 10000-10002)
+      groupRef.current.renderOrder = 20000;
+      
+      // Ensure child meshes also have high renderOrder
+      groupRef.current.traverse(child => {
+        if (child.isMesh) {
+          child.renderOrder = 20000;
+          
+          // For meshes, also ensure their materials have proper depth settings
+          if (child.material) {
+            // Make a copy of the material if we haven't done so already
+            if (!child.userData.originalMaterial) {
+              child.userData.originalMaterial = child.material.clone();
+              child.userData.overlayMode = false;
+            }
+            
+            // Only update material settings when overlay mode changes
+            if (!child.userData.overlayMode) {
+              child.userData.overlayMode = true;
+              
+              // Ensure materials render on top of overlay
+              if (Array.isArray(child.material)) {
+                child.material.forEach(mat => {
+                  mat.depthTest = false;
+                });
+              } else {
+                child.material.depthTest = false;
+              }
+            }
+          }
+        }
+      });
+    } 
+    else if (groupRef.current.userData.overlayMode) {
+      // Reset renderOrder when overlay is hidden
+      groupRef.current.renderOrder = renderOrderValue;
+      
+      // Reset child mesh settings
+      groupRef.current.traverse(child => {
+        if (child.isMesh) {
+          child.renderOrder = renderOrderValue;
+          
+          // Restore original material depth settings
+          if (child.userData.originalMaterial && child.userData.overlayMode) {
+            child.userData.overlayMode = false;
+            
+            // Restore original depth test settings
+            if (Array.isArray(child.material)) {
+              child.material.forEach((mat, i) => {
+                if (Array.isArray(child.userData.originalMaterial)) {
+                  mat.depthTest = child.userData.originalMaterial[i].depthTest;
+                }
+              });
+            } else if (child.userData.originalMaterial) {
+              child.material.depthTest = child.userData.originalMaterial.depthTest;
+            }
+          }
+        }
+      });
+      
+      groupRef.current.userData.overlayMode = false;
     }
 
     // Ensure the item stays relative to the camera - this must happen regardless of shake or bob state
@@ -504,17 +629,12 @@ const AcquiredItem = ({ item }) => {
     switch(item.name) {
       case 'Lantern':
         return (
-          <group position={[0, .2, 0]} scale={[config.scale, config.scale, config.scale]}>
-            {/* Use outlined lantern with white outline */}
-            <OutlinedLantern outlineThickness={0.05} />
-            
-            {/* Additional always-on ambient light for the lantern */}
-            <pointLight 
-              color="#ffcc77" 
-              intensity={15}
-              distance={10}
-              decay={1}
-              position={[0, 0.2, 0]}
+          <group scale={[config.scale, config.scale, config.scale]}>
+            <OutlinedLantern 
+              outlineThickness={0.05} 
+              emissiveIntensity={0.4}
+              lightIntensity={5}
+              renderOrder={RENDER_ORDER.ACQUIRED_ITEMS}
             />
           </group>
         );
@@ -529,7 +649,10 @@ const AcquiredItem = ({ item }) => {
               {/* Add an additional offset to improve sword swing pivot point */}
               <group position={[0, -0.2, 0]}>
                 {/* Use outlined sword with white outline */}
-                <OutlinedSword outlineThickness={0.05} />
+                <OutlinedSword 
+                  outlineThickness={0.05} 
+                  renderOrder={RENDER_ORDER.ACQUIRED_ITEMS} // Use the consistent render order
+                />
               </group>
             </group>
           </group>
@@ -564,7 +687,11 @@ const AcquiredItem = ({ item }) => {
   // Make items render at a very high renderOrder to ensure they're drawn last
   // This helps with overlay issues
   return (
-    <group ref={groupRef} renderOrder={renderOrderValue}>
+    <group 
+      ref={groupRef} 
+      renderOrder={renderOrderValue}
+      userData={{ overlayMode: false }}
+    >
       {renderItemModel()}
     </group>
   );
@@ -577,10 +704,10 @@ const AcquiredItems = () => {
   const showItemDisplay = useGameStore(state => state.showItemDisplay);
   const showMessageOverlay = useGameStore(state => state.showMessageOverlay);
   const { size } = useThree();
-  
+  const updateViewportSize = useGameStore.getState().updateViewportSize;
   // Update viewport size in store if needed
   useEffect(() => {
-    const updateViewportSize = useGameStore.getState().updateViewportSize;
+
     if (updateViewportSize) {
       updateViewportSize({
         width: size.width,
