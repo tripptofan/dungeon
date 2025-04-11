@@ -32,7 +32,7 @@ const ItemObject = ({ experience, isActive }) => {
       case 'Lantern':
         return 0.2;
       case 'Toy Wooden Sword':
-        return 0.2;
+        return 0.16; // Reduced
       default:
         return 1.0;
     }
@@ -199,8 +199,12 @@ const ItemObject = ({ experience, isActive }) => {
       case 'Lantern':
         return (
           <group position={[0, .2, 0]} scale={[modelScale, modelScale, modelScale]}>
-            {/* Use outlined lantern with white outline */}
-            <OutlinedLantern outlineThickness={0.05} />
+            {/* Use outlined lantern with reduced brightness */}
+            <OutlinedLantern 
+              outlineThickness={0.05} 
+              emissiveIntensity={0.4}  // Reduced emissive materials brightness
+              lightIntensity={3}     // Significantly reduce light intensity to 30%
+            />
           </group>
         );
       case 'Toy Wooden Sword':

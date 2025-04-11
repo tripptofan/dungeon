@@ -248,7 +248,7 @@ function App() {
                 position={[4.95, 2, 5.2]}
                 scale={[.1, .1]}
               /> */}
-              <EyesPlane />
+              {/* <EyesPlane /> */}
               {/* Use our new FadeEffect instead of FadeOutPlane */}
               {loadingFade && <FadeEffect />}
               <ForceRender />

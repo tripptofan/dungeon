@@ -3,7 +3,15 @@ import { useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 import useGameStore from '../store';
 
-const Eye = ({ position = [0, 0, 0], scale = [.5, .5], rotation = [0, Math.PI, 0] }) => {
+// Import or define render order constants
+const RENDER_ORDER = {
+  DEFAULT: 0,             // Default render order (uses depth testing)
+  EYES: 2000,             // Glowing eyes
+  MESSAGE_OVERLAY: 15000, // Message overlay appears above most scene elements
+  ACQUIRED_ITEMS: 30000   // Acquired items always render on top of everything
+};
+
+const Eye = ({ position = [0, 0, 0], scale = [.5, .5], rotation = [0, Math.PI, 0], emissiveIntensity = 1 }) => {
   const eyeRef = useRef();
   const materialRef = useRef();
   const { camera } = useThree();
@@ -15,6 +23,9 @@ const Eye = ({ position = [0, 0, 0], scale = [.5, .5], rotation = [0, Math.PI, 0
   const wiggleCountRef = useRef(0);
   const isBlinkingRef = useRef(false);
   const framesLoadedRef = useRef(false);
+  
+  // Random color for the eye
+  const [emissiveColor, setEmissiveColor] = useState('#ffffff'); // Default white
   
   // Animation sequence tracking - UPDATED for 2 wiggle frames
   const WIGGLE_FRAME_COUNT = 2; // CHANGED from 3 to 2 frames: wiggle1.png to wiggle2.png
@@ -40,108 +51,142 @@ const Eye = ({ position = [0, 0, 0], scale = [.5, .5], rotation = [0, Math.PI, 0
     });
   }, [playerPosition]);
   
-  // Preload all image frames
+  const wiggleCycleTargetRef = useRef(0); // Target number of wiggle cycles before blinking
+
   useEffect(() => {
-    const textureLoader = new THREE.TextureLoader();
-    const wiggleTextures = [];
-    const blinkTextures = [];
-    
-    // Create promise arrays for loading
-    const loadPromises = [];
-    
-    // Load wiggle frames (wiggle1.png through wiggle2.png) - UPDATED for 2 frames
-    for (let i = 1; i <= WIGGLE_FRAME_COUNT; i++) {
-      const framePath = `/eye/wiggle/wiggle${i}.png`;
+      // Available colors for the eye
+      const availableColors = [
+        '#ff69b4', // hotpink
+        '#40e0d0', // turquoise
+        '#fffacd', // light yellow
+        '#ffffff', // white
+        '#e6e6fa'  // lavender
+      ];
       
-      const loadPromise = new Promise((resolve) => {
-        textureLoader.load(
-          framePath,
-          (texture) => {
-            // Configure texture for transparency
-            texture.minFilter = THREE.LinearFilter;
-            texture.magFilter = THREE.LinearFilter;
-            texture.format = THREE.RGBAFormat;
-            texture.colorSpace = THREE.SRGBColorSpace;
-            texture.generateMipmaps = false;
-            
-            // Store texture at the correct index
-            wiggleTextures[i-1] = texture;
-            resolve();
-          },
-          undefined, // onProgress callback not needed
-          (error) => {
-            console.error(`Error loading wiggle frame ${framePath}:`, error);
-            resolve(); // Resolve anyway to avoid blocking other frames
-          }
-        );
-      });
+      // Pick a random color
+      const randomColorIndex = Math.floor(Math.random() * availableColors.length);
+      setEmissiveColor(availableColors[randomColorIndex]);
       
-      loadPromises.push(loadPromise);
-    }
-    
-    // Load blink frames (blink1.png through blink5.png)
-    for (let i = 1; i <= BLINK_FRAME_COUNT; i++) {
-      const framePath = `/eye/blink/blink${i}.png`;
+      const textureLoader = new THREE.TextureLoader();
+      const wiggleTextures = [];
+      const blinkTextures = [];
       
-      const loadPromise = new Promise((resolve) => {
-        textureLoader.load(
-          framePath,
-          (texture) => {
-            // Configure texture for transparency
-            texture.minFilter = THREE.LinearFilter;
-            texture.magFilter = THREE.LinearFilter;
-            texture.format = THREE.RGBAFormat;
-            texture.colorSpace = THREE.SRGBColorSpace;
-            texture.generateMipmaps = false;
-            
-            // Store texture at the correct index
-            blinkTextures[i-1] = texture;
-            resolve();
-          },
-          undefined, // onProgress callback not needed
-          (error) => {
-            console.error(`Error loading blink frame ${framePath}:`, error);
-            resolve(); // Resolve anyway to avoid blocking other frames
-          }
-        );
-      });
+      // Create promise arrays for loading
+      const loadPromises = [];
       
-      loadPromises.push(loadPromise);
-    }
-    
-    // Wait for all textures to load
-    Promise.all(loadPromises).then(() => {
-      wiggleTexturesRef.current = wiggleTextures;
-      blinkTexturesRef.current = blinkTextures;
-      framesLoadedRef.current = true;
-      
-      // Set initial texture
-      if (materialRef.current && wiggleTextures[0]) {
-        materialRef.current.map = wiggleTextures[0];
-        materialRef.current.needsUpdate = true;
+      // Load wiggle frames (wiggle1.png through wiggle2.png)
+      for (let i = 1; i <= WIGGLE_FRAME_COUNT; i++) {
+        const framePath = `/eye/wiggle/wiggle${i}.png`;
+        
+        const loadPromise = new Promise((resolve) => {
+          textureLoader.load(
+            framePath,
+            (texture) => {
+              // Configure texture for transparency
+              texture.minFilter = THREE.LinearFilter;
+              texture.magFilter = THREE.LinearFilter;
+              texture.format = THREE.RGBAFormat;
+              texture.colorSpace = THREE.SRGBColorSpace;
+              texture.generateMipmaps = false;
+              
+              // Store texture at the correct index
+              wiggleTextures[i-1] = texture;
+              resolve();
+            },
+            undefined, // onProgress callback not needed
+            (error) => {
+              console.error(`Error loading wiggle frame ${framePath}:`, error);
+              resolve(); // Resolve anyway to avoid blocking other frames
+            }
+          );
+        });
+        
+        loadPromises.push(loadPromise);
       }
       
-      console.log(`Loaded ${wiggleTextures.length} wiggle frames and ${blinkTextures.length} blink frames for eye`);
-    });
+      // Load blink frames (blink1.png through blink5.png)
+      for (let i = 1; i <= BLINK_FRAME_COUNT; i++) {
+        const framePath = `/eye/blink/blink${i}.png`;
+        
+        const loadPromise = new Promise((resolve) => {
+          textureLoader.load(
+            framePath,
+            (texture) => {
+              // Configure texture for transparency
+              texture.minFilter = THREE.LinearFilter;
+              texture.magFilter = THREE.LinearFilter;
+              texture.format = THREE.RGBAFormat;
+              texture.colorSpace = THREE.SRGBColorSpace;
+              texture.generateMipmaps = false;
+              
+              // Store texture at the correct index
+              blinkTextures[i-1] = texture;
+              resolve();
+            },
+            undefined, // onProgress callback not needed
+            (error) => {
+              console.error(`Error loading blink frame ${framePath}:`, error);
+              resolve(); // Resolve anyway to avoid blocking other frames
+            }
+          );
+        });
+        
+        loadPromises.push(loadPromise);
+      }
+      
+      // Wait for all textures to load
+      Promise.all(loadPromises).then(() => {
+        wiggleTexturesRef.current = wiggleTextures;
+        blinkTexturesRef.current = blinkTextures;
+        framesLoadedRef.current = true;
+        
+        // Randomly select a starting frame
+        const allFrames = [...wiggleTextures, ...blinkTextures];
+        const randomFrameIndex = Math.floor(Math.random() * allFrames.length);
+        const isBlinkFrame = randomFrameIndex >= wiggleTextures.length;
+        const randomFrame = allFrames[randomFrameIndex];
+        
+        // Set the initial frame and update the material
+        setCurrentFrame(isBlinkFrame ? randomFrameIndex - wiggleTextures.length : randomFrameIndex);
+        isBlinkingRef.current = isBlinkFrame;
+        
+        if (materialRef.current && randomFrame) {
+          materialRef.current.map = randomFrame;
+          materialRef.current.needsUpdate = true;
+        }
+        
+        // Set a random wiggle cycle target between 7 and 10
+        wiggleCycleTargetRef.current = Math.floor(Math.random() * 4) + 7; // Random number between 7 and 10
+        
+        console.log(`Loaded ${wiggleTextures.length} wiggle frames and ${blinkTextures.length} blink frames for eye`);
+        console.log(`Starting with ${isBlinkFrame ? 'blink' : 'wiggle'} frame ${randomFrameIndex}`);
+        console.log(`Random wiggle cycle target set to ${wiggleCycleTargetRef.current}`);
+        console.log(`Eye color set to ${availableColors[randomColorIndex]}`);
+      });
+      
+      // Cleanup function
+      return () => {
+        // Dispose textures when component unmounts
+        wiggleTextures.forEach(texture => {
+          if (texture) texture.dispose();
+        });
+        blinkTextures.forEach(texture => {
+          if (texture) texture.dispose();
+        });
+      };
+    }, []);
     
-    // Cleanup function
-    return () => {
-      // Dispose textures when component unmounts
-      wiggleTextures.forEach(texture => {
-        if (texture) texture.dispose();
-      });
-      blinkTextures.forEach(texture => {
-        if (texture) texture.dispose();
-      });
-    };
-  }, []);
+  // Add effect to update emissive intensity when the prop changes
+  useEffect(() => {
+    if (materialRef.current) {
+      materialRef.current.emissiveIntensity = emissiveIntensity;
+      materialRef.current.needsUpdate = true;
+    }
+  }, [emissiveIntensity]);
   
   // Handle animation frames
   useFrame((state, delta) => {
     if (!eyeRef.current || !framesLoadedRef.current) return;
-    
-    // Always make the eye face the camera
-    // eyeRef.current.lookAt(camera.position);
     
     // Accumulate time since last frame
     frameTimeRef.current += delta;
@@ -177,7 +222,7 @@ const Eye = ({ position = [0, 0, 0], scale = [.5, .5], rotation = [0, Math.PI, 0
           }
         }
       } else {
-        // Playing wiggle sequence - UPDATED for 2 frames
+        // Playing wiggle sequence
         const nextFrame = (currentFrame + 1) % WIGGLE_FRAME_COUNT;
         setCurrentFrame(nextFrame);
         
@@ -191,8 +236,8 @@ const Eye = ({ position = [0, 0, 0], scale = [.5, .5], rotation = [0, Math.PI, 0
         if (nextFrame === 0) {
           wiggleCountRef.current++;
           
-          // After 10 wiggle cycles, switch to blinking
-          if (wiggleCountRef.current >= 10) {
+          // Check if we've reached the random wiggle cycle target
+          if (wiggleCountRef.current >= wiggleCycleTargetRef.current) {
             isBlinkingRef.current = true;
             setCurrentFrame(0);
             
@@ -217,18 +262,20 @@ const Eye = ({ position = [0, 0, 0], scale = [.5, .5], rotation = [0, Math.PI, 0
       <mesh 
         ref={eyeRef}
         rotation={rotation} // Ensure the eye faces the correct direction
-      >
+        renderOrder={RENDER_ORDER.EYES}
+              >
         <planeGeometry args={scale} /> {/* Adjust size as needed */}
         <meshStandardMaterial 
           ref={materialRef}
           transparent={true}
           side={THREE.DoubleSide}
-          emissive={'#ffffff'} //white
-          emissiveIntensity={1}
+          emissive={emissiveColor} // Using the random color
+          emissiveIntensity={emissiveIntensity}
           map={isBlinkingRef.current 
             ? blinkTexturesRef.current[currentFrame] 
             : wiggleTexturesRef.current[currentFrame]
           }
+          depthTest={true}  // Keep depth test but ensure they're rendered after overlay
         />
       </mesh>
     </group>
