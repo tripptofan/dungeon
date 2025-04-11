@@ -9,7 +9,7 @@ import { TextureProvider } from './utils/textureManagement';
 // Import 3D Scene Components
 import Dungeon from './components/dungeon';
 import Player from './components/player';
-import FadeOutPlane from './components/fadeOutPlane';
+import FadeEffect from './components/FadeEffect'; // Replace FadeOutPlane with FadeEffect
 import ForceRender from './components/forceRender';
 import MessageOverlay3D from './components/messageOverlay3D';
 import ActionOverlay from './components/actionOverlay';
@@ -19,6 +19,7 @@ import CameraShake from './components/cameraShake';
 import DeviceDetection from './DeviceDetection';
 import Enemy from './components/enemy';
 import SimpleFpsLimiter from './components/SimpleFpsLimiter';
+import EyesPlane from './components/eyesPlane';
 // Commenting out LookAroundControl to disable it
 // import LookAroundControl from './components/lookAroundControl';
 
@@ -164,11 +165,15 @@ function App() {
 
     // After a delay, mark scene as loaded to remove loading indicator
     const loadTimer = setTimeout(() => {
+      // First signal that textures are loaded
       setSceneLoaded(true);
 
-      // After another delay, start the fade effect
+      // After another delay, start the fade effect and begin hiding the CSS overlay
       const fadeTimer = setTimeout(() => {
         setOverlayVisible(false);
+
+        // We'll keep the loadingFade state true so the FadeEffect component can manage the transition
+        // The FadeEffect will wait for the scene to be fully rendered before starting its animation
 
         // After fade completes, mark scene as ready
         const readyTimer = setTimeout(() => {
@@ -235,15 +240,17 @@ function App() {
               <Player />
               <AmbientNightLight />
               <StaticItems />
-              <Eye
-                position={[5.2, 2, 6]}
-                scale={[.3, .3]}
+              {/* <Eye
+                position={[5.05, 2, 5.2]}
+                scale={[.1, .1]}
               />
               <Eye
-                position={[4.8, 2, 6]}
-                scale={[.3, .3]}
-              />
-              {loadingFade && <FadeOutPlane />}
+                position={[4.95, 2, 5.2]}
+                scale={[.1, .1]}
+              /> */}
+              <EyesPlane />
+              {/* Use our new FadeEffect instead of FadeOutPlane */}
+              {loadingFade && <FadeEffect />}
               <ForceRender />
               <CameraShake />
               <AcquiredItems />

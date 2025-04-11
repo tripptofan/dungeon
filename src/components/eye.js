@@ -141,7 +141,7 @@ const Eye = ({ position = [0, 0, 0], scale = [.5, .5] }) => {
     if (!eyeRef.current || !framesLoadedRef.current) return;
     
     // Always make the eye face the camera
-    eyeRef.current.lookAt(camera.position);
+    // eyeRef.current.lookAt(camera.position);
     
     // Accumulate time since last frame
     frameTimeRef.current += delta;
