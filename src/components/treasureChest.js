@@ -14,6 +14,9 @@ const TreasureChest = () => {
   const initializedRef = useRef(false);
   const chestPositionRef = useRef({ x: 5, z: 86 });
 
+  // Get render order constants from store
+  const renderOrder = useGameStore(state => state.renderOrder);
+  
   const [opacity, setOpacity] = useState(1.0);
   const [isFading, setIsFading] = useState(false);
   const fadeStartRef = useRef(null);
@@ -196,8 +199,7 @@ const TreasureChest = () => {
   const isMessageShown = messageSentRef.current;
   const isInteractive = isChestExperience && !showMessageOverlay && !chestOpened && isMessageShown;
   
-  // Removed glow effect based on hover
-  // Using a constant glow intensity instead
+  // Using a constant glow intensity instead of hover-based
   const glowIntensity = 0.3;
   
   return (
@@ -205,11 +207,10 @@ const TreasureChest = () => {
       ref={chestRef}
       position={[chestPositionRef.current.x, 0.5, chestPositionRef.current.z]}
       onClick={handleChestClick}
-      // Removed hover handlers
       rotation={[0, Math.PI, 0]}
     >
       {/* Main chest body */}
-      <mesh>
+      <mesh renderOrder={renderOrder.TREASURE_CHEST}>
         <boxGeometry args={[2, 1, 1.2]} /> {/* Width, height, depth */}
         <meshStandardMaterial 
           color="#8B4513" // Brown wooden color
@@ -217,25 +218,25 @@ const TreasureChest = () => {
           metalness={0.3}
           emissive="#8B4513"
           emissiveIntensity={0.2}
-          transparent={true}  // Add this line
-          opacity={opacity}   // Add this line
+          transparent={true}
+          opacity={opacity}
         />
       </mesh>
       
       {/* Chest lid */}
-      <mesh position={[0, 0.5, 0]}>
+      <mesh position={[0, 0.5, 0]} renderOrder={renderOrder.TREASURE_CHEST + 1}>
         <boxGeometry args={[2, 0.3, 1.2]} />
         <meshStandardMaterial 
           color="#A0522D" // Slightly different brown for contrast
           roughness={0.6}
           metalness={0.4}
-          transparent={true}  // Add this line
-          opacity={opacity}   // Add this line
+          transparent={true}
+          opacity={opacity}
         />
       </mesh>
       
       {/* Metal details/lock */}
-      <mesh position={[0, 0.3, 0.6]}>
+      <mesh position={[0, 0.3, 0.6]} renderOrder={renderOrder.TREASURE_CHEST + 2}>
         <boxGeometry args={[0.4, 0.4, 0.1]} />
         <meshStandardMaterial 
           color="#FFD700" // Gold color
@@ -243,8 +244,8 @@ const TreasureChest = () => {
           metalness={0.8}
           emissive="#FFD700"
           emissiveIntensity={glowIntensity}
-          transparent={true}  // Add this line
-          opacity={opacity}   // Add this line
+          transparent={true}
+          opacity={opacity}
         />
       </mesh>
       

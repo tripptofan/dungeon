@@ -4,14 +4,6 @@ import * as THREE from 'three';
 import useGameStore from '../store';
 import MessageService from '../utils/messageService';
 
-// Define render order constants
-const RENDER_ORDER = {
-  DEFAULT: 0,             // Default render order (uses depth testing)
-  EYES: 2000,             // Glowing eyes
-  MESSAGE_OVERLAY: 15000, // Message overlay appears above most scene elements
-  ACQUIRED_ITEMS: 30000   // Acquired items always render on top of everything
-};
-
 const MessageOverlay3D = () => {
   const { camera, size, clock } = useThree();
   const groupRef = useRef();
@@ -23,6 +15,9 @@ const MessageOverlay3D = () => {
   const [planeWidth, setPlaneWidth] = useState(4);
   const [planeHeight, setPlaneHeight] = useState(2);
   const boxDepth = 0.2; // Shallow box depth
+  
+  // Get render order constants from store
+  const renderOrder = useGameStore(state => state.renderOrder);
   
   // Track for click-to-dismiss functionality
   const pointerDownTimeRef = useRef(0);
@@ -388,10 +383,10 @@ const MessageOverlay3D = () => {
         castShadow={true}
       />
       
-      {/* Semi-transparent box fill */}
+      {/* Main background box - REVISED for better transparency */}
       <mesh 
         ref={boxRef} 
-        renderOrder={RENDER_ORDER.MESSAGE_OVERLAY}
+        renderOrder={renderOrder.MESSAGE_OVERLAY}
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
@@ -405,19 +400,19 @@ const MessageOverlay3D = () => {
           opacity={0.7}
           roughness={0.4}
           metalness={0.05}
-          transmission={0.5} // Increase transmission to allow more visibility through
+          transmission={0.6}      // RESTORED: Increased transparency to allow eyes/enemy to be seen
           side={THREE.DoubleSide}
-          depthTest={true}
-          depthWrite={false} // Disable depth writing to prevent blocking the enemy
+          depthTest={true}        // Keep depth test enabled 
+          depthWrite={false}      // RESTORED: Disable depth writing to allow objects to be visible
           clearcoat={0.5}
           clearcoatRoughness={0.3}
         />
       </mesh>
       
-      {/* Wireframe to show the 3D structure */}
+      {/* Wireframe to show the 3D structure - REVISED for better transparency */}
       <mesh
         ref={boxWireframeRef}
-        renderOrder={RENDER_ORDER.MESSAGE_OVERLAY + 1}
+        renderOrder={renderOrder.MESSAGE_OVERLAY + 1}
       >
         <boxGeometry args={[planeWidth, planeHeight, boxDepth]} />
         <meshPhongMaterial
@@ -428,14 +423,15 @@ const MessageOverlay3D = () => {
           emissive="yellow"
           emissiveIntensity={0.6}
           shininess={100}
-          depthWrite={false}    // Changed to false to prevent depth conflicts
+          depthTest={true}      // Keep depth test enabled
+          depthWrite={false}    // RESTORED: Disable depth writing to allow objects to be visible
         />
       </mesh>
 
       {/* Text Plane - Only on front face */}
       <mesh 
         ref={textPlaneRef} 
-        renderOrder={RENDER_ORDER.MESSAGE_OVERLAY + 2}
+        renderOrder={renderOrder.MESSAGE_OVERLAY + 2}
         position={[0, 0, boxDepth/2 + 0.001]}
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
@@ -447,8 +443,25 @@ const MessageOverlay3D = () => {
           transparent={true}
           opacity={opacity}
           side={THREE.FrontSide}
-          depthTest={false}
-          depthWrite={false}    // Added to ensure text doesn't block eyes
+          depthTest={true}      // Keep depth test enabled
+          depthWrite={false}    // Keep depth writing disabled for text overlay
+        />
+      </mesh>
+      
+      {/* Add a very subtle background plane behind the text for better readability 
+           while still allowing objects to be visible through the main box */}
+      <mesh
+        renderOrder={renderOrder.MESSAGE_OVERLAY + 1}
+        position={[0, 0, boxDepth/2 - 0.001]}
+      >
+        <planeGeometry args={[planeWidth - 0.1, planeHeight - 0.1]} />
+        <meshBasicMaterial
+          color="#ffffff"
+          transparent={true}
+          opacity={0.4}         // Very subtle opacity
+          side={THREE.FrontSide}
+          depthTest={true}
+          depthWrite={false}
         />
       </mesh>
     </group>

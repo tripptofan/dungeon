@@ -36,19 +36,14 @@ const ACQUIRED_ITEMS_CONFIG = {
   }
 };
 
-// Define consistent render order constants globally to maintain correct stacking order
-const RENDER_ORDER = {
-  DEFAULT: 0,             // Default render order (uses depth testing)
-  EYES: 2000,             // Glowing eyes
-  MESSAGE_OVERLAY: 15000, // Message overlay appears above most scene elements
-  ACQUIRED_ITEMS: 30000   // Acquired items always render on top of everything
-};
-
 // Individual acquired item component that renders regardless of overlay state
 const AcquiredItem = ({ item }) => {
   const groupRef = useRef();
   const { camera, viewport, size } = useThree();
   const [adjustedConfig, setAdjustedConfig] = useState(null);
+  
+  // Get render order constants from store
+  const renderOrder = useGameStore(state => state.renderOrder);
   
   // Get camera shake state and force visible flag from the store
   const cameraShakingState = useGameStore(state => state.cameraShaking);
@@ -152,12 +147,9 @@ const AcquiredItem = ({ item }) => {
   // useFrame must NOT be called conditionally - this is a React hooks rule
   useFrame((state, delta) => {
     if (!groupRef.current || !adjustedConfig) return;
-
-    // Get overlay visibility state
-
     
     // Determine which render order to use
-    const currentRenderOrder = RENDER_ORDER.ACQUIRED_ITEMS;
+    const currentRenderOrder = renderOrder.ACQUIRED_ITEMS;
     
     // Set render order on group
     if (groupRef.current.renderOrder !== currentRenderOrder) {
@@ -198,11 +190,6 @@ const AcquiredItem = ({ item }) => {
       groupRef.current.userData.orderApplied = true;
     }
     
-    // Rest of the existing frame update code...
-
-    // Check if message overlay is visible
-
-    
     // IMPORTANT: Ensure visibility during message overlay and when forceVisible is true
     if ((forceVisible || overlayVisible) && !groupRef.current.visible) {
       groupRef.current.visible = true;
@@ -210,13 +197,13 @@ const AcquiredItem = ({ item }) => {
     
     // Set extremely high renderOrder when overlay is visible to ensure items appear on top
     if (overlayVisible) {
-      // Set renderOrder higher than the message overlay (which uses 10000-10002)
-      groupRef.current.renderOrder = 20000;
+      // Set renderOrder higher than the message overlay
+      groupRef.current.renderOrder = renderOrder.ACQUIRED_ITEMS;
       
       // Ensure child meshes also have high renderOrder
       groupRef.current.traverse(child => {
         if (child.isMesh) {
-          child.renderOrder = 20000;
+          child.renderOrder = renderOrder.ACQUIRED_ITEMS;
           
           // For meshes, also ensure their materials have proper depth settings
           if (child.material) {
@@ -634,7 +621,7 @@ const AcquiredItem = ({ item }) => {
               outlineThickness={0.05} 
               emissiveIntensity={0.4}
               lightIntensity={5}
-              renderOrder={RENDER_ORDER.ACQUIRED_ITEMS}
+              renderOrder={renderOrder.ACQUIRED_ITEMS}
             />
           </group>
         );
@@ -651,7 +638,7 @@ const AcquiredItem = ({ item }) => {
                 {/* Use outlined sword with white outline */}
                 <OutlinedSword 
                   outlineThickness={0.05} 
-                  renderOrder={RENDER_ORDER.ACQUIRED_ITEMS} // Use the consistent render order
+                  renderOrder={renderOrder.ACQUIRED_ITEMS} // Use the consistent render order
                 />
               </group>
             </group>
@@ -682,7 +669,7 @@ const AcquiredItem = ({ item }) => {
   };
 
   // Calculate render order - higher when forced visible
-  const renderOrderValue = forceVisible ? 3000 : 2000;
+  const renderOrderValue = forceVisible ? renderOrder.ACQUIRED_ITEMS : renderOrder.ACQUIRED_ITEMS - 1000;
 
   // Make items render at a very high renderOrder to ensure they're drawn last
   // This helps with overlay issues
@@ -705,31 +692,30 @@ const AcquiredItems = () => {
   const showMessageOverlay = useGameStore(state => state.showMessageOverlay);
   const { size } = useThree();
   const updateViewportSize = useGameStore.getState().updateViewportSize;
-  // Update viewport size in store if needed
-  useEffect(() => {
+// Update viewport size in store if needed
+useEffect(() => {
+  if (updateViewportSize) {
+    updateViewportSize({
+      width: size.width,
+      height: size.height,
+      aspectRatio: size.width / size.height
+    });
+  }
+}, [size, updateViewportSize]);
 
-    if (updateViewportSize) {
-      updateViewportSize({
-        width: size.width,
-        height: size.height,
-        aspectRatio: size.width / size.height
-      });
-    }
-  }, [size]);
-  
-  // Always render items if they're in inventory, regardless of other flags
-  // This ensures consistent visibility across all scenarios
-  return (
-    <>
-      {/* Render all items in inventory */}
-      {inventory.map((item, index) => (
-        <AcquiredItem 
-          key={`acquired-${item.name}-${index}`} 
-          item={item}
-        />
-      ))}
-    </>
-  );
+// Always render items if they're in inventory, regardless of other flags
+// This ensures consistent visibility across all scenarios
+return (
+  <>
+    {/* Render all items in inventory */}
+    {inventory.map((item, index) => (
+      <AcquiredItem 
+        key={`acquired-${item.name}-${index}`} 
+        item={item}
+      />
+    ))}
+  </>
+);
 };
 
 export default React.memo(AcquiredItems);

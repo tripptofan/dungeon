@@ -2,6 +2,7 @@ import React, { useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { createNoise2D } from 'simplex-noise';
 import * as THREE from 'three';
+import useGameStore from '../store';
 
 const noise2D = createNoise2D();
 
@@ -17,12 +18,18 @@ const FlickeringFlame = ({
   decay = 0.9,             // Light decay
   flickerSpeed = 0.5,      // New parameter to control how fast the flame flickers (lower = smoother)
   flickerRange = 0.3,      // New parameter to control intensity variation (lower = subtler)
-  renderOrder = 2000       // Add render order parameter
+  renderOrder = null       // Allow component to receive specific render order or use default
 }) => {
   const lightRef = useRef();
   const glowRef = useRef();
   const time = useRef(Math.random() * 1000);
   const timeOffset = Math.random() * 1000;
+  
+  // Get render order constants from store
+  const storeRenderOrder = useGameStore(state => state.renderOrder);
+  
+  // Use provided renderOrder or default from store
+  const effectiveRenderOrder = renderOrder !== null ? renderOrder : storeRenderOrder.EYES;
   
   // Store the target and current intensity for smooth interpolation
   const targetIntensity = useRef(intensity);
@@ -114,7 +121,7 @@ const FlickeringFlame = ({
       />
       
       {/* Glow sphere */}
-      <mesh ref={glowRef} scale={[1, 1, 1]} renderOrder={renderOrder}>
+      <mesh ref={glowRef} scale={[1, 1, 1]} renderOrder={effectiveRenderOrder}>
         <sphereGeometry args={[0.1, 8, 8]} />
         <meshBasicMaterial
           color={color}

@@ -2,6 +2,7 @@ import React, { useRef } from 'react';
 import { useGLTF } from '@react-three/drei';
 import * as THREE from 'three';
 import FlickeringFlame from './flickeringFlame';
+import useGameStore from '../store';
 
 // Component that renders a lantern with a white outline
 const OutlinedLantern = ({ 
@@ -11,8 +12,14 @@ const OutlinedLantern = ({
   outlineThickness = 0.05, 
   emissiveIntensity = 1.0,   // Controls emissive materials in lantern
   lightIntensity = 1.0,      // Controls flame light intensity
-  renderOrder = 2000         // Add render order parameter with default value
+  renderOrder = null         // Allow component to receive specific render order or use default
 }) => {
+  // Get render order constants from store
+  const storeRenderOrder = useGameStore(state => state.renderOrder);
+  
+  // Use provided renderOrder or default from store
+  const effectiveRenderOrder = renderOrder !== null ? renderOrder : storeRenderOrder.ACQUIRED_ITEMS;
+  
   // Load the lantern model
   const { nodes, materials } = useGLTF('/Lantern-smallTextures.glb');
   
@@ -48,7 +55,7 @@ const OutlinedLantern = ({
           <mesh 
             geometry={nodes[part.name].geometry} 
             scale={outlineScale} 
-            renderOrder={renderOrder}
+            renderOrder={effectiveRenderOrder}
           >
             <meshBasicMaterial 
               color="#FFFFFF" 
@@ -63,7 +70,7 @@ const OutlinedLantern = ({
           <mesh 
             geometry={nodes[part.name].geometry} 
             scale={scale} 
-            renderOrder={renderOrder + 1}
+            renderOrder={effectiveRenderOrder + 1}
           >
             <meshStandardMaterial 
               {...part.material} 
@@ -82,7 +89,7 @@ const OutlinedLantern = ({
           key={part.name}
           geometry={nodes[part.name].geometry} 
           scale={scale} 
-          renderOrder={renderOrder + 2}
+          renderOrder={effectiveRenderOrder + 2}
         >
           <meshPhysicalMaterial
             color="#FFDD88"
@@ -108,7 +115,7 @@ const OutlinedLantern = ({
         intensity={lightIntensity * 1.5}  // Scale flame intensity based on prop
         distance={1.9 * lightIntensity}   // Adjust distance based on intensity
         decay={1.5}                       // Slightly increased decay
-        renderOrder={renderOrder + 3}     // Pass render order to flame
+        renderOrder={effectiveRenderOrder + 3}     // Pass render order to flame
       />
       
       {/* Add ambient light for the lantern with reduced intensity */}

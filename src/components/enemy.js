@@ -22,6 +22,9 @@ const Enemy = () => {
   const frameTextureRef = useRef(null);
   const totalFrames = 16; // Total number of frames in the sequence
   
+  // Get render order constants from store
+  const renderOrder = useGameStore(state => state.renderOrder);
+  
   // FIX: Track overlay state for improved click handling
   const [lastOverlayState, setLastOverlayState] = useState(false);
   const [overlayJustDismissed, setOverlayJustDismissed] = useState(false);
@@ -158,7 +161,7 @@ const Enemy = () => {
       const newPosition = {
         x: playerPosition.x,
         y: -5, // Start below the floor
-        z: playerPosition.z + 4 // 4 units in front of the player
+        z: playerPosition.z + 5 // 4 units in front of the player
       };
       
       console.log("Setting enemy position to:", newPosition);
@@ -319,17 +322,8 @@ const Enemy = () => {
   // Calculate if enemy is clickable
   const enemyClickable = useGameStore.getState().enemyClickable && 
                         (!showMessageOverlay || overlayJustDismissed);
-  
-  // Add render order constants to match the app-wide standards
-  const RENDER_ORDER = {
-    DEFAULT: 0,             // Default render order (uses depth testing)
-    EYES: 2000,             // Glowing eyes
-    ENEMY: 9000,            // Enemy should be visible through overlay but below acquired items
-    MESSAGE_OVERLAY: 15000, // Message overlay appears above most scene elements
-    ACQUIRED_ITEMS: 30000   // Acquired items always render on top of everything
-  };
 
-  // Create a more visible animated enemy
+  // Create a more visible animated enemy with fixed depth handling
   return (
     <group>
       {/* Main enemy mesh with improved visibility settings */}
@@ -338,51 +332,35 @@ const Enemy = () => {
         position={[enemyPosition.x, enemyPosition.y, enemyPosition.z]}
         onClick={handleEnemyMeshClick}
         rotation={[0, Math.PI, 0]}
-        renderOrder={RENDER_ORDER.ENEMY + 1}
+        renderOrder={renderOrder.ENEMY}
       >
         <planeGeometry args={[3, 4.5]} />
-        <meshStandardMaterial 
+        <meshBasicMaterial 
           ref={materialRef}
           transparent={true}
           map={framesLoadedRef.current ? textureArrayRef.current[currentFrame] : null}
           opacity={1.0}
-          emissive="#333333" // Use string format instead of THREE.Color
-          emissiveIntensity={1.5}
-          depthTest={false}
-          depthWrite={false}
+          color="#ffffff"
+          depthTest={true}  // Important: Keep depth test enabled
+          depthWrite={true} // Important: Enable depth writing for proper occlusion
+          alphaTest={0.01}  // Added alpha test to help with transparency issues
         />
       </mesh>
       
-      {/* Enhanced glow effect for better visibility through overlay */}
+      {/* Simplified glow effect */}
       <mesh 
-        position={[enemyPosition.x, enemyPosition.y, enemyPosition.z - 0.2]}
-        onClick={handleEnemyMeshClick}
-        renderOrder={RENDER_ORDER.ENEMY}
-      >
-        <boxGeometry args={[3.5, 6.5, 0.1]} />
-        <meshBasicMaterial  // meshBasicMaterial doesn't support emissive
-          color="#ffff00"
-          transparent={true} 
-          opacity={0.4}
-          // Remove emissive properties from meshBasicMaterial
-          depthTest={false}
-          depthWrite={false}
-        />
-      </mesh>
-      
-      {/* Add a bright outline to help enemy stand out through overlay */}
-      <mesh
         position={[enemyPosition.x, enemyPosition.y, enemyPosition.z - 0.1]}
         onClick={handleEnemyMeshClick}
-        renderOrder={RENDER_ORDER.ENEMY + 2}
+        renderOrder={renderOrder.ENEMY - 1}
       >
-        <planeGeometry args={[3.2, 4.7]} /> {/* Slightly larger than main mesh */}
-        <meshBasicMaterial // meshBasicMaterial doesn't support emissive
-          color="#ffffff"
-          transparent={true}
-          opacity={0.7}
-          depthTest={false}
-          depthWrite={false}
+        <planeGeometry args={[3.6, 5]} />
+        <meshBasicMaterial
+          color="#ffff88"
+          transparent={true} 
+          opacity={0.3}
+          depthTest={true}
+          depthWrite={true}
+          alphaTest={0.01}
         />
       </mesh>
     </group>
