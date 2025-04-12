@@ -12,7 +12,7 @@ export const staticItemRefs = [];
 const ItemObject = ({ experience, isActive }) => {
   const { camera } = useThree();
   const groupRef = useRef();
-  const [hovered, setHovered] = useState(false);
+  // Removed hovered state
   const clickedRef = useRef(false);
   const [dismissCooldown, setDismissCooldown] = useState(false);
   
@@ -141,10 +141,12 @@ const ItemObject = ({ experience, isActive }) => {
   const isSwordItem = itemType === 'Toy Wooden Sword';
   const isVisible = isSwordItem ? true : !(isActive && itemAnimationPhase === 'acquired');
   
-  // For glow effect when hovered and clickable
+  // Use a constant glow effect instead of hover-based
   const isInteractive = isActive && !showMessageOverlay && !dismissCooldown;
-  const glowScale = (hovered && isInteractive) ? 1.05 : 1.0;
-  const glowIntensity = (hovered && isInteractive) ? 0.8 : 0.3;
+  // Remove hover-based scale changes
+  const glowScale = 1.0;
+  // Constant glow intensity
+  const glowIntensity = 0.3;
   
   // MODIFIED: Improved item click handling with cooldown period
   const handleItemObjectClick = (e) => {
@@ -203,7 +205,7 @@ const ItemObject = ({ experience, isActive }) => {
             <OutlinedLantern 
               outlineThickness={0.05} 
               emissiveIntensity={0.4}  // Reduced emissive materials brightness
-              lightIntensity={3}     // Significantly reduce light intensity to 30%
+              lightIntensity={4}     // Significantly reduce light intensity to 30%
             />
           </group>
         );
@@ -241,18 +243,7 @@ const ItemObject = ({ experience, isActive }) => {
         );
     }
   };
-  
-  // Update cursor style based on interactivity
-  const handlePointerOver = () => {
-    setHovered(true);
-    document.body.style.cursor = isInteractive ? 'pointer' : 'auto';
-  };
-  
-  const handlePointerOut = () => {
-    setHovered(false);
-    document.body.style.cursor = 'auto';
-  };
-  
+
   // Create the scene graph for this item
   return (
     <group 
@@ -264,9 +255,8 @@ const ItemObject = ({ experience, isActive }) => {
       ]}
       visible={isVisible}
       onClick={handleItemObjectClick}
-      onPointerOver={handlePointerOver}
-      onPointerOut={handlePointerOut}
-      scale={[glowScale, glowScale, glowScale]} // Grow slightly when hovered
+      // Removed hover handlers
+      scale={[glowScale, glowScale, glowScale]}
     >
       {renderItemModel()}
     </group>

@@ -75,15 +75,7 @@ const InstancedDoors = ({ doorPositions, tileSize }) => {
               console.log("Door clicked at position:", door);
             }
           }}
-          onPointerOver={(e) => {
-            e.stopPropagation();
-            if (doorClickable) {
-              document.body.style.cursor = 'pointer';
-            }
-          }}
-          onPointerOut={() => {
-            document.body.style.cursor = 'auto';
-          }}
+          // Removed hover handlers
         >
           <boxGeometry args={[tileSize, tileSize, tileSize]} />
           <primitive object={enhancedDoorMaterial || materials.doorMaterial} />
