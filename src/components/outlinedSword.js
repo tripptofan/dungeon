@@ -1,15 +1,22 @@
 import React, { useRef } from 'react';
 import { useGLTF } from '@react-three/drei';
 import * as THREE from 'three';
+import useGameStore from '../store';
 
-// Update OutlinedSword to accept and use renderOrder
+// Update OutlinedSword to use render order from store
 const OutlinedSword = ({ 
   position = [0, 0, 0], 
   rotation = [0, 0, 0], 
   scale = 1, 
   outlineThickness = 0.05,
-  renderOrder = 2000 // Add default renderOrder
+  renderOrder = null // Allow component to receive specific render order or use default
 }) => {
+  // Get render order constants from store
+  const storeRenderOrder = useGameStore(state => state.renderOrder);
+  
+  // Use provided renderOrder or default from store
+  const effectiveRenderOrder = renderOrder !== null ? renderOrder : storeRenderOrder.ACQUIRED_ITEMS;
+  
   // Load the sword model
   const { nodes, materials } = useGLTF('/woodenSword-smallerTextures.glb');
   
@@ -28,7 +35,7 @@ const OutlinedSword = ({
       <mesh 
         geometry={nodes.SWORD.geometry} 
         scale={outlineScale} 
-        renderOrder={renderOrder} // Use the prop
+        renderOrder={effectiveRenderOrder} // Use the effective render order
       >
         <meshBasicMaterial 
           color="#FFFFFF" 
@@ -43,7 +50,7 @@ const OutlinedSword = ({
       <mesh 
         geometry={nodes.SWORD.geometry} 
         scale={scale} 
-        renderOrder={renderOrder + 1} // One higher than outline
+        renderOrder={effectiveRenderOrder + 1} // One higher than outline
       >
         <meshStandardMaterial 
           {...materials.wood} 

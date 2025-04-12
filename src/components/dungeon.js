@@ -417,11 +417,24 @@ const OptimizedDungeon = () => {
         tileSize={tileSize}
       />
       
+      {/* First layer of walls - ground level */}
       <InstancedWalls
         wallPositions={visibleWalls.map(wall => wall.position)}
         tileSize={tileSize}
+        yOffset={tileSize / 2}
       />
       
+      {/* Second layer of walls - upper level */}
+      <InstancedWalls
+        wallPositions={[
+          ...visibleWalls.map(wall => wall.position),
+          ...visibleDoors.map(door => door.position) // Add walls above doors
+        ]}
+        tileSize={tileSize}
+        yOffset={tileSize * 1.5} // Position directly above the first layer
+      />
+      
+      {/* Doors at ground level only */}
       <InstancedDoors
         doorPositions={visibleDoors.map(door => door.position)}
         tileSize={tileSize}
@@ -474,7 +487,7 @@ const PathEyes = ({ tileSize }) => {
     const playerPosition = useGameStore.getState().playerPosition;
     
     // Define how many eyes to place
-    const numberOfEyes = 50;
+    const numberOfEyes = 100;
     
     // Generate eyes
     for (let i = 0; i < numberOfEyes; i++) {
@@ -482,10 +495,10 @@ const PathEyes = ({ tileSize }) => {
       const random = Math.random;
       
       // Random x position between 2.6 and 7.4
-      const x = 2.85 + random() * 4.55;
+      const x = 2.7 + random() * 4.7;
       
       // Random y position between 1 and 5
-      const y = .3 + random() * 6;
+      const y = .3 + random() * 9;
       
       // Random z position between 3 and the end of dungeon
       // Assuming the treasure chest is at the end of the dungeon path
@@ -495,7 +508,7 @@ const PathEyes = ({ tileSize }) => {
         key: `path-eye-${i}`,
         position: [x, y, z],
         // Use default rotation by not specifying a rotation prop
-        scale: [0.8, 0.9] // Fixed scale
+        scale: [0.4, 0.4] // Fixed scale
       });
     }
     

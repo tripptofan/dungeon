@@ -14,11 +14,22 @@ const useGameStore = create((set, get) => ({
   playerHealth: 100,
   inventory: [], // Player's inventory
   doorClickable: false,
-isDoorClicked: false,
-movingToDoor: false,
-doorPosition: { x: 0, y: 0, z: 0 },
-fadingToBlack: false,
-blackScreenOpacity: 0,
+  isDoorClicked: false,
+  movingToDoor: false,
+  doorPosition: { x: 0, y: 0, z: 0 },
+  fadingToBlack: false,
+  blackScreenOpacity: 0,
+  
+  // Define consistent render order constants globally to maintain correct stacking order
+  // UPDATED - Adjusted to fix enemy and treasureChest appearing in front of message overlay
+  renderOrder: {
+    DEFAULT: 0,                // Default render order (uses depth testing)
+    EYES: 2000,                // Glowing eyes
+    TREASURE_CHEST: 5000,      // Treasure chest (added new value)
+    ENEMY: 7000,               // Enemy - reduced from 9000 to appear behind message overlay
+    MESSAGE_OVERLAY: 15000,    // Message overlay appears above scene elements including enemy and chest
+    ACQUIRED_ITEMS: 30000      // Acquired items always render on top of everything
+  },
   
   // Message overlay state
   showMessageOverlay: false,
@@ -264,8 +275,8 @@ blackScreenOpacity: 0,
   },
   startFadeToBlack: () => set({ fadingToBlack: true }),
 
-// Update black screen opacity
-updateBlackScreenOpacity: (opacity) => set({ blackScreenOpacity: opacity }),
+  // Update black screen opacity
+  updateBlackScreenOpacity: (opacity) => set({ blackScreenOpacity: opacity }),
   // Message overlay actions
   setShowMessageOverlay: (value) => {
     // When showing message overlay, ensure items remain visible if they're already visible

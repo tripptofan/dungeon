@@ -3,18 +3,13 @@ import { useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 import useGameStore from '../store';
 
-// Import or define render order constants
-const RENDER_ORDER = {
-  DEFAULT: 0,             // Default render order (uses depth testing)
-  EYES: 2000,             // Glowing eyes
-  MESSAGE_OVERLAY: 15000, // Message overlay appears above most scene elements
-  ACQUIRED_ITEMS: 30000   // Acquired items always render on top of everything
-};
-
 const Eye = ({ position = [0, 0, 0], scale = [.5, .5], rotation = [0, Math.PI, 0], emissiveIntensity = 1 }) => {
   const eyeRef = useRef();
   const materialRef = useRef();
   const { camera } = useThree();
+  
+  // Get render order constants from store
+  const renderOrder = useGameStore(state => state.renderOrder);
   
   // PNG sequence animation state
   const [currentFrame, setCurrentFrame] = useState(0);
@@ -262,7 +257,7 @@ const Eye = ({ position = [0, 0, 0], scale = [.5, .5], rotation = [0, Math.PI, 0
       <mesh 
         ref={eyeRef}
         rotation={rotation} // Ensure the eye faces the correct direction
-        renderOrder={RENDER_ORDER.EYES}
+        renderOrder={renderOrder.EYES}
               >
         <planeGeometry args={scale} /> {/* Adjust size as needed */}
         <meshStandardMaterial 
