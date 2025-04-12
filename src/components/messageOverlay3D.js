@@ -237,7 +237,7 @@ const MessageOverlay3D = () => {
       const elapsedSeconds = elapsedMs / 1000;
       
       // Fade-in duration and progress (0-1)
-      const fadeInDuration = 0.4; // seconds
+      const fadeInDuration = 0.8; // Increased from 0.4 to 0.8 seconds
       const fadeProgress = Math.min(elapsedSeconds / fadeInDuration, 1);
       
       // Use easeOutCubic for fade-in

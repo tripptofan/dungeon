@@ -106,8 +106,8 @@ const OutlinedLantern = ({
         color="#ffcc77"
         randomizer={0.75}
         intensity={lightIntensity * 1.5}  // Scale flame intensity based on prop
-        distance={2.0 * lightIntensity}   // Adjust distance based on intensity
-        decay={1.2}                       // Slightly increased decay
+        distance={1.9 * lightIntensity}   // Adjust distance based on intensity
+        decay={1.5}                       // Slightly increased decay
         renderOrder={renderOrder + 3}     // Pass render order to flame
       />
       

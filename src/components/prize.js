@@ -26,7 +26,7 @@ const Prize = () => {
   const prizeRef = useRef();
   const meshRef = useRef();
   const { camera } = useThree();
-  const [hovered, setHovered] = useState(false);
+  // Removed hovered state
   
   // Load the paper texture
   const paperTexture = useLoader(THREE.TextureLoader, '/paper.webp');
@@ -343,8 +343,8 @@ const Prize = () => {
   // Don't render if hidden or acquired
   if (prizeState === 'hidden' || prizeState === 'acquired') return null;
   
-  // Create a glowing effect when hovered
-  const glowIntensity = hovered ? 0.8 : 0.4;
+  // Using constant glow intensity instead of hover-based
+  const glowIntensity = 0.4;
   const isClickable = (prizeState === 'floating' || prizeState === 'inspecting') && !showMessageOverlay;
   
   return (
@@ -368,8 +368,7 @@ const Prize = () => {
             setPrizeClicked(true);
           }
         }}
-        onPointerOver={() => setHovered(true)}
-        onPointerOut={() => setHovered(false)}
+        // Removed hover handlers
         renderOrder={2000} // Ensure it renders on top when in inspection mode
       >
         <boxGeometry args={[1.5, 0.02, 1]} /> {/* Taller and narrower */}

@@ -9,7 +9,7 @@ export const treasureChestRefs = [];
 // Component that renders a treasure chest as the final reward
 const TreasureChest = () => {
   const chestRef = useRef();
-  const [hovered, setHovered] = useState(false);
+  // Removed hover state
   const messageSentRef = useRef(false);
   const initializedRef = useRef(false);
   const chestPositionRef = useRef({ x: 5, z: 86 });
@@ -196,16 +196,16 @@ const TreasureChest = () => {
   const isMessageShown = messageSentRef.current;
   const isInteractive = isChestExperience && !showMessageOverlay && !chestOpened && isMessageShown;
   
-  // For glow effect when hovered and clickable
-  const glowIntensity = (hovered && (isInteractive || overlayJustDismissed)) ? 0.8 : 0.3;
+  // Removed glow effect based on hover
+  // Using a constant glow intensity instead
+  const glowIntensity = 0.3;
   
   return (
     <group 
       ref={chestRef}
       position={[chestPositionRef.current.x, 0.5, chestPositionRef.current.z]}
       onClick={handleChestClick}
-      onPointerOver={() => setHovered(true)}
-      onPointerOut={() => setHovered(false)}
+      // Removed hover handlers
       rotation={[0, Math.PI, 0]}
     >
       {/* Main chest body */}
