@@ -101,7 +101,9 @@ const generatePrizeImage = async (prizeText) => {
       if (!text) return;
       
       const lines = [];
-      const paragraphs = text.split('\n');
+      // Fix: Replace escaped newlines with actual newlines, then split by newline
+      const cleanText = text.replace(/\\n/g, '\n');
+      const paragraphs = cleanText.split('\n');
       
       paragraphs.forEach(paragraph => {
         const words = paragraph.split(' ');
@@ -163,8 +165,9 @@ const generatePrizeImage = async (prizeText) => {
     ctx.fillStyle = '#333';
     ctx.textAlign = 'center';
     
-    // Wrap and render the prize text, centered vertically
-    const lines = prizeText.split('\n');
+    // Fix: Replace escaped newlines with actual newlines
+    const cleanText = prizeText.replace(/\\n/g, '\n');
+    const lines = cleanText.split('\n');
     const lineHeight = 60;
     const totalTextHeight = lines.length * lineHeight;
     const startY = (canvas.height - totalTextHeight) / 2;
@@ -179,8 +182,8 @@ const generatePrizeImage = async (prizeText) => {
 
 // Function to generate an iCalendar (.ics) file for the event
 const generateCalendarFile = () => {
-  // Parse the event details from the prize text
-  const eventTitle = "Unreal Together";
+  // Parse the event details from the prize text - using a more generic title
+  const eventTitle = "Art Gallery Event";
   const eventLocation = "French Fried Vintage, 7 Emory Pl, Knoxville, TN 37917";
   
   // Set the event date and time (May 2, 2025 at 6:00 PM Eastern Time)
@@ -198,17 +201,17 @@ const generateCalendarFile = () => {
   const icsContent = [
     'BEGIN:VCALENDAR',
     'VERSION:2.0',
-    'PRODID:-//Unreal Together//EN',
+    'PRODID:-//ArtEvent//EN',
     'CALSCALE:GREGORIAN',
     'METHOD:PUBLISH',
     'BEGIN:VEVENT',
-    `UID:${new Date().getTime()}@unrealtogether.com`,
+    `UID:${new Date().getTime()}@artevent.com`,
     `DTSTAMP:${formatDateForCalendar(now)}`,
     `DTSTART:${formatDateForCalendar(eventDate)}`,
     `DTEND:${formatDateForCalendar(eventEndDate)}`,
     `SUMMARY:${eventTitle}`,
     `LOCATION:${eventLocation}`,
-    'DESCRIPTION:Join us for the Unreal Together event at French Fried Vintage!',
+    'DESCRIPTION:Join us for an art gallery event at French Fried Vintage!',
     'STATUS:CONFIRMED',
     'SEQUENCE:0',
     'END:VEVENT',
@@ -231,8 +234,8 @@ const PrizeInteractionOverlay = () => {
   // Get the prize text from the experience
   useEffect(() => {
     if (prizeState === 'inspecting') {
-      // Set the updated event details for the prize text
-      prizeTextRef.current = "Unreal Together\\nMay 2, 2025 6:00 P.M.\\nFrench Fried Vintage\\n7 Emory Pl, Knoxville, TN 37917";
+      // Set the updated event details without "Unreal Together"
+      prizeTextRef.current = "May 2, 2025 6:00 P.M.\\nFrench Fried Vintage\\n7 Emory Pl, Knoxville, TN 37917";
       
       // Also update the text in the original game state if needed
       const experiences = useGameStore.getState().experienceScript.experiences;
@@ -293,7 +296,7 @@ const PrizeInteractionOverlay = () => {
       // Create a temporary anchor element for downloading
       const downloadLink = document.createElement('a');
       downloadLink.href = url;
-      downloadLink.download = 'unreal-together-event.ics';
+      downloadLink.download = 'art-gallery-event.ics'; // Updated filename
       
       // Append to the body, click to trigger download, then remove
       document.body.appendChild(downloadLink);
@@ -337,7 +340,7 @@ const PrizeInteractionOverlay = () => {
       // Create a temporary anchor element for downloading
       const downloadLink = document.createElement('a');
       downloadLink.href = imageDataUrl;
-      downloadLink.download = 'ancient-artifact.png';
+      downloadLink.download = 'SeeYouThere.png';
       
       // Append to the body, click to trigger download, then remove
       document.body.appendChild(downloadLink);

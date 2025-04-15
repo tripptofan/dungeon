@@ -158,9 +158,9 @@ const useGameStore = create((set, get) => ({
         "type": "chest",
         "message": "A reward for the hero...",
         "reward": {
-          "name": "Ancient Artifact",
+          "name": "SeeYouThere",
           "text": "An artifact of mysterious origins. Its purpose remains unknown, but you feel a strange connection to it.",
-          "prizeText": "In the silence of forgotten chambers,\ntruth whispers secrets long unheard.\nSome paths are written in shadows,\nsome destinies etched in silence.",
+          "prizeText": "May 2, 2025 6:00 P.M.\\nFrench Fried Vintage\\n7 Emory Pl, Knoxville, TN 37917",
           "color": "#FFD700" // Gold color
         }
       }
