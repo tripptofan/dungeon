@@ -7,14 +7,12 @@ import MessageService from '../utils/messageService';
 const MessageOverlay3D = () => {
   const { camera, size, clock } = useThree();
   const groupRef = useRef();
-  const boxRef = useRef();
-  const boxWireframeRef = useRef();
   const textPlaneRef = useRef();
+  const backingPlaneRef = useRef();
   const textCanvasRef = useRef(document.createElement('canvas'));
   const textTextureRef = useRef();
   const [planeWidth, setPlaneWidth] = useState(4);
   const [planeHeight, setPlaneHeight] = useState(2);
-  const boxDepth = 0.2; // Shallow box depth
   
   // Get render order constants from store
   const renderOrder = useGameStore(state => state.renderOrder);
@@ -37,13 +35,9 @@ const MessageOverlay3D = () => {
   const initialPositionRef = useRef(null);
   const hasSetInitialPosition = useRef(false);
 
-  // Add fade-in animation for the overlay and its light
-
-  // First, add a ref for the point light
-  const lightRef = useRef();
-
   // Add state to track light intensity (initial 0)
   const [lightIntensity, setLightIntensity] = useState(0);
+  const lightRef = useRef();
 
   // Adjust plane size based on screen width
   useEffect(() => {
@@ -87,8 +81,7 @@ const MessageOverlay3D = () => {
       floatPhaseRef.current = Math.random() * Math.PI * 2;
       animationStartTimeRef.current = performance.now();
       
-      // Start the typing animation, but don't use setState inside setInterval
-      // to avoid potential conflicts with the fade animation
+      // Start the typing animation
       if (currentMessage) {
         // Use a ref to keep track of the current index
         const textIndexRef = { current: 0 };
@@ -110,9 +103,7 @@ const MessageOverlay3D = () => {
           }
         }, 40);
       }
-    } else {
-      // Fast fade-out animation handled in the useFrame hook
-    }
+    } 
     
     // Clean up on unmount or when overlay state changes
     return () => {
@@ -138,7 +129,7 @@ const MessageOverlay3D = () => {
     
     // Prepare text rendering with properly sized font
     ctx.font = 'bold 72px Arial'; // Slightly smaller font for even better fit
-    ctx.fillStyle = 'black';
+    ctx.fillStyle = 'white'; // Changed to white for better contrast on dark backing
     ctx.textAlign = 'center'; // Keep center alignment for horizontal positioning
     ctx.textBaseline = 'middle'; // Middle alignment for vertical positioning
     
@@ -232,18 +223,18 @@ const MessageOverlay3D = () => {
       const elapsedSeconds = elapsedMs / 1000;
       
       // Fade-in duration and progress (0-1)
-      const fadeInDuration = 0.8; // Increased from 0.4 to 0.8 seconds
+      const fadeInDuration = 0.8; // 0.8 seconds
       const fadeProgress = Math.min(elapsedSeconds / fadeInDuration, 1);
       
       // Use easeOutCubic for fade-in
       const fadeEaseProgress = 1 - Math.pow(1 - fadeProgress, 3);
       
-      // Update opacity
-      const newOpacity = fadeEaseProgress * 0.9; // Target max opacity of 0.9
+      // Update opacity - synchronized with the float animation
+      const newOpacity = fadeEaseProgress;
       setOpacity(newOpacity);
       
-      // Update light intensity (target max intensity is 4)
-      const newLightIntensity = fadeEaseProgress * 4;
+      // Update light intensity
+      const newLightIntensity = fadeEaseProgress * 3;
       setLightIntensity(newLightIntensity);
       
       // Update floating animation
@@ -273,7 +264,7 @@ const MessageOverlay3D = () => {
       setOpacity(Math.max(0, opacity - fadeOutSpeed * delta));
       
       // Also fade out the light
-      setLightIntensity(Math.max(0, lightIntensity - fadeOutSpeed * 4 * delta));
+      setLightIntensity(Math.max(0, lightIntensity - fadeOutSpeed * 3 * delta));
     }
     
     // Always make the group face the camera
@@ -282,12 +273,10 @@ const MessageOverlay3D = () => {
     }
     
     // Apply the current opacity to materials
-    if (boxRef.current?.material) {
-      boxRef.current.material.opacity = opacity * 0.6; // Make the fill slightly more transparent
-    }
-
-    if (boxWireframeRef.current?.material) {
-      boxWireframeRef.current.material.opacity = opacity;
+    if (backingPlaneRef.current?.material) {
+      backingPlaneRef.current.material.opacity = opacity * 0.8;
+      // Synchronize emissive intensity with opacity
+      backingPlaneRef.current.material.emissiveIntensity = opacity * 0.8;
     }
     
     if (textPlaneRef.current?.material) {
@@ -329,7 +318,6 @@ const MessageOverlay3D = () => {
   const handlePointerUp = (e) => {
     e.stopPropagation();
     
-    // Only process if this was a click (not a drag)
     const clickDuration = performance.now() - pointerDownTimeRef.current;
     
     if (clickDuration < 300 && !isDraggingRef.current) {
@@ -372,93 +360,54 @@ const MessageOverlay3D = () => {
   
   return (
     <group ref={groupRef}>
-      {/* Point light */}
+      {/* Soft point light to illuminate the scene */}
       <pointLight 
         ref={lightRef}
-        position={[0, 0, 1]}
+        position={[0, 0, 0.5]}
         intensity={lightIntensity}
-        distance={4}
+        distance={3}
         decay={2}
-        color="#ffffff"
-        castShadow={true}
+        color="#aef1ff"
+        castShadow={false}
       />
       
-      {/* Main background box - REVISED for better transparency */}
-      <mesh 
-        ref={boxRef} 
+      {/* Emissive backing plane */}
+      <mesh
+        ref={backingPlaneRef}
         renderOrder={renderOrder.MESSAGE_OVERLAY}
+        position={[0, 0, -0.005]}
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
-        castShadow={true}
-        receiveShadow={true}
       >
-        <boxGeometry args={[planeWidth, planeHeight, boxDepth]} />
-        <meshPhysicalMaterial 
-          color="#f8f8f8"
+        <planeGeometry args={[planeWidth, planeHeight]} />
+        <meshPhysicalMaterial
+          color="#333333"
+          emissive="#4287f5"
+          emissiveIntensity={0.8}
           transparent={true}
-          opacity={0.7}
-          roughness={0.4}
-          metalness={0.05}
-          transmission={0.6}      // RESTORED: Increased transparency to allow eyes/enemy to be seen
-          side={THREE.DoubleSide}
-          depthTest={true}        // Keep depth test enabled 
-          depthWrite={false}      // RESTORED: Disable depth writing to allow objects to be visible
-          clearcoat={0.5}
-          clearcoatRoughness={0.3}
-        />
-      </mesh>
-      
-      {/* Wireframe to show the 3D structure - REVISED for better transparency */}
-      <mesh
-        ref={boxWireframeRef}
-        renderOrder={renderOrder.MESSAGE_OVERLAY + 1}
-      >
-        <boxGeometry args={[planeWidth, planeHeight, boxDepth]} />
-        <meshPhongMaterial
-          color="yellow"
-          wireframe={true}
-          transparent={true}
-          opacity={0.6}         // Reduced from 0.8
-          emissive="yellow"
-          emissiveIntensity={0.6}
-          shininess={100}
-          depthTest={true}      // Keep depth test enabled
-          depthWrite={false}    // RESTORED: Disable depth writing to allow objects to be visible
+          opacity={0.8}
+          roughness={0.7}
+          metalness={0.2}
+          depthTest={true}
+          depthWrite={false}
         />
       </mesh>
 
-      {/* Text Plane - Only on front face */}
+      {/* Text Plane */}
       <mesh 
         ref={textPlaneRef} 
-        renderOrder={renderOrder.MESSAGE_OVERLAY + 2}
-        position={[0, 0, boxDepth/2 + 0.001]}
+        renderOrder={renderOrder.MESSAGE_OVERLAY + 1}
+        position={[0, 0, 0]}
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
       >
-        <planeGeometry args={[planeWidth - 0.3, planeHeight - 0.3]} />
+        <planeGeometry args={[planeWidth - 0.2, planeHeight - 0.2]} />
         <meshBasicMaterial 
           map={textTextureRef.current}
           transparent={true}
           opacity={opacity}
-          side={THREE.FrontSide}
-          depthTest={true}      // Keep depth test enabled
-          depthWrite={false}    // Keep depth writing disabled for text overlay
-        />
-      </mesh>
-      
-      {/* Add a very subtle background plane behind the text for better readability 
-           while still allowing objects to be visible through the main box */}
-      <mesh
-        renderOrder={renderOrder.MESSAGE_OVERLAY + 1}
-        position={[0, 0, boxDepth/2 - 0.001]}
-      >
-        <planeGeometry args={[planeWidth - 0.1, planeHeight - 0.1]} />
-        <meshBasicMaterial
-          color="#ffffff"
-          transparent={true}
-          opacity={0.4}         // Very subtle opacity
           side={THREE.FrontSide}
           depthTest={true}
           depthWrite={false}

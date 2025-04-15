@@ -440,5 +440,6 @@ const Prize = () => {
       />
     </group>
   );
+  
 };
 export default React.memo(Prize);

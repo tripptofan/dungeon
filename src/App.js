@@ -263,7 +263,7 @@ function App() {
               {sceneReady && (
                 <>
                   <MessageOverlay3D />
-                  {/* <PrizeButtons /> */}
+
                 </>
               )}
             </Suspense>
@@ -276,7 +276,7 @@ function App() {
         {!sceneLoaded && (
           <>
             <LoadingIndicator>
-              Loading Experience...
+              Loading...
             </LoadingIndicator>
             <LoadingProgressContainer>
               <LoadingProgressBar progress={textureProgress} />
