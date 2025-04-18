@@ -371,7 +371,7 @@ const Prize = () => {
         // Removed hover handlers
         renderOrder={2000} // Ensure it renders on top when in inspection mode
       >
-        <boxGeometry args={[1.5, 0.02, 1]} /> {/* Taller and narrower */}
+        <boxGeometry args={[1.5, 0.001, 1]} /> {/* Taller and narrower */}
         <shaderMaterial 
           transparent={false} // Fully opaque
           side={THREE.DoubleSide}
@@ -432,12 +432,12 @@ const Prize = () => {
       </mesh>
       
       {/* Add a more obvious glow effect */}
-      <pointLight 
+      {/* <pointLight 
         color="#ffcc77" 
         intensity={2} 
         distance={3} 
         decay={2} 
-      />
+      /> */}
     </group>
   );
   

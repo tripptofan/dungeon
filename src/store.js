@@ -24,12 +24,13 @@ const useGameStore = create((set, get) => ({
   // UPDATED - Adjusted to fix enemy and treasureChest appearing in front of message overlay
   renderOrder: {
     DEFAULT: 0,                // Default render order (uses depth testing)
-    EYES: 2000,                // Glowing eyes
-    TREASURE_CHEST: 5000,      // Treasure chest (added new value)
+    EYES: 2000,                // Glowing eyes - lower value to appear behind other objects
+    TREASURE_CHEST: 5000,      // Treasure chest
     ENEMY: 7000,               // Enemy - reduced from 9000 to appear behind message overlay
     MESSAGE_OVERLAY: 15000,    // Message overlay appears above scene elements including enemy and chest
     ACQUIRED_ITEMS: 30000      // Acquired items always render on top of everything
   },
+
   
   // Message overlay state
   showMessageOverlay: false,

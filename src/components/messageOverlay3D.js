@@ -3,6 +3,7 @@ import { useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 import useGameStore from '../store';
 import MessageService from '../utils/messageService';
+import Eye from './eye';
 
 const MessageOverlay3D = () => {
   const { camera, size, clock } = useThree();
@@ -162,7 +163,8 @@ const MessageOverlay3D = () => {
       
       // Render lines centered vertically
       const totalHeight = lines.length * lineHeight;
-      const startY = y - totalHeight / 2;
+      // Adjust starting position to leave room for the eye at the bottom
+      const startY = y - totalHeight / 2 - 40; // Move text up by 40 pixels
       
       lines.forEach((l, index) => {
         // Ensure each line is drawn with proper spacing
@@ -357,20 +359,12 @@ const MessageOverlay3D = () => {
   
   // Don't render if no overlay or completely faded out
   if (!showMessageOverlay && opacity <= 0.01) return null;
+
+  // Calculate the eye size based on the plane width
+  const eyeScale = [planeWidth * 0.12, planeWidth * 0.12]; // 12% of the plane width
   
   return (
     <group ref={groupRef}>
-      {/* Soft point light to illuminate the scene */}
-      <pointLight 
-        ref={lightRef}
-        position={[0, 0, 0.5]}
-        intensity={lightIntensity}
-        distance={3}
-        decay={2}
-        color="#aef1ff"
-        castShadow={false}
-      />
-      
       {/* Emissive backing plane */}
       <mesh
         ref={backingPlaneRef}
@@ -379,31 +373,33 @@ const MessageOverlay3D = () => {
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
+        castShadow={false}
+        receiveShadow={false}
       >
         <planeGeometry args={[planeWidth, planeHeight]} />
-        <meshPhysicalMaterial
+        <meshBasicMaterial
           color="#333333"
           emissive="#4287f5"
           emissiveIntensity={0.8}
           transparent={true}
           opacity={0.8}
-          roughness={0.7}
-          metalness={0.2}
           depthTest={true}
           depthWrite={false}
         />
       </mesh>
 
-      {/* Text Plane */}
+      {/* Text Plane - reduced height to accommodate the eye */}
       <mesh 
         ref={textPlaneRef} 
         renderOrder={renderOrder.MESSAGE_OVERLAY + 1}
-        position={[0, 0, 0]}
+        position={[0, 0.08, 0]} // Move up slightly to make room for eye
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
+        castShadow={false}
+        receiveShadow={false}
       >
-        <planeGeometry args={[planeWidth - 0.2, planeHeight - 0.2]} />
+        <planeGeometry args={[planeWidth - 0.2, planeHeight - 0.3]} /> {/* Reduced height */}
         <meshBasicMaterial 
           map={textTextureRef.current}
           transparent={true}
@@ -413,6 +409,28 @@ const MessageOverlay3D = () => {
           depthWrite={false}
         />
       </mesh>
+
+      {/* Add the animated eye at the bottom of the message */}
+      <group 
+        position={[0, -planeHeight/2 + eyeScale[1]/1.5, 0.01]} // Position at bottom of plane
+        renderOrder={renderOrder.MESSAGE_OVERLAY + 2} // Ensure it renders on top
+      >
+        {/* Use the Eye component with white color and specific scale */}
+        <Eye 
+          position={[.2, .1, 0]} 
+          scale={[.3, .3]} 
+          rotation={[0, 0, 0]}
+          emissiveIntensity={opacity} // Sync with the overlay's opacity
+          randomize={false}
+        />
+        <Eye 
+          position={[-.2, .1, 0]} 
+          scale={[.3, .3]} 
+          rotation={[0, 0, 0]}
+          emissiveIntensity={opacity} // Sync with the overlay's opacity
+          randomize={false}
+        />
+      </group>
     </group>
   );
 };

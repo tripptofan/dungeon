@@ -48,18 +48,22 @@ class TextureSets {
     this.sets = {
       floor: {
         color: "/textures/dungeonFloor/dungeonFloor.png",
-        ao: "/textures/dungeonFloor/AmbientOcclusionMap.png",
-        normal: "/textures/dungeonFloor/NormalMap.png",
+        // Commented out additional texture maps to improve performance
+        // ao: "/textures/dungeonFloor/AmbientOcclusionMap.png",
+        // normal: "/textures/dungeonFloor/NormalMap.png",
       },
       wall: {
         color: "/textures/dungeonWall/dungeonWall.png",
-        ao: "/textures/dungeonWall/AmbientOcclusionMap.png",
-        normal: "/textures/dungeonWall/NormalMap.png",
+        // Commented out additional texture maps to improve performance
+        // ao: "/textures/dungeonWall/AmbientOcclusionMap.png",
+        // normal: "/textures/dungeonWall/NormalMap.png",
       },
       door: {
         color: "/textures/dungeonDoor/dungeonDoor.png",
-        ao: "/textures/dungeonDoor/AmbientOcclusionMap.png",
-        normal: "/textures/dungeonDoor/NormalMap.png",
+        open: "/textures/dungeonDoorOpen.png",
+        // Commented out additional texture maps to improve performance
+        // ao: "/textures/dungeonDoor/AmbientOcclusionMap.png",
+        // normal: "/textures/dungeonDoor/NormalMap.png",
       }
     };
   }
@@ -110,14 +114,15 @@ class TextureSets {
     // Merge defaults with custom options
     const options = { ...defaults, ...materialOptions };
     
-    // Create the material with textures and options
+    // Create the material with only the color texture map
     const material = new THREE.MeshStandardMaterial({
       map: textureSet.color,
-      // For low detail, omit normal and ao maps
-      ...(forceHighDetail ? {
-        aoMap: textureSet.ao,
-        normalMap: textureSet.normal,
-      } : {}),
+      // All other texture maps have been commented out
+      // Note: Even in high detail mode, we're only using color maps now
+      // ...(forceHighDetail ? {
+      //   aoMap: textureSet.ao,
+      //   normalMap: textureSet.normal,
+      // } : {}),
       ...options
     });
 
@@ -127,7 +132,51 @@ class TextureSets {
       material.roughness = Math.min(material.roughness + 0.2, 1.0);
       material.metalness = Math.max(material.metalness - 0.1, 0);
       
-      // Disable normal map effects even if a map was provided
+      // This is redundant now since we're not using these maps at all
+      // but keeping the code for reference
+      material.normalScale = new THREE.Vector2(0, 0);
+      material.aoMapIntensity = 0;
+    }
+
+    // Cache the material
+    materialCache.set(cacheKey, material);
+    return material;
+  }
+
+  /**
+   * Create a door material based on its open state
+   * @param {boolean} isOpen - Whether the door is open
+   * @param {Object} materialOptions - Material configuration options
+   * @param {Object} textureOptions - Texture configuration options
+   * @param {boolean} forceHighDetail - Force high detail regardless of LoD settings
+   * @returns {THREE.Material} The created door material
+   */
+  createDoorMaterial(isOpen = false, materialOptions = {}, textureOptions = {}, forceHighDetail = false) {
+    // Create a unique cache key for this door material
+    const cacheKey = `door-${isOpen ? 'open' : 'closed'}-${forceHighDetail ? 'high' : 'low'}-${JSON.stringify(materialOptions)}`;
+    if (materialCache.has(cacheKey)) {
+      return materialCache.get(cacheKey);
+    }
+
+    const textureSet = this.loadSet('door', textureOptions);
+    if (!textureSet) return null;
+
+    // Default material properties
+    const defaults = this.getDefaultMaterialProperties('door');
+    
+    // Merge defaults with custom options
+    const options = { ...defaults, ...materialOptions };
+    
+    // Create the material with the appropriate texture based on door state
+    const material = new THREE.MeshStandardMaterial({
+      map: isOpen ? textureSet.open : textureSet.color,
+      ...options
+    });
+
+    // Adjust material properties for low detail version
+    if (!forceHighDetail) {
+      material.roughness = Math.min(material.roughness + 0.2, 1.0);
+      material.metalness = Math.max(material.metalness - 0.1, 0);
       material.normalScale = new THREE.Vector2(0, 0);
       material.aoMapIntensity = 0;
     }
@@ -145,6 +194,8 @@ class TextureSets {
   getDefaultMaterialProperties(setName) {
     const defaults = {
       floor: {
+        // We're not using aoMap anymore, but keeping the default values
+        // for reference and in case we re-enable them later
         aoMapIntensity: 0.6,
         normalScale: new THREE.Vector2(0.6, 0.6),
         roughness: 1.0,
@@ -229,15 +280,17 @@ export const TextureProvider = ({ children, onProgress }) => {
   // Create shared materials - both high and low detail versions
   const materials = useMemo(() => {
     return {
-      // High detail materials (with normal maps and ao maps)
+      // High detail materials
       floorMaterial: textureSets.createMaterial('floor', {}, {}, true),
       wallMaterial: textureSets.createMaterial('wall', {}, {}, true),
       doorMaterial: textureSets.createMaterial('door', {}, {}, true),
+      doorOpenMaterial: textureSets.createDoorMaterial(true, {}, {}, true),
       
-      // Low detail materials (without normal maps and ao maps)
+      // Low detail materials
       floorMaterialLod: textureSets.createMaterial('floor', {}, {}, false),
       wallMaterialLod: textureSets.createMaterial('wall', {}, {}, false),
-      doorMaterialLod: textureSets.createMaterial('door', {}, {}, false)
+      doorMaterialLod: textureSets.createMaterial('door', {}, {}, false),
+      doorOpenMaterialLod: textureSets.createDoorMaterial(true, {}, {}, false)
     };
   }, [textureSets]);
   
@@ -249,7 +302,11 @@ export const TextureProvider = ({ children, onProgress }) => {
       isLoading,
       loadingProgress,
       // Helper function to create a custom material
-      createCustomMaterial: (setName, options, highDetail = true) => textureSets.createMaterial(setName, options, {}, highDetail)
+      createCustomMaterial: (setName, options, highDetail = true) => 
+        textureSets.createMaterial(setName, options, {}, highDetail),
+      // Helper function for door materials with open state
+      createDoorMaterial: (isOpen, options, highDetail = true) => 
+        textureSets.createDoorMaterial(isOpen, options, {}, highDetail)
     };
   }, [textureSets, materials, isLoading, loadingProgress]);
   
