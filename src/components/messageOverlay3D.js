@@ -378,7 +378,7 @@ const MessageOverlay3D = () => {
   if (!showMessageOverlay && opacity <= 0.01) return null;
 
   // Calculate the eye size based on the plane width - make them smaller
-  const eyeScale = [planeWidth * 0.09, planeWidth * 0.09]; // Reduced from 0.12 to 0.09 (25% smaller)
+  const eyeScale = [planeWidth * 0.07, planeWidth * 0.07]; // Reduced from 0.09 to 0.07 (about 22% smaller)
   
   return (
     <group ref={groupRef}>
@@ -444,20 +444,20 @@ const MessageOverlay3D = () => {
 
       {/* Add the animated eye at the bottom of the message */}
       <group 
-        position={[0, -planeHeight/2 + eyeScale[1]/1.5, 0.01]} // Adjusted to fit better with text at top
+        position={[0, -planeHeight/2 + eyeScale[1], 0.01]} // Raised position by removing the divisor (was /1.5)
         renderOrder={renderOrder.MESSAGE_OVERLAY + 2} // Ensure it renders on top
       >
-        {/* Use the Eye component with smaller scale */}
+        {/* Use the Eye component with even smaller scale */}
         <Eye 
-          position={[.2, .03, 0]}
-          scale={[.25, .25]} // Reduced from 0.3 to 0.25
+          position={[.2, .06, 0]} // Increased Y offset from .03 to .06 to raise further
+          scale={[.2, .2]} // Reduced from .25 to .2 (20% smaller)
           rotation={[0, 0, 0]}
           opacity={opacity} // Already tied to the overlay opacity
           randomize={false}
         />
         <Eye 
-          position={[-.2, .03, 0]}
-          scale={[.25, .25]} // Reduced from 0.3 to 0.25
+          position={[-.2, .06, 0]} // Increased Y offset from .03 to .06 to raise further
+          scale={[.2, .2]} // Reduced from .25 to .2 (20% smaller)
           rotation={[0, 0, 0]}
           opacity={opacity} // Already tied to the overlay opacity
           randomize={false}

@@ -59,6 +59,8 @@ const useGameStore = create((set, get) => ({
   enemyClickable: false,
   enemyHit: false,
   enemyFadingOut: false,
+  enemyHealth: 100, // NEW - Track enemy health
+
   
   // Sword swing animation state
   swordSwinging: false,
@@ -216,6 +218,14 @@ const useGameStore = create((set, get) => ({
         actionDirection: 'forward'
       });
     }, 1000);
+  },
+  updateEnemyHealth: (damage) => {
+    const currentHealth = get().enemyHealth;
+    const newHealth = Math.max(0, currentHealth - damage);
+    
+    set({ enemyHealth: newHealth });
+    
+    return newHealth === 0; // Return true if enemy is defeated
   },
  handleDoorClick: (position) => {
     const state = get();

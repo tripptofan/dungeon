@@ -22,6 +22,11 @@ const Enemy = () => {
   const frameTextureRef = useRef(null);
   const totalFrames = 16; // Total number of frames in the sequence
   
+  // Hit counter state - NEW
+  const hitCountRef = useRef(0);
+  const totalHitsRequired = 10; // NEW - Number of hits required to defeat enemy
+  const [hitFlashActive, setHitFlashActive] = useState(false); // NEW - For visual feedback
+  
   // Get render order constants from store
   const renderOrder = useGameStore(state => state.renderOrder);
   
@@ -161,7 +166,7 @@ const Enemy = () => {
       const newPosition = {
         x: playerPosition.x,
         y: -5, // Start below the floor
-        z: playerPosition.z + 6 // 4 units in front of the player
+        z: playerPosition.z + 6 // 6 units in front of the player
       };
       
       console.log("Setting enemy position to:", newPosition);
@@ -224,6 +229,19 @@ const Enemy = () => {
       }
     }
     
+    // Handle hit flash effect timing - NEW
+    if (hitFlashActive) {
+      // Turn off flash after a short duration (250ms)
+      setTimeout(() => {
+        setHitFlashActive(false);
+        
+        // Reset material color if not fading out
+        if (materialRef.current && !useGameStore.getState().enemyFadingOut) {
+          materialRef.current.color.set(0xFFFFFF); // Back to normal
+        }
+      }, 250);
+    }
+    
     // Handle PNG sequence animation
     if (framesLoadedRef.current && textureArrayRef.current.length > 0) {
       // Accumulate time
@@ -246,25 +264,41 @@ const Enemy = () => {
       }
     }
     
-    // Handle sword swing animation hit detection
+    // Handle sword swing animation hit detection - MODIFIED
     if (swordSwinging) {
       const swingProgress = useGameStore.getState().swingProgress;
       
       // When swing is halfway through, detect hit
       if (swingProgress > 0.3 && swingProgress < 0.6 && !useGameStore.getState().enemyHit) {
+        // Set enemyHit flag to true temporarily for this swing
         useGameStore.getState().setEnemyHit(true);
         
-        // Apply hit effects to the enemy - change to red tint
+        // Increment hit counter
+        hitCountRef.current += 1;
+        console.log(`Enemy hit! Current hits: ${hitCountRef.current}/${totalHitsRequired}`);
+        
+        // Apply hit flash effect
         if (materialRef.current) {
           materialRef.current.color.set(0xFF3333); // Red tint
+          setHitFlashActive(true);
+        }
+        
+        // Check if we've reached the required number of hits
+        if (hitCountRef.current >= totalHitsRequired) {
+          console.log("Enemy defeated after reaching hit threshold!");
           
-          // Slowly fade out after hit
+          // Slowly fade out after final hit
           setTimeout(() => {
             if (enemyRef.current && enemyRef.current.visible) {
               // Start decreasing opacity
               useGameStore.getState().startEnemyFadeOut();
             }
           }, 300);
+        } else {
+          // Reset enemy hit state after a short delay to allow for another hit
+          setTimeout(() => {
+            useGameStore.getState().setEnemyHit(false);
+          }, 800); // Allow for sword swing to complete
         }
       }
     }
@@ -323,9 +357,51 @@ const Enemy = () => {
   const enemyClickable = useGameStore.getState().enemyClickable && 
                         (!showMessageOverlay || overlayJustDismissed);
 
+  // Create health display in units of 10% - NEW
+  const healthPercentage = Math.max(0, 100 - (hitCountRef.current * 10));
+                        
   // Create a more visible animated enemy with fixed depth handling
   return (
     <group>
+      {/* Health bar above enemy - NEW */}
+      <mesh 
+        position={[enemyPosition.x, enemyPosition.y + 2.5, enemyPosition.z]}
+        renderOrder={renderOrder.ENEMY + 10}
+      >
+        <planeGeometry args={[3, 0.3]} />
+        <meshBasicMaterial 
+          color="#333333"
+          transparent={true}
+          opacity={0.7}
+          depthTest={true}
+        />
+      </mesh>
+      
+      {/* Health bar fill - NEW */}
+      {healthPercentage > 0 && (
+        <mesh 
+          position={[
+            enemyPosition.x - 1.5 + (healthPercentage/100 * 1.5), 
+            enemyPosition.y + 2.5, 
+            enemyPosition.z + 0.01
+          ]}
+          scale={[healthPercentage/100, 1, 1]}
+          renderOrder={renderOrder.ENEMY + 11}
+        >
+          <planeGeometry args={[3, 0.25]} />
+          <meshBasicMaterial 
+            color={
+              healthPercentage > 60 ? "#22cc22" :  // Green for high health
+              healthPercentage > 30 ? "#cccc22" :  // Yellow for medium health
+              "#cc2222"                            // Red for low health
+            }
+            transparent={true}
+            opacity={0.9}
+            depthTest={true}
+          />
+        </mesh>
+      )}
+      
       {/* Main enemy mesh with improved visibility settings */}
       <mesh 
         ref={enemyRef}
@@ -363,6 +439,24 @@ const Enemy = () => {
           alphaTest={0.01}
         />
       </mesh>
+      
+      {/* Hit counter text (debug) - NEW */}
+      {debugMode && (
+        <mesh
+          position={[enemyPosition.x, enemyPosition.y - 2.5, enemyPosition.z]}
+          renderOrder={renderOrder.ENEMY + 12}
+        >
+          <planeGeometry args={[2, 0.5]} />
+          <meshBasicMaterial
+            color="#ffffff"
+            transparent={true}
+            opacity={0.9}
+            depthTest={false}
+          />
+          {/* We can't actually render text in Three.js without a custom approach,
+              but this would be where we'd display the hit counter if we could */}
+        </mesh>
+      )}
     </group>
   );
 };
