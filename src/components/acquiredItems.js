@@ -38,14 +38,16 @@ const ACQUIRED_ITEMS_CONFIG = {
 
 // Define all sword and lantern animation positions/rotations
 const SWORD_POSITIONS = {
+  // resting: new THREE.Vector3(0.4, 5, 2),
   resting: new THREE.Vector3(0.4, -0.5, -1.1),
-  raised: new THREE.Vector3(0.4, 1.0, -1.1),  // Increased Y value to 1.0 for higher raise
+  raised: new THREE.Vector3(0.4, 5, 2),  // Increased Y value to 1.0 for higher raise
   swung: new THREE.Vector3(-0.4, -0.9, -1.1)
 };
 
 const SWORD_ROTATIONS = {
-  resting: new THREE.Euler(-Math.PI / 8, 0, (Math.PI / 4) * 0.1),
-  raised: new THREE.Euler(-Math.PI / 90, 0, (Math.PI / 4) * -0.1),
+  // resting: new THREE.Euler(-Math.PI / 50 * -3, 0, (Math.PI / 4) * -.2),
+  resting: new THREE.Euler(-Math.PI / 80, 0, (Math.PI / 4) * -.1),
+  raised: new THREE.Euler(-Math.PI / 50 * -3, 0, (Math.PI / 4) * -.2),
   swung: new THREE.Euler(-Math.PI / 2, 0.6, (Math.PI / 4) * 0.1)
 };
 

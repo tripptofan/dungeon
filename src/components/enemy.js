@@ -161,7 +161,7 @@ const Enemy = () => {
       const newPosition = {
         x: playerPosition.x,
         y: -5, // Start below the floor
-        z: playerPosition.z + 5 // 4 units in front of the player
+        z: playerPosition.z + 6 // 4 units in front of the player
       };
       
       console.log("Setting enemy position to:", newPosition);

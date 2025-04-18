@@ -101,7 +101,7 @@ const useGameStore = create((set, get) => ({
   // Experience content - simplified flow with just item interactions and shaking events
   experienceScript: {
     "prologue": {
-      "text": "You open your eyes in the dark. You think you've been here before—but maybe it was only a dream."
+      "text": "You open your eyes in the dark."
     },
     "experiences": [
       {
@@ -111,7 +111,7 @@ const useGameStore = create((set, get) => ({
         "type": "item",
         "item": {
           "name": "Lantern", 
-          "text": "An old lantern with a flickering flame. Its warm glow will help guide your way through the darkness.",
+          "text": "An old lantern.",
           "color": "yellow"
         }
       },
@@ -122,7 +122,7 @@ const useGameStore = create((set, get) => ({
         "type": "item",
         "item": {
           "name": "Toy Wooden Sword",
-          "text": "A toy wooden sword. It's not much, but it may prove useful.",
+          "text": "A toy wooden sword.",
           "color": "brown"
         }
       },
@@ -133,7 +133,7 @@ const useGameStore = create((set, get) => ({
         "shakeConfig": {
           "intensity": 0.5,
           "duration": 2000, // Reduced to 2 seconds
-          "message": "What was that?"
+          "message": "...?"
         }
       },
       {
@@ -150,14 +150,14 @@ const useGameStore = create((set, get) => ({
         "experience": 5,
         "position": { x: 5, y: 0, z: 75 }, // Enemy encounter position
         "type": "enemy",
-        "message": "Not all problems can be solved with words....",
+        "message": "!!!",
         "nextAction": "sword"
       },
       {
         "experience": 6,
         "position": { x: 5, y: 0, z: 86 }, // UPDATED: Position for player to stop BEFORE the chest
         "type": "chest",
-        "message": "A reward for the hero...",
+        "message": "Mine",
         "reward": {
           "name": "SeeYouThere",
           "text": "An artifact of mysterious origins. Its purpose remains unknown, but you feel a strange connection to it.",
@@ -174,6 +174,14 @@ const useGameStore = create((set, get) => ({
     [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2],
     [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
   ],
+  doorClickable: false,
+  isDoorClicked: false,
+  movingToDoor: false,
+  doorPosition: { x: 0, y: 0, z: 0 },
+  fadingToBlack: false,
+  blackScreenOpacity: 0,
+  portalEntered: false, // New state for portal entry
+
   setDoorClickable: (value) => set({ doorClickable: value }),
   
   // Core action dispatchers
@@ -209,7 +217,7 @@ const useGameStore = create((set, get) => ({
       });
     }, 1000);
   },
-  handleDoorClick: (position) => {
+ handleDoorClick: (position) => {
     const state = get();
     
     // Only process if door is clickable and not already clicked
@@ -231,6 +239,7 @@ const useGameStore = create((set, get) => ({
       });
     }
   },
+  setPortalEntered: (value) => set({ portalEntered: value }),
   // Viewport size management
   updateViewportSize: (dimensions) => set({ viewportSize: dimensions }),
   

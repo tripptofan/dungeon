@@ -44,15 +44,13 @@ const MessageOverlay3D = () => {
   useEffect(() => {
     const aspectRatio = size.width / size.height;
     
-    // Calculate a much narrower width to ensure visible gaps at the sides
-    const baseWidth = Math.min(Math.max(1.5 * aspectRatio, 2.4), 2.5); // Reduced base width range
-    
-    // Further reduce width with a smaller scale factor
-    const marginFactor = 0.4; // Reduced from 0.5 to 0.4 (40% of baseWidth)
+    // Calculate a narrower width as before
+    const baseWidth = Math.min(Math.max(1.5 * aspectRatio, 2.4), 2.5);
+    const marginFactor = 0.4; // 40% of baseWidth
     const newWidth = baseWidth * marginFactor;
     
-    // Keep the height proportional but slightly taller for better text display
-    const newHeight = newWidth * 1.5; // Increased height ratio for better text visibility
+    // Make the height MUCH shorter by reducing the height ratio significantly
+    const newHeight = newWidth * 0.7; // Reduced from 1.2 to 0.7 for a much shorter overlay
     
     setPlaneWidth(newWidth);
     setPlaneHeight(newHeight);
@@ -125,22 +123,18 @@ const MessageOverlay3D = () => {
     // Clear canvas with full transparency
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     
-    // Add substantial padding around the entire canvas to prevent text clipping
-    const padding = 80; // Significantly increase padding around text content
+    // Increase font size significantly
+    ctx.font = 'bold 64px Arial'; // Increased from 52px to 64px for larger text
+    ctx.fillStyle = 'white';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
     
-    // Prepare text rendering with properly sized font
-    ctx.font = 'bold 72px Arial'; // Slightly smaller font for even better fit
-    ctx.fillStyle = 'white'; // Changed to white for better contrast on dark backing
-    ctx.textAlign = 'center'; // Keep center alignment for horizontal positioning
-    ctx.textBaseline = 'middle'; // Middle alignment for vertical positioning
-    
-    // Wrap text logic with improved text sizing and spacing
+    // Improved wrap text function that shows all text
     const wrapText = (text, x, y, maxWidth, lineHeight) => {
-      if (!text || text.length === 0) return; // Guard against empty text
+      if (!text || text.length === 0) return;
       
       const words = text.split(' ');
       let line = '';
-      let yOffset = y;
       let lines = [];
       
       words.forEach((word) => {
@@ -150,7 +144,6 @@ const MessageOverlay3D = () => {
         if (metrics.width > maxWidth && line !== '') {
           lines.push(line);
           line = word + ' ';
-          yOffset += lineHeight;
         } else {
           line = testLine;
         }
@@ -161,22 +154,24 @@ const MessageOverlay3D = () => {
         lines.push(line);
       }
       
-      // Render lines centered vertically
-      const totalHeight = lines.length * lineHeight;
-      // Adjust starting position to leave room for the eye at the bottom
-      const startY = y - totalHeight / 2 - 40; // Move text up by 40 pixels
+      // Allow up to 3 lines without truncation - show ALL text
+      // No truncation or ellipsis
       
+      // Calculate total text height
+      const totalHeight = lines.length * lineHeight;
+      
+      // Center text vertically with minimal padding
+      const startY = y - (totalHeight / 2);
+      
+      // Render all lines
       lines.forEach((l, index) => {
-        // Ensure each line is drawn with proper spacing
         const lineY = startY + index * lineHeight;
-        
-        // Draw the text - centered horizontally
         ctx.fillText(l, x, lineY);
       });
     };
     
-    // Use a narrower width to ensure text has plenty of room at the edges
-    wrapText(displayedText, canvas.width / 2, canvas.height / 2, 1000, 55);
+    // Use more of the canvas width with less padding
+    wrapText(displayedText, canvas.width / 2, canvas.height / 2, 800, 60); // Adjusted line height to 60 for larger font
     
     // Create or update texture
     if (!textTextureRef.current) {
@@ -202,11 +197,12 @@ const MessageOverlay3D = () => {
         // Get player's position - this is the "body" position
         const playerPosition = useGameStore.getState().playerPosition;
         
-        // Calculate position in front of the player's body
-        const overlayDistance = 1.5; // Distance in front of the player
+        // Calculate position in front of the player's body but at a higher position
+        const overlayDistance = 1.5; // Keep same distance in front of the player
+        const overlayHeight = 0.0; // Changed from -0.2 to 0.0 to raise the overlay
         const overlayPosition = new THREE.Vector3(
           playerPosition.x,
-          playerPosition.y,
+          playerPosition.y + overlayHeight, // Higher position
           playerPosition.z + overlayDistance // Assuming player faces negative Z
         );
         
@@ -236,7 +232,7 @@ const MessageOverlay3D = () => {
       setOpacity(newOpacity);
       
       // Update light intensity
-      const newLightIntensity = fadeEaseProgress * 3;
+      const newLightIntensity = fadeEaseProgress * 5; // Increased from 4 to 5
       setLightIntensity(newLightIntensity);
       
       // Update floating animation
@@ -269,9 +265,32 @@ const MessageOverlay3D = () => {
       setLightIntensity(Math.max(0, lightIntensity - fadeOutSpeed * 3 * delta));
     }
     
-    // Always make the group face the camera
-    if (groupRef.current) {
-      groupRef.current.lookAt(camera.position);
+    // Always make the group face the camera (y-axis rotation only)
+    if (groupRef.current && camera) {
+      // Get camera position in world space
+      const cameraPosition = new THREE.Vector3();
+      camera.getWorldPosition(cameraPosition);
+      
+      // Get overlay position
+      const overlayPosition = new THREE.Vector3();
+      groupRef.current.getWorldPosition(overlayPosition);
+      
+      // Calculate direction vector in the horizontal plane only (ignoring Y component)
+      const direction = new THREE.Vector3();
+      direction.subVectors(cameraPosition, overlayPosition);
+      direction.y = 0; // Zero out the Y component to keep parallel to ground
+      direction.normalize();
+      
+      // Calculate the angle in the XZ plane
+      const angle = Math.atan2(direction.x, direction.z);
+      
+      // Apply rotation around Y axis only (keeping parallel to X and Z axes)
+      groupRef.current.rotation.x = 0; // Lock X rotation (no tilting up/down)
+      groupRef.current.rotation.y = angle; // Rotate around Y to face player horizontally
+      
+      // Keep the subtle Z rotation for the floating effect
+      // (calculated earlier in the animation section)
+      // groupRef.current.rotation.z remains as set in the floating animation
     }
     
     // Apply the current opacity to materials
@@ -358,8 +377,8 @@ const MessageOverlay3D = () => {
   // Don't render if no overlay or completely faded out
   if (!showMessageOverlay && opacity <= 0.01) return null;
 
-  // Calculate the eye size based on the plane width
-  const eyeScale = [planeWidth * 0.12, planeWidth * 0.12]; // 12% of the plane width
+  // Calculate the eye size based on the plane width - make them smaller
+  const eyeScale = [planeWidth * 0.09, planeWidth * 0.09]; // Reduced from 0.12 to 0.09 (25% smaller)
   
   return (
     <group ref={groupRef}>
@@ -376,7 +395,7 @@ const MessageOverlay3D = () => {
       >
         <planeGeometry args={[planeWidth, planeHeight]} />
         <meshBasicMaterial
-          color="#1a2a4a"  // Darker blue base color
+          color="#3a4a6a"  // Brightened from #2a3a5a to #3a4a6a
           transparent={true}
           opacity={0.8 * opacity}
           depthTest={true}
@@ -393,9 +412,9 @@ const MessageOverlay3D = () => {
       >
         <planeGeometry args={[planeWidth + 0.1, planeHeight + 0.1]} />
         <meshBasicMaterial
-          color="#3366cc"  // Blue glow color
+          color="#55aaff"  // Brightened from #4477ee to #55aaff
           transparent={true}
-          opacity={0.4 * opacity}
+          opacity={0.6 * opacity} // Increased from 0.5 to 0.6 for even more glow
           depthTest={true}
           depthWrite={false}
         />
@@ -405,14 +424,14 @@ const MessageOverlay3D = () => {
       <mesh 
         ref={textPlaneRef} 
         renderOrder={renderOrder.MESSAGE_OVERLAY + 1}
-        position={[0, 0.08, 0]} // Move up slightly to make room for eye
+        position={[0, planeHeight * 0.15, 0]} // Move text up within the overlay
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
         castShadow={false}
         receiveShadow={false}
       >
-        <planeGeometry args={[planeWidth - 0.2, planeHeight - 0.3]} /> {/* Reduced height */}
+        <planeGeometry args={[planeWidth - 0.08, planeHeight - 0.15]} /> {/* Slightly less height to leave room at bottom */}
         <meshBasicMaterial 
           map={textTextureRef.current}
           transparent={true}
@@ -425,22 +444,22 @@ const MessageOverlay3D = () => {
 
       {/* Add the animated eye at the bottom of the message */}
       <group 
-        position={[0, -planeHeight/2 + eyeScale[1]/1.5, 0.01]} // Position at bottom of plane
+        position={[0, -planeHeight/2 + eyeScale[1]/1.5, 0.01]} // Adjusted to fit better with text at top
         renderOrder={renderOrder.MESSAGE_OVERLAY + 2} // Ensure it renders on top
       >
-        {/* Use the Eye component with white color and specific scale */}
+        {/* Use the Eye component with smaller scale */}
         <Eye 
-          position={[.2, .1, 0]} 
-          scale={[.3, .3]} 
+          position={[.2, .03, 0]}
+          scale={[.25, .25]} // Reduced from 0.3 to 0.25
           rotation={[0, 0, 0]}
-          opacity={opacity}
+          opacity={opacity} // Already tied to the overlay opacity
           randomize={false}
         />
         <Eye 
-          position={[-.2, .1, 0]} 
-          scale={[.3, .3]} 
+          position={[-.2, .03, 0]}
+          scale={[.25, .25]} // Reduced from 0.3 to 0.25
           rotation={[0, 0, 0]}
-          opacity={opacity}
+          opacity={opacity} // Already tied to the overlay opacity
           randomize={false}
         />
       </group>
