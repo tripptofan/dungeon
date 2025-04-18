@@ -19,12 +19,12 @@ import CameraShake from './components/cameraShake';
 import DeviceDetection from './DeviceDetection';
 import Enemy from './components/enemy';
 import SimpleFpsLimiter from './components/SimpleFpsLimiter';
-import EyesPlane from './components/eyesPlane';
+
 // Commenting out LookAroundControl to disable it
 // import LookAroundControl from './components/lookAroundControl';
 
 import Prize from './components/prize';
-import AmbientNightLight from './components/ambientNightLight';
+// import AmbientNightLight from './components/ambientNightLight';
 import PrizeInteractionOverlay from './components/prizeInteractionOverlay';
 import BlackScreen from './components/BlackScreen';
 import Eye from './components/eye';
@@ -238,7 +238,7 @@ function App() {
             <Suspense fallback={null}>
               <Dungeon />
               <Player />
-              <AmbientNightLight />
+              {/* <AmbientNightLight /> */}
               <StaticItems />
               {/* <Eye
                 position={[5.05, 2, 5.2]}

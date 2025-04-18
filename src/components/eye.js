@@ -3,7 +3,7 @@ import { useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 import useGameStore from '../store';
 
-const Eye = ({ position = [0, 0, 0], scale = [.5, .5], rotation = [0, Math.PI, 0], emissiveIntensity = 1 }) => {
+const Eye = ({ position = [0, 0, 0], scale = [.5, .5], rotation = [0, Math.PI, 0], emissiveIntensity = 1, randomize = true }) => {
   const eyeRef = useRef();
   const materialRef = useRef();
   const { camera } = useThree();
@@ -58,9 +58,13 @@ const Eye = ({ position = [0, 0, 0], scale = [.5, .5], rotation = [0, Math.PI, 0
         '#e6e6fa'  // lavender
       ];
       
-      // Pick a random color
-      const randomColorIndex = Math.floor(Math.random() * availableColors.length);
-      setEmissiveColor(availableColors[randomColorIndex]);
+      // Pick a color - random if randomize is true, otherwise use white
+      if (randomize) {
+        const randomColorIndex = Math.floor(Math.random() * availableColors.length);
+        setEmissiveColor(availableColors[randomColorIndex]);
+      } else {
+        setEmissiveColor('#ffffff'); // Default to white when not randomizing
+      }
       
       const textureLoader = new THREE.TextureLoader();
       const wiggleTextures = [];
@@ -135,28 +139,47 @@ const Eye = ({ position = [0, 0, 0], scale = [.5, .5], rotation = [0, Math.PI, 0
         blinkTexturesRef.current = blinkTextures;
         framesLoadedRef.current = true;
         
-        // Randomly select a starting frame
-        const allFrames = [...wiggleTextures, ...blinkTextures];
-        const randomFrameIndex = Math.floor(Math.random() * allFrames.length);
-        const isBlinkFrame = randomFrameIndex >= wiggleTextures.length;
-        const randomFrame = allFrames[randomFrameIndex];
-        
-        // Set the initial frame and update the material
-        setCurrentFrame(isBlinkFrame ? randomFrameIndex - wiggleTextures.length : randomFrameIndex);
-        isBlinkingRef.current = isBlinkFrame;
-        
-        if (materialRef.current && randomFrame) {
-          materialRef.current.map = randomFrame;
-          materialRef.current.needsUpdate = true;
+        if (randomize) {
+          // Randomly select a starting frame
+          const allFrames = [...wiggleTextures, ...blinkTextures];
+          const randomFrameIndex = Math.floor(Math.random() * allFrames.length);
+          const isBlinkFrame = randomFrameIndex >= wiggleTextures.length;
+          const randomFrame = allFrames[randomFrameIndex];
+          
+          // Set the initial frame and update the material
+          setCurrentFrame(isBlinkFrame ? randomFrameIndex - wiggleTextures.length : randomFrameIndex);
+          isBlinkingRef.current = isBlinkFrame;
+          
+          if (materialRef.current && randomFrame) {
+            materialRef.current.map = randomFrame;
+            materialRef.current.needsUpdate = true;
+          }
+          
+          // Set a random wiggle cycle target between 7 and 10
+          wiggleCycleTargetRef.current = Math.floor(Math.random() * 4) + 7; // Random number between 7 and 10
+          
+          console.log(`Loaded ${wiggleTextures.length} wiggle frames and ${blinkTextures.length} blink frames for eye`);
+          console.log(`Starting with ${isBlinkFrame ? 'blink' : 'wiggle'} frame ${randomFrameIndex}`);
+          console.log(`Random wiggle cycle target set to ${wiggleCycleTargetRef.current}`);
+          console.log(`Eye color set to ${emissiveColor}`);
+        } else {
+          // Use deterministic starting state when not randomizing
+          setCurrentFrame(0);
+          isBlinkingRef.current = false;
+          
+          if (materialRef.current && wiggleTextures[0]) {
+            materialRef.current.map = wiggleTextures[0];
+            materialRef.current.needsUpdate = true;
+          }
+          
+          // Use a fixed wiggle cycle target
+          wiggleCycleTargetRef.current = 8; // Default to 8 cycles when not randomizing
+          
+          console.log(`Loaded ${wiggleTextures.length} wiggle frames and ${blinkTextures.length} blink frames for eye`);
+          console.log(`Starting with wiggle frame 0 (non-randomized)`);
+          console.log(`Fixed wiggle cycle target set to ${wiggleCycleTargetRef.current}`);
+          console.log(`Eye color set to white (non-randomized)`);
         }
-        
-        // Set a random wiggle cycle target between 7 and 10
-        wiggleCycleTargetRef.current = Math.floor(Math.random() * 4) + 7; // Random number between 7 and 10
-        
-        console.log(`Loaded ${wiggleTextures.length} wiggle frames and ${blinkTextures.length} blink frames for eye`);
-        console.log(`Starting with ${isBlinkFrame ? 'blink' : 'wiggle'} frame ${randomFrameIndex}`);
-        console.log(`Random wiggle cycle target set to ${wiggleCycleTargetRef.current}`);
-        console.log(`Eye color set to ${availableColors[randomColorIndex]}`);
       });
       
       // Cleanup function
@@ -169,7 +192,7 @@ const Eye = ({ position = [0, 0, 0], scale = [.5, .5], rotation = [0, Math.PI, 0
           if (texture) texture.dispose();
         });
       };
-    }, []);
+    }, [randomize]); // Add randomize to dependency array to re-run when it changes
     
   // Add effect to update emissive intensity when the prop changes
   useEffect(() => {
@@ -250,6 +273,10 @@ const Eye = ({ position = [0, 0, 0], scale = [.5, .5], rotation = [0, Math.PI, 0
   // Don't render if position isn't set yet
   if (!eyePosition) return null;
   
+  // Fix: modify renderOrder to ensure eyes don't render on top of treasure chest
+  // Use a lower renderOrder value than the TREASURE_CHEST value
+  const effectiveRenderOrder = renderOrder.EYES;
+  
   // Add a light to ensure the eye is visible
   return (
     <group position={position}>
@@ -257,8 +284,8 @@ const Eye = ({ position = [0, 0, 0], scale = [.5, .5], rotation = [0, Math.PI, 0
       <mesh 
         ref={eyeRef}
         rotation={rotation} // Ensure the eye faces the correct direction
-        renderOrder={renderOrder.EYES}
-              >
+        renderOrder={effectiveRenderOrder}
+      >
         <planeGeometry args={scale} /> {/* Adjust size as needed */}
         <meshStandardMaterial 
           ref={materialRef}
@@ -270,7 +297,8 @@ const Eye = ({ position = [0, 0, 0], scale = [.5, .5], rotation = [0, Math.PI, 0
             ? blinkTexturesRef.current[currentFrame] 
             : wiggleTexturesRef.current[currentFrame]
           }
-          depthTest={true}  // Keep depth test but ensure they're rendered after overlay
+          depthTest={true}  // Enable depth test to properly handle occlusion
+          depthWrite={false}  // Disable depth write to prevent occluding other objects
         />
       </mesh>
     </group>

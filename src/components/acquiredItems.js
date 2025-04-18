@@ -13,7 +13,7 @@ export const acquiredItemRefs = [];
 const ACQUIRED_ITEMS_CONFIG = {
   "Lantern": {
     // These are base values that will be modified based on viewport
-    position: new THREE.Vector3(-0.2, -0.65, -1.1), // Left side, lowered position
+    position: new THREE.Vector3(-0.3, -0.45, -1.1), // Updated resting position
     rotation: new THREE.Euler(0, (-Math.PI / 2) * 0.7, 0),
     scale: 0.15,
     bobAmount: 0.02,
@@ -24,16 +24,34 @@ const ACQUIRED_ITEMS_CONFIG = {
     viewportFactor: 0.15  // How much to adjust based on aspect ratio
   },
   "Toy Wooden Sword": {
-    position: new THREE.Vector3(0.4, -0.5, -1.1), // Moved further right (from 0.28 to 0.4)
-    rotation: new THREE.Euler(-Math.PI / 8, 0, (Math.PI / 4) * 0.3), // Point forward and slightly up
+    position: new THREE.Vector3(0.4, -0.5, -1.1), // Resting position
+    rotation: new THREE.Euler(-Math.PI / 8, 0, (Math.PI / 4) * 0.1), // Resting rotation
     scale: 0.2,
     bobAmount: 0.015,
     bobSpeed: 1.2,
     // Position adjustment factors
-    minXPos: 0.4,     // For very narrow viewport (increased from 0.2 to 0.3)
-    maxXPos: 0.6,     // For wide viewport (increased from 0.5 to 0.6)
+    minXPos: 0.4,     // For very narrow viewport
+    maxXPos: 0.6,     // For wide viewport
     viewportFactor: 0.18  // How much to adjust based on aspect ratio
   }
+};
+
+// Define all sword and lantern animation positions/rotations
+const SWORD_POSITIONS = {
+  resting: new THREE.Vector3(0.4, -0.5, -1.1),
+  raised: new THREE.Vector3(0.4, 1.0, -1.1),  // Increased Y value to 1.0 for higher raise
+  swung: new THREE.Vector3(-0.4, -0.9, -1.1)
+};
+
+const SWORD_ROTATIONS = {
+  resting: new THREE.Euler(-Math.PI / 8, 0, (Math.PI / 4) * 0.1),
+  raised: new THREE.Euler(-Math.PI / 90, 0, (Math.PI / 4) * -0.1),
+  swung: new THREE.Euler(-Math.PI / 2, 0.6, (Math.PI / 4) * 0.1)
+};
+
+const LANTERN_POSITIONS = {
+  resting: new THREE.Vector3(-0.3, -0.45, -1.1), // Updated resting position
+  active: new THREE.Vector3(-0.6, -0.75, -1.1)   // Updated position during sword swing
 };
 
 // Individual acquired item component that renders regardless of overlay state
@@ -41,6 +59,9 @@ const AcquiredItem = ({ item }) => {
   const groupRef = useRef();
   const { camera, viewport, size } = useThree();
   const [adjustedConfig, setAdjustedConfig] = useState(null);
+  const [isExiting, setIsExiting] = useState(false);
+  const [isRemoved, setIsRemoved] = useState(false);
+  const exitAnimRef = useRef({ progress: 0 });
   
   // Get render order constants from store
   const renderOrder = useGameStore(state => state.renderOrder);
@@ -61,10 +82,22 @@ const AcquiredItem = ({ item }) => {
   const updateSwordSwing = useGameStore(state => state.updateSwordSwing);
   const overlayVisible = useGameStore(state => state.showMessageOverlay);
   
+  // Get chest opened state
+  const chestOpened = useGameStore(state => state.chestOpened);
+  
+  // Track exit animation when chest is opened
+  useEffect(() => {
+    // Only make the sword exit when the chest is opened
+    if (chestOpened && !isExiting && item.name === "Toy Wooden Sword") {
+      setIsExiting(true);
+      exitAnimRef.current.progress = 0;
+      console.log(`Starting exit animation for ${item.name}`);
+    }
+  }, [chestOpened, isExiting, item.name]);
   
   // Add ref to the static array when mounted, remove when unmounted
   useEffect(() => {
-    if (groupRef.current) {
+    if (groupRef.current && !isRemoved) {
       acquiredItemRefs.push(groupRef.current);
       console.log(`Added acquired ${item.name} to outline list, total: ${acquiredItemRefs.length}`);
     }
@@ -76,7 +109,7 @@ const AcquiredItem = ({ item }) => {
         console.log(`Removed acquired ${item.name} from outline list, remaining: ${acquiredItemRefs.length}`);
       }
     };
-  }, [item.name]);
+  }, [item.name, isRemoved]);
   
   // Get base config for this item
   const baseConfig = ACQUIRED_ITEMS_CONFIG[item.name] || {
@@ -124,18 +157,23 @@ const AcquiredItem = ({ item }) => {
     // Calculate adjustment factor
     let aspectFactor = Math.min(Math.max(aspectRatio / standardAspect, 0.5), 2);
     
+    // Start with the base position value from the config
+    const baseXPosition = baseConfig.position.x;
+    
     // Calculate adjusted X position based on whether this is a left or right item
-    if (baseConfig.position.x < 0) {
+    if (baseXPosition < 0) {
       // Left-side item (like lantern)
+      // Adjust between position.x and maxXPos based on aspect ratio
       newConfig.position.x = THREE.MathUtils.lerp(
-        baseConfig.minXPos,
+        baseXPosition,
         baseConfig.maxXPos,
         aspectFactor - 0.5
       );
     } else {
       // Right-side item (like sword)
+      // Adjust between position.x and maxXPos based on aspect ratio
       newConfig.position.x = THREE.MathUtils.lerp(
-        baseConfig.minXPos,
+        baseXPosition,
         baseConfig.maxXPos,
         aspectFactor - 0.5
       );
@@ -144,9 +182,28 @@ const AcquiredItem = ({ item }) => {
     setAdjustedConfig(newConfig);
   }, [size.width, size.height, baseConfig, item.name]);
 
+  // useFrame for handling exit animation
+  useFrame((state, delta) => {
+    // Skip if already removed from scene
+    if (isRemoved) return;
+    
+    // Process exit animation when sword is exiting
+    if (isExiting) {
+      // Increase exit animation progress
+      exitAnimRef.current.progress += delta * 0.5; // Adjust speed as needed
+      
+      // If animation is complete, remove from scene
+      if (exitAnimRef.current.progress >= 1) {
+        setIsRemoved(true);
+        console.log(`Completed exit animation for ${item.name}`);
+        return;
+      }
+    }
+  });
+
   // useFrame must NOT be called conditionally - this is a React hooks rule
   useFrame((state, delta) => {
-    if (!groupRef.current || !adjustedConfig) return;
+    if (!groupRef.current || !adjustedConfig || isRemoved) return;
     
     // Determine which render order to use
     const currentRenderOrder = renderOrder.ACQUIRED_ITEMS;
@@ -269,6 +326,40 @@ const AcquiredItem = ({ item }) => {
     const config = adjustedConfig || baseConfig;
     const posOffset = config.position.clone();
     
+    // Apply exit animation when chest is opened and this is the sword
+    if (isExiting) {
+      const exitProgress = exitAnimRef.current.progress;
+      const eased = easeInBack(exitProgress);
+      
+      // Move sword down and behind the player during exit
+      const exitOffsetY = -1.5 * eased; // Move down
+      const exitOffsetZ = 2 * eased;    // Move behind
+      
+      posOffset.y += exitOffsetY;
+      posOffset.z += exitOffsetZ;
+      
+      // Optionally rotate the sword as it exits
+      const exitRotX = Math.PI * 0.5 * eased; // Rotate forward
+      
+      // Apply rotation in the next rotation application section
+      config.rotation.x = exitRotX;
+      
+      // Fade out the sword
+      groupRef.current.traverse(child => {
+        if (child.isMesh && child.material) {
+          if (Array.isArray(child.material)) {
+            child.material.forEach(mat => {
+              if (mat.transparent) {
+                mat.opacity = Math.max(0, 1 - eased);
+              }
+            });
+          } else if (child.material.transparent) {
+            child.material.opacity = Math.max(0, 1 - eased);
+          }
+        }
+      });
+    }
+
     // IMPORTANT: Always process shake effect even if head bob is paused
     // Apply shake effect if camera shake is active
     if (cameraShaking) {
@@ -290,12 +381,12 @@ const AcquiredItem = ({ item }) => {
       // We'll apply rotation shake separately below
     }
 
-    // Handle head bobbing (but not during shake)
-    if (cameraShaking && !headBobRef.current.bobPaused) {
+    // Handle head bobbing (but not during shake or exit)
+    if ((cameraShaking || isExiting) && !headBobRef.current.bobPaused) {
       headBobRef.current.bobPaused = true;
       headBobRef.current.pauseTimer = 0;
     } 
-    else if (!cameraShaking && headBobRef.current.bobPaused) {
+    else if (!cameraShaking && !isExiting && headBobRef.current.bobPaused) {
       // Add a pause timer to gradually resume bobbing after shake
       headBobRef.current.pauseTimer += delta;
       if (headBobRef.current.pauseTimer > 1.0) { // 1 second delay
@@ -335,8 +426,8 @@ const AcquiredItem = ({ item }) => {
       }
     }
     
-    // Add bobbing only if not paused and not shaking
-    if (!cameraShaking && !headBobRef.current.bobPaused) {
+    // Add bobbing only if not paused, not shaking, and not exiting
+    if (!cameraShaking && !headBobRef.current.bobPaused && !isExiting) {
       // Add subtle bobbing effect (vertical)
       const basicBob = Math.sin(state.clock.elapsedTime * config.bobSpeed) * config.bobAmount;
       
@@ -359,8 +450,8 @@ const AcquiredItem = ({ item }) => {
     let rotY = config.rotation.y;
     let rotZ = config.rotation.z;
     
-    // Add rotation shake if camera is shaking
-    if (cameraShaking) {
+    // Add rotation shake if camera is shaking and not exiting
+    if (cameraShaking && !isExiting) {
       const intensityValue = cameraShakingState.intensity || 0.5;
       const shakeIntensity = intensityValue * 1.2; // Exaggerate rotation shake for more visible effect
       
@@ -368,8 +459,8 @@ const AcquiredItem = ({ item }) => {
       rotX += (Math.random() * 2 - 1) * shakeIntensity * 0.08;
       rotZ += (Math.random() * 2 - 1) * shakeIntensity * 0.08;
     } 
-    // Add subtle rotation variation based on movement (if not paused and not shaking)
-    else if (!headBobRef.current.bobPaused) {
+    // Add subtle rotation variation based on movement (if not paused, not shaking, and not exiting)
+    else if (!headBobRef.current.bobPaused && !isExiting) {
       const tiltAmount = 0.01 * Math.min(1, headBobRef.current.stepCounter);
       const movementTilt = Math.sin(headBobRef.current.timer * 2) * tiltAmount;
       
@@ -396,196 +487,164 @@ const AcquiredItem = ({ item }) => {
 
   // Helper functions for sword swing animation
 
-  // Calculate swing rotation based on direction, progress, and swing type
-  const calculateSwordSwingRotation = (direction, progress, swingType) => {
+  // Calculate sword position based on swing progress
+  const calculateSwordSwingPosition = (progress) => {
     if (!swordSwinging) {
-      return [0, 0, 0]; // Default rotation
+      // Return resting position when not swinging
+      return [
+        SWORD_POSITIONS.resting.x,
+        SWORD_POSITIONS.resting.y,
+        SWORD_POSITIONS.resting.z
+      ];
     }
     
-    // Check if this is a special slash animation
-    if (swingType === 'slash') {
-      // Use a specialized diagonal slash animation from top-right to bottom-left
+    // Animation timing configuration - FURTHER SLOWED DOWN raise phase
+    const raisePhaseEnd = 0.4;       // 0-40% of animation is raising the sword (was 0.35)
+    const swingPhaseEnd = 0.75;      // 40-75% is the swing
+    const returnPhaseStart = 0.75;   // 75-100% is returning to resting
+    
+    // Animation speed factors - REDUCED for slower animation
+    const raiseSpeed = 0.6;          // Speed multiplier for raise phase (was 0.8)
+    const swingSpeed = 0.9;          // Speed multiplier for swing phase
+    const returnSpeed = 0.6;         // Speed multiplier for return phase
+    
+    // Calculate current position
+    let currentPosition = new THREE.Vector3();
+    
+    if (progress < raisePhaseEnd) {
+      // Phase 1: Raising the sword (0% to 40%)
+      // Normalize progress for this phase
+      const phaseProgress = Math.min(1, (progress / raisePhaseEnd) * raiseSpeed);
       
-      // Arc path for the slash
-      // Start with sword raised and angled in top right
-      // Swing through to bottom left with follow-through
+      // Use easeOutBack to ensure the sword clearly reaches the raised position
+      // with a slight overshoot for visual emphasis
+      const easedProgress = easeOutBack(phaseProgress);
       
-      // Maximum rotation angles for slash (in radians) - more dramatic
-      const maxRotX = -Math.PI * 0.4; // More angled downward
-      const maxRotY = Math.PI * 0.9; // More significant horizontal component
-      const maxRotZ = Math.PI * 0.6; // More twist during swing
+      // Lerp from resting to raised position
+      currentPosition.lerpVectors(
+        SWORD_POSITIONS.resting,
+        SWORD_POSITIONS.raised,
+        easedProgress
+      );
+    } 
+    else if (progress < swingPhaseEnd) {
+      // Phase 2: Swinging the sword (40% to 75%)
+      // Normalize progress for this phase
+      const phaseProgress = Math.min(1, ((progress - raisePhaseEnd) / (swingPhaseEnd - raisePhaseEnd)) * swingSpeed);
+      const easedProgress = easeOutQuint(phaseProgress);
       
-      // Calculate starting positions (pre-swing) - more exaggerated wind-up
-      const startRotX = Math.PI * 0.3; // Higher raised position
-      const startRotY = -Math.PI * 0.4; // More angled to right side
-      const startRotZ = -Math.PI * 0.2; // More twisted
-      
-      // Calculate the swing arc - combine pre-swing and full swing
-      if (progress < 0.2) {
-        // Initial wind-up (0-20% of animation)
-        // Normalize progress to 0-1 range for this phase
-        const phaseProgress = progress / 0.2;
-        const windupEase = easeInQuad(phaseProgress);
-        
-        // Move to wind-up position
-        const rotX = startRotX * windupEase;
-        const rotY = startRotY * windupEase;
-        const rotZ = startRotZ * windupEase;
-        
-        return [rotX, rotY, rotZ];
-      } else {
-        // Main swing (20-100% of animation)
-        // Normalize progress to 0-1 range for this phase
-        const phaseProgress = (progress - 0.2) / 0.8;
-        const swingEase = easeOutQuint(phaseProgress);
-        
-        // Calculate a smooth arc from wind-up to follow-through
-        const rotX = startRotX + (maxRotX - startRotX) * swingEase;
-        const rotY = startRotY + (maxRotY - startRotY) * swingEase;
-        const rotZ = startRotZ + (maxRotZ - startRotZ) * swingEase;
-        
-        return [rotX, rotY, rotZ];
-      }
-    } else {
-      // Original swing animation logic for default swing
-      // Extract direction components
-      const { x, y } = direction;
-      
-      // Calculate swing angle based on direction
-      // Use an easing function for the swing (ease-out)
-      const easedProgress = easeOutCubic(progress);
-      
-      // Calculate the primary swing axis based on which direction is stronger
-      const isHorizontalDominant = Math.abs(x) > Math.abs(y);
-      
-      // Maximum rotation angles in radians
-      const maxRotationX = Math.PI * 1.5; // Up to 270 degrees rotation
-      const maxRotationY = Math.PI * 1.5; // Up to 270 degrees rotation
-      const maxRotationZ = Math.PI * 0.75; // Up to 135 degrees rotation for twist
-      
-      // Calculate direction weight - how much of each axis to use
-      const xWeight = (Math.abs(y) / (Math.abs(x) + Math.abs(y) || 1));
-      const yWeight = (Math.abs(x) / (Math.abs(x) + Math.abs(y) || 1));
-      
-      // Calculate current rotation based on progress
-      // Use sin curve for natural swing motion with a longer follow-through
-      const swingCurve = Math.sin(easedProgress * Math.PI) * (1 + easedProgress * 0.5);
-      
-      // Direction-aware rotation with more dramatic values
-      // Sign of x/y determines swing direction (left/right or up/down)
-      const rotX = isHorizontalDominant 
-        ? -y * maxRotationX * 0.3 * swingCurve // Secondary axis when horizontal is dominant
-        : -y * maxRotationX * swingCurve;      // Primary axis for vertical swipes
-        
-      const rotY = isHorizontalDominant
-        ? x * maxRotationY * swingCurve        // Primary axis for horizontal swipes
-        : x * maxRotationY * 0.3 * swingCurve; // Secondary axis when vertical is dominant
-        
-      // Add some twist for visual flair, more pronounced for diagonal swipes
-      const diagonalFactor = Math.abs(x * y) / ((Math.abs(x) + Math.abs(y)) / 2 || 1);
-      const rotZ = maxRotationZ * swingCurve * diagonalFactor * (x < 0 ? -1 : 1);
-      
-      return [rotX, rotY, rotZ];
+      // Lerp from raised to swung position
+      currentPosition.lerpVectors(
+        SWORD_POSITIONS.raised,
+        SWORD_POSITIONS.swung,
+        easedProgress
+      );
     }
+    else {
+      // Phase 3: Return to resting position (75% to 100%)
+      // Normalize progress for this phase
+      const phaseProgress = Math.min(1, ((progress - returnPhaseStart) / (1 - returnPhaseStart)) * returnSpeed);
+      const easedProgress = easeInOutCubic(phaseProgress);
+      
+      // Lerp from swung back to resting position
+      currentPosition.lerpVectors(
+        SWORD_POSITIONS.swung,
+        SWORD_POSITIONS.resting,
+        easedProgress
+      );
+    }
+    
+    return [currentPosition.x, currentPosition.y, currentPosition.z];
   };
 
-  // Calculate swing position offset based on direction, progress, and type
-  const calculateSwordSwingPosition = (direction, progress, swingType) => {
+  // Calculate sword rotation based on swing progress - match the timing changes from position function
+  const calculateSwordSwingRotation = (progress) => {
     if (!swordSwinging) {
-      return [0, 0, 0]; // Default position
+      // Return resting rotation when not swinging
+      return [
+        SWORD_ROTATIONS.resting.x,
+        SWORD_ROTATIONS.resting.y,
+        SWORD_ROTATIONS.resting.z
+      ];
     }
     
-    // Check if this is a special slash animation
-    if (swingType === 'slash') {
-      // Custom orbital path for the slash animation
-      // We want the sword to move in an arc that:
-      // 1. Starts from top-right
-      // 2. Swings down and to the left in a curved path
-      // 3. Returns to normal position
+    // Use the same animation phases as the position calculation
+    const raisePhaseEnd = 0.4;      // Increased to 40%
+    const swingPhaseEnd = 0.75;     
+    const returnPhaseStart = 0.75;  
+    
+    // Animation speed factors - REDUCED for slower animation
+    const raiseSpeed = 0.6;        // Reduced from 0.8
+    const swingSpeed = 0.9;        
+    const returnSpeed = 0.6;       
+    
+    // Calculate current rotation
+    let x, y, z;
+    
+    if (progress < raisePhaseEnd) {
+      // Phase 1: Raising the sword (0% to 40%)
+      const phaseProgress = Math.min(1, (progress / raisePhaseEnd) * raiseSpeed);
+      const easedProgress = easeOutBack(phaseProgress);
       
-      if (progress < 0.2) {
-        // Wind-up phase (0-20% of animation) - move to starting position
-        // Normalize progress to 0-1 range for this phase
-        const phaseProgress = progress / 0.2;
-        const windupEase = easeInQuad(phaseProgress);
-        
-        // Starting position in top-right - more exaggerated
-        const startX = 2.0;  // Further right
-        const startY = 1.5;  // Higher up
-        const startZ = -1.5; // More forward
-        
-        // Move to wind-up position
-        const posX = startX * windupEase;
-        const posY = startY * windupEase;
-        const posZ = startZ * windupEase;
-        
-        return [posX, posY, posZ];
-      } else {
-        // Main swing phase (20-100% of animation)
-        // Normalize progress to 0-1 range for this phase
-        const phaseProgress = (progress - 0.2) / 0.8;
-        
-        // Calculate the orbital arc from top-right to bottom-left
-        // Use parametric equations to define the arc
-        
-        // Start with wind-up position - more exaggerated
-        const startX = 2.0;  // Further right
-        const startY = 1.5;  // Higher up
-        const startZ = -1.5; // More forward
-        
-        // End with extended follow-through position - more exaggerated
-        const endX = -2.0;  // Further left
-        const endY = -1.2;  // More down
-        const endZ = -0.3;  // More forward
-        
-        // Use a stronger easing function for the slash
-        const slashEase = easeOutQuint(phaseProgress);
-        
-        // Add a slight forward thrust during the middle of the swing
-        let thrustZ = 0;
-        if (phaseProgress > 0.2 && phaseProgress < 0.7) {
-          // Normalize to 0-1 range for this sub-phase
-          const thrustProgress = (phaseProgress - 0.2) / 0.5;
-          // Parabolic curve for thrust (rises then falls)
-          thrustZ = -0.5 * Math.sin(thrustProgress * Math.PI);
-        }
-        
-        // Calculate position along the arc
-        const posX = startX + (endX - startX) * slashEase;
-        const posY = startY + (endY - startY) * slashEase;
-        const posZ = startZ + (endZ - startZ) * slashEase + thrustZ;
-        
-        return [posX, posY, posZ];
-      }
-    } else {
-      // Original position calculation for default swing
-      // Extract direction components
-      const { x, y } = direction;
+      // Lerp between resting and raised rotations
+      x = THREE.MathUtils.lerp(SWORD_ROTATIONS.resting.x, SWORD_ROTATIONS.raised.x, easedProgress);
+      y = THREE.MathUtils.lerp(SWORD_ROTATIONS.resting.y, SWORD_ROTATIONS.raised.y, easedProgress);
+      z = THREE.MathUtils.lerp(SWORD_ROTATIONS.resting.z, SWORD_ROTATIONS.raised.z, easedProgress);
+    } 
+    else if (progress < swingPhaseEnd) {
+      // Phase 2: Swinging the sword (40% to 75%)
+      const phaseProgress = Math.min(1, ((progress - raisePhaseEnd) / (swingPhaseEnd - raisePhaseEnd)) * swingSpeed);
+      const easedProgress = easeOutQuint(phaseProgress);
       
-      // Calculate position offset based on direction
-      // Use an easing function for the swing (ease-out)
-      const easedProgress = easeOutCubic(progress);
-      
-      // Maximum position offset
-      const maxOffsetX = 0.8; // Horizontal movement
-      const maxOffsetY = 0.6; // Vertical movement
-      const maxOffsetZ = 0.5; // Forward thrust
-      
-      // Calculate movement curve - quick thrust followed by slower return
-      const swingCurve = Math.sin(easedProgress * Math.PI);
-      const thrustCurve = easedProgress < 0.4 
-        ? easedProgress * 2.5 // Fast initial thrust
-        : 1 - ((easedProgress - 0.4) * 1.67); // Slower return
-      
-      // Apply movement
-      const offsetX = -x * maxOffsetX * swingCurve;
-      const offsetY = -y * maxOffsetY * swingCurve;
-      
-      // Add a forward thrust at the start of the swing
-      const offsetZ = maxOffsetZ * thrustCurve * Math.max(0.2, Math.abs(x) + Math.abs(y));
-      
-      return [offsetX, offsetY, offsetZ];
+      // Lerp between raised and swung rotations
+      x = THREE.MathUtils.lerp(SWORD_ROTATIONS.raised.x, SWORD_ROTATIONS.swung.x, easedProgress);
+      y = THREE.MathUtils.lerp(SWORD_ROTATIONS.raised.y, SWORD_ROTATIONS.swung.y, easedProgress);
+      z = THREE.MathUtils.lerp(SWORD_ROTATIONS.raised.z, SWORD_ROTATIONS.swung.z, easedProgress);
     }
+    else {
+      // Phase 3: Return to resting position (75% to 100%)
+      const phaseProgress = Math.min(1, ((progress - returnPhaseStart) / (1 - returnPhaseStart)) * returnSpeed);
+      const easedProgress = easeInOutCubic(phaseProgress);
+      
+      // Lerp between swung and resting rotations
+      x = THREE.MathUtils.lerp(SWORD_ROTATIONS.swung.x, SWORD_ROTATIONS.resting.x, easedProgress);
+      y = THREE.MathUtils.lerp(SWORD_ROTATIONS.swung.y, SWORD_ROTATIONS.resting.y, easedProgress);
+      z = THREE.MathUtils.lerp(SWORD_ROTATIONS.swung.z, SWORD_ROTATIONS.resting.z, easedProgress);
+    }
+    
+    return [x, y, z];
+  };
+
+  // Calculate lantern movement during sword swing
+  const calculateLanternPosition = (progress) => {
+    if (item.name !== "Lantern" || !swordSwinging) {
+      return null; // Only apply to lantern and only during sword swing
+    }
+    
+    // Animation timing configuration
+    const affectLanternStart = 0.25;  // Start moving lantern when sword starts swinging
+    const affectLanternEnd = 0.75;    // Return lantern to normal position
+    
+    // Only move lantern during the actual swing phase
+    if (progress < affectLanternStart || progress > affectLanternEnd) {
+      return null; // Use default positioning outside of swing phase
+    }
+    
+    // Normalize progress for lantern movement
+    const lanternPhaseLength = affectLanternEnd - affectLanternStart;
+    const normalizedProgress = (progress - affectLanternStart) / lanternPhaseLength;
+    
+    // Create a bell curve effect: lantern moves away during middle of swing
+    const bellCurve = Math.sin(normalizedProgress * Math.PI);
+    
+    // Lerp between resting and active position based on bell curve
+    const currentPosition = new THREE.Vector3(
+      THREE.MathUtils.lerp(LANTERN_POSITIONS.resting.x, LANTERN_POSITIONS.active.x, bellCurve),
+      THREE.MathUtils.lerp(LANTERN_POSITIONS.resting.y, LANTERN_POSITIONS.active.y, bellCurve),
+      THREE.MathUtils.lerp(LANTERN_POSITIONS.resting.z, LANTERN_POSITIONS.active.z, bellCurve)
+    );
+    
+    return [currentPosition.x, currentPosition.y, currentPosition.z];
   };
 
   // Easing functions for more natural animation
@@ -596,15 +655,25 @@ const AcquiredItem = ({ item }) => {
   const easeOutQuint = (x) => {
     return 1 - Math.pow(1 - x, 5);
   };
+  
+  const easeInOutCubic = (x) => {
+    return x < 0.5 
+      ? 4 * x * x * x 
+      : 1 - Math.pow(-2 * x + 2, 3) / 2;
+  };
 
+  // Add a new easing function with overshoot for the raising phase
   const easeOutBack = (x) => {
     const c1 = 1.70158;
     const c3 = c1 + 1;
     return 1 + c3 * Math.pow(x - 1, 3) + c1 * Math.pow(x - 1, 2);
   };
 
-  const easeInQuad = (x) => {
-    return x * x;
+  // Add a new easing function for the exit animation
+  const easeInBack = (x) => {
+    const c1 = 1.70158;
+    const c3 = c1 + 1;
+    return c3 * x * x * x - c1 * x * x;
   };
 
   // Render the appropriate model based on item type
@@ -615,14 +684,20 @@ const AcquiredItem = ({ item }) => {
     // IMPORTANT: Item-specific rendering with outlines
     switch(item.name) {
       case 'Lantern':
+        // Calculate lantern position during sword swing
+        const lanternPosition = calculateLanternPosition(swingProgress);
+        
         return (
           <group scale={[config.scale, config.scale, config.scale]}>
-            <OutlinedLantern 
-              outlineThickness={0.05} 
-              emissiveIntensity={0.4}
-              lightIntensity={5}
-              renderOrder={renderOrder.ACQUIRED_ITEMS}
-            />
+            {/* Apply position adjustment during sword swing if needed */}
+            <group position={lanternPosition || [0, 0, 0]}>
+              <OutlinedLantern 
+                outlineThickness={0.05} 
+                emissiveIntensity={0.4}
+                lightIntensity={5}
+                renderOrder={renderOrder.ACQUIRED_ITEMS}
+              />
+            </group>
           </group>
         );
       case 'Toy Wooden Sword':
@@ -630,8 +705,8 @@ const AcquiredItem = ({ item }) => {
           <group scale={[config.scale, config.scale, config.scale]}>
             {/* Wrap in an extra group for swing animation */}
             <group
-              rotation={calculateSwordSwingRotation(swingDirection, swingProgress, swingType)}
-              position={calculateSwordSwingPosition(swingDirection, swingProgress, swingType)}
+              rotation={calculateSwordSwingRotation(swingProgress)}
+              position={calculateSwordSwingPosition(swingProgress)}
             >
               {/* Add an additional offset to improve sword swing pivot point */}
               <group position={[0, -0.2, 0]}>
@@ -670,6 +745,9 @@ const AcquiredItem = ({ item }) => {
 
   // Calculate render order - higher when forced visible
   const renderOrderValue = forceVisible ? renderOrder.ACQUIRED_ITEMS : renderOrder.ACQUIRED_ITEMS - 1000;
+
+  // Don't render if the item has been removed
+  if (isRemoved) return null;
 
   // Make items render at a very high renderOrder to ensure they're drawn last
   // This helps with overlay issues

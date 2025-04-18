@@ -220,6 +220,8 @@ const TreasureChest = () => {
           emissiveIntensity={0.2}
           transparent={true}
           opacity={opacity}
+          depthTest={true}
+          depthWrite={true} // Enable depth writing to ensure proper occlusion
         />
       </mesh>
       
@@ -232,6 +234,8 @@ const TreasureChest = () => {
           metalness={0.4}
           transparent={true}
           opacity={opacity}
+          depthTest={true}
+          depthWrite={true} // Enable depth writing
         />
       </mesh>
       
@@ -246,17 +250,10 @@ const TreasureChest = () => {
           emissiveIntensity={glowIntensity}
           transparent={true}
           opacity={opacity}
+          depthTest={true}
+          depthWrite={true} // Enable depth writing
         />
       </mesh>
-      
-      {/* Add a light source to make the chest more visible */}
-      <pointLight
-        color="#FFD700"
-        intensity={1.5}
-        distance={5}
-        decay={2}
-        position={[0, 0.5, 0]}
-      />
     </group>
   );
 };

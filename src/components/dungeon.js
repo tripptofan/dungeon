@@ -468,8 +468,9 @@ const DungeonDebugInfo = ({ renderCount, cullingDistance }) => {
 // Add this new component for path eyes
 const PathEyes = ({ tileSize }) => {
   const { camera } = useThree();
+  const renderOrder = useGameStore(state => state.renderOrder);
   
-  // Generate eyes along a path to the treasure (existing code remains the same)
+  // Generate eyes along a path to the treasure
   const pathEyes = useMemo(() => {
     const eyes = [];
     // Get player starting position from store
@@ -483,11 +484,14 @@ const PathEyes = ({ tileSize }) => {
       // Create a seed for stable randomization
       const random = Math.random;
       
-      // Random x position between 2.6 and 7.4
-      const x = 2.7 + random() * 4.7;
+      // Random x position between 2.7 and 7.4, excluding wall area (4.7 to 5.3)
+      let x;
+      do {
+        x = 2.7 + random() * 4.7;
+      } while (x >= 4.7 && x <= 5.3); // Exclude x positions from 4.7 to 5.3
       
-      // Random y position between 1 and 7
-      const y = .3 + random() * 6.7;
+      // Random y position between 0.3 and 7
+      const y = 0.3 + random() * 6.7;
       
       // Random z position between 3 and the end of dungeon
       // Assuming the treasure chest is at the end of the dungeon path
@@ -663,10 +667,11 @@ const PathEyes = ({ tileSize }) => {
           position={eye.position}
           scale={eye.scale}
           emissiveIntensity={eye.emissiveIntensity}
+          // Use a render order below the treasure chest
+          renderOrder={renderOrder.EYES}
         />
       ))}
     </>
   );
 };
-
 export default React.memo(OptimizedDungeon);
