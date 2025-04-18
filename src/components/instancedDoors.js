@@ -4,6 +4,7 @@ import * as THREE from 'three';
 import useGameStore from '../store';
 import { useTextures } from '../utils/textureManagement';
 import Torch from './torch'; // Import the torch component
+import PortalEffect from './portalEffect'; // Import our new portal component
 
 const InstancedDoors = ({ doorPositions, tileSize }) => {
   const { materials } = useTextures();
@@ -92,6 +93,14 @@ const InstancedDoors = ({ doorPositions, tileSize }) => {
           side={THREE.DoubleSide}
         />
       </mesh>
+      
+      {/* Portal effect just in front of the door */}
+      {doorOpened && (
+        <PortalEffect 
+          position={[door.x, tileSize / 2, door.z - tileSize / 2 + 0.01]} 
+          scale={[tileSize , tileSize , 1]}
+        />
+      )}
       
       {/* Left torch */}
       <Torch

@@ -277,8 +277,6 @@ const MessageOverlay3D = () => {
     // Apply the current opacity to materials
     if (backingPlaneRef.current?.material) {
       backingPlaneRef.current.material.opacity = opacity * 0.8;
-      // Synchronize emissive intensity with opacity
-      backingPlaneRef.current.material.emissiveIntensity = opacity * 0.8;
     }
     
     if (textPlaneRef.current?.material) {
@@ -365,7 +363,7 @@ const MessageOverlay3D = () => {
   
   return (
     <group ref={groupRef}>
-      {/* Emissive backing plane */}
+      {/* Backing plane - using meshBasicMaterial with color only */}
       <mesh
         ref={backingPlaneRef}
         renderOrder={renderOrder.MESSAGE_OVERLAY}
@@ -378,11 +376,26 @@ const MessageOverlay3D = () => {
       >
         <planeGeometry args={[planeWidth, planeHeight]} />
         <meshBasicMaterial
-          color="#333333"
-          emissive="#4287f5"
-          emissiveIntensity={0.8}
+          color="#1a2a4a"  // Darker blue base color
           transparent={true}
-          opacity={0.8}
+          opacity={0.8 * opacity}
+          depthTest={true}
+          depthWrite={false}
+        />
+      </mesh>
+
+      {/* Emissive glow plane - sits just behind the backing plane to create glow effect */}
+      <mesh
+        renderOrder={renderOrder.MESSAGE_OVERLAY - 1}
+        position={[0, 0, -0.008]}
+        castShadow={false}
+        receiveShadow={false}
+      >
+        <planeGeometry args={[planeWidth + 0.1, planeHeight + 0.1]} />
+        <meshBasicMaterial
+          color="#3366cc"  // Blue glow color
+          transparent={true}
+          opacity={0.4 * opacity}
           depthTest={true}
           depthWrite={false}
         />
@@ -420,14 +433,14 @@ const MessageOverlay3D = () => {
           position={[.2, .1, 0]} 
           scale={[.3, .3]} 
           rotation={[0, 0, 0]}
-          emissiveIntensity={opacity} // Sync with the overlay's opacity
+          opacity={opacity}
           randomize={false}
         />
         <Eye 
           position={[-.2, .1, 0]} 
           scale={[.3, .3]} 
           rotation={[0, 0, 0]}
-          emissiveIntensity={opacity} // Sync with the overlay's opacity
+          opacity={opacity}
           randomize={false}
         />
       </group>
