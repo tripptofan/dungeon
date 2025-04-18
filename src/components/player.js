@@ -82,86 +82,95 @@ const Player = () => {
   }, [sceneLoaded, initialized, gl, scene, camera, invalidate]);
   
   // Handle camera movement and head bobbing
-  useFrame((state, delta) => {
-    if (!playerRef.current || !initialized) return;
+// Inside the useFrame function, update the door movement code
+// Find the part where the player reaches the door
+useFrame((state, delta) => {
+  if (!playerRef.current || !initialized) return;
+  
+  // Don't process movement if camera is shaking
+  if (cameraShaking.isShaking) return;
+  
+  // Handle door movement when door is clicked
+  if (movingToDoor && doorPosition) {
+    const currentPos = playerRef.current.position.clone();
     
-    // Don't process movement if camera is shaking
-    if (cameraShaking.isShaking) return;
+    // Calculate vector to door - with 2 units earlier detection
+    const targetPos = new THREE.Vector3(
+      doorPosition.x,
+      currentPos.y,
+      doorPosition.z - 4 // Trigger 2 units before the actual door position
+    );
     
-    // Handle door movement when door is clicked
-    if (movingToDoor && doorPosition) {
-      const currentPos = playerRef.current.position.clone();
+    // Calculate distance to modified target position
+    const distanceVector = targetPos.clone().sub(currentPos);
+    const distance = distanceVector.length();
+    
+    // Move if not at adjusted position yet
+    if (distance > 0.1) {
+      // Calculate direction vector
+      const direction = distanceVector.normalize();
       
-      // Calculate vector to door
-      const targetPos = new THREE.Vector3(
-        doorPosition.x,
-        currentPos.y,
-        doorPosition.z
+      // Update head bob timer and effects
+      headBobRef.current.timer += delta * 10;
+      const bobAmount = Math.sin(headBobRef.current.timer) * BOBBING_SCALE;
+      headBobRef.current.bobHeight = bobAmount;
+      
+      // Calculate movement step
+      const step = Math.min(moveSpeed * 1.5, distance); // Move faster toward door
+      
+      // Apply movement in the direction of the door
+      playerRef.current.position.add(direction.multiplyScalar(step));
+      
+      // Update camera position with head bob
+      camera.position.set(
+        playerRef.current.position.x,
+        playerRef.current.position.y + bobAmount,
+        playerRef.current.position.z
       );
       
-      // Calculate distance to door
-      const distanceVector = targetPos.clone().sub(currentPos);
-      const distance = distanceVector.length();
-      
-      // Move if not at door yet
-      if (distance > 0.1) {
-        // Calculate direction vector
-        const direction = distanceVector.normalize();
-        
-        // Update head bob timer and effects
-        headBobRef.current.timer += delta * 10;
-        const bobAmount = Math.sin(headBobRef.current.timer) * BOBBING_SCALE;
-        headBobRef.current.bobHeight = bobAmount;
-        
-        // Calculate movement step
-        const step = Math.min(moveSpeed * 1.5, distance); // Move faster toward door
-        
-        // Apply movement in the direction of the door
-        playerRef.current.position.add(direction.multiplyScalar(step));
-        
-        // Update camera position with head bob
-        camera.position.set(
-          playerRef.current.position.x,
-          playerRef.current.position.y + bobAmount,
-          playerRef.current.position.z
-        );
-        
-        // Update store
-        setPlayerPosition({
-          x: playerRef.current.position.x,
-          y: playerRef.current.position.y,
-          z: playerRef.current.position.z
-        });
-        
-        // Force render
-        invalidate();
-      } 
-      else if (!fadingToBlack) {
-        // Player has reached the door, start fade to black
-        startFadeToBlack();
-        fadeStartTimeRef.current = performance.now();
-        console.log("Player reached door, starting fade to black");
-      }
-    }
-    
-    // Handle fade to black animation
-    if (fadingToBlack && fadeStartTimeRef.current) {
-      const elapsed = performance.now() - fadeStartTimeRef.current;
-      const fadeDuration = 2000; // 2 seconds
-      
-      // Calculate opacity (0 to 1)
-      const newOpacity = Math.min(1, elapsed / fadeDuration);
-      updateBlackScreenOpacity(newOpacity);
-      
-      // When fade completes
-      if (newOpacity >= 1) {
-        console.log("Fade to black complete");
-        // You can add any final actions here
-      }
+      // Update store
+      setPlayerPosition({
+        x: playerRef.current.position.x,
+        y: playerRef.current.position.y,
+        z: playerRef.current.position.z
+      });
       
       // Force render
       invalidate();
+    } 
+    else if (!fadingToBlack) {
+      // Player has reached the adjusted position before the door, set portalEntered to true
+      useGameStore.getState().setPortalEntered(true);
+      // Start fade to white
+      startFadeToBlack();
+      fadeStartTimeRef.current = performance.now();
+      console.log("Player reached portal trigger point, 2 units before door");
     }
+  }
+    
+    // Handle fade to black animation
+// Inside the useFrame function, modify the fade animation to make it faster
+// for portal entry
+
+// Handle fade to black/white animation
+if (fadingToBlack && fadeStartTimeRef.current) {
+  const elapsed = performance.now() - fadeStartTimeRef.current;
+  // Much shorter fade duration when entering portal (500ms instead of 2000ms)
+  const fadeDuration = useGameStore.getState().portalEntered ? 500 : 2000; 
+  
+  // Calculate opacity (0 to 1)
+  const newOpacity = Math.min(1, elapsed / fadeDuration);
+  updateBlackScreenOpacity(newOpacity);
+  
+  // When fade completes
+  if (newOpacity >= 1) {
+    console.log("Fade to white complete");
+    // You can add any final actions here
+  }
+  
+  // Force render
+  invalidate();
+}
     
     // Handle camera movement to target position
     if (isMovingCamera && targetCameraPosition) {

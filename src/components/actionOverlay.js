@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import styled from 'styled-components';
 import useGameStore from '../store';
 
@@ -11,7 +11,8 @@ const OverlayContainer = styled.div`
   display: flex;
   justify-content: center;
   align-items: center;
-  background-color: rgba(0, 0, 0, 0.3);
+  /* Removed the dark background overlay */
+  background-color: transparent;
   pointer-events: auto;
   z-index: 1000;
   opacity: ${props => props.visible ? 1 : 0};
@@ -21,22 +22,14 @@ const OverlayContainer = styled.div`
   class-name: action-overlay;
 `;
 
-const ActionButton = styled.button`
-  background-color: rgba(255, 255, 255, 0.2);
-  border: 2px solid white;
-  border-radius: 50%;
-  width: 100px;
-  height: 100px;
+const AnimatedAction = styled.div`
   display: flex;
   flex-direction: column;
-  justify-content: center;
   align-items: center;
   cursor: pointer;
-  transition: all 0.3s ease;
-  color: white;
+  transition: transform 0.3s ease;
   
   &:hover {
-    background-color: rgba(255, 255, 255, 0.4);
     transform: scale(1.1);
   }
   
@@ -45,24 +38,27 @@ const ActionButton = styled.button`
   }
 `;
 
-const ActionIcon = styled.div`
-  width: 40px;
-  height: 40px;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  margin-bottom: 8px;
+const AnimationContainer = styled.div`
+  width: 180px;
+  height: 180px;
+  position: relative;
   
-  svg {
+  img {
+    position: absolute;
+    top: 0;
+    left: 0;
     width: 100%;
     height: 100%;
+    object-fit: contain;
+    opacity: 0;
+    transition: opacity 0.1s ease;
+    /* Apply filter to make the black images white */
+    filter: invert(100%) brightness(120%) drop-shadow(0 0 6px rgba(255, 255, 255, 0.5));
   }
-`;
-
-const ActionText = styled.div`
-  font-size: 1.2rem;
-  font-weight: bold;
-  text-align: center;
+  
+  img.active {
+    opacity: 1;
+  }
 `;
 
 const ActionOverlay = () => {
@@ -71,14 +67,78 @@ const ActionOverlay = () => {
   const actionDirection = useGameStore(state => state.actionDirection);
   const handleAction = useGameStore(state => state.handleAction);
   
-  // New state for component mounting and animations
+  // Component state
   const [isMounted, setIsMounted] = useState(false);
   const [isVisible, setIsVisible] = useState(false);
   const [isFadingOut, setIsFadingOut] = useState(false);
   
+  // Animation sequence constants
+  const WIGGLE_FRAMES = [1, 2]; // First two frames for wiggle animation
+  const BLINK_FRAMES = [3, 4, 5, 6]; // Remaining frames for blink animation
+  
+  // Animation sequence state
+  const [currentFrame, setCurrentFrame] = useState(WIGGLE_FRAMES[0]);
+  const [animationPhase, setAnimationPhase] = useState('wiggle'); // 'wiggle' or 'blink'
+  const wiggleCyclesRef = useRef(0);
+  const wiggleCycleTargetRef = useRef(6); // Loop wiggle 3 times before blinking
+  const wiggleFrameIndexRef = useRef(0);
+  const blinkFrameIndexRef = useRef(0);
+  const animationTimerRef = useRef(null);
+  
+  // Handle animation frame cycling
+  useEffect(() => {
+    if (isVisible && !isFadingOut) {
+      // Start the animation cycle
+      animationTimerRef.current = setInterval(() => {
+        if (animationPhase === 'wiggle') {
+          // Handle wiggle animation
+          wiggleFrameIndexRef.current = (wiggleFrameIndexRef.current + 1) % WIGGLE_FRAMES.length;
+          setCurrentFrame(WIGGLE_FRAMES[wiggleFrameIndexRef.current]);
+          
+          // Check if we completed a full wiggle cycle
+          if (wiggleFrameIndexRef.current === 0) {
+            wiggleCyclesRef.current += 1;
+            
+            // Check if we should transition to blink phase
+            if (wiggleCyclesRef.current >= wiggleCycleTargetRef.current) {
+              setAnimationPhase('blink');
+              wiggleCyclesRef.current = 0;
+              blinkFrameIndexRef.current = 0;
+            }
+          }
+        } else {
+          // Handle blink animation
+          blinkFrameIndexRef.current = (blinkFrameIndexRef.current + 1) % BLINK_FRAMES.length;
+          setCurrentFrame(BLINK_FRAMES[blinkFrameIndexRef.current]);
+          
+          // Check if we completed a full blink cycle
+          if (blinkFrameIndexRef.current === BLINK_FRAMES.length - 1) {
+            // Reset to wiggle phase
+            setAnimationPhase('wiggle');
+            wiggleFrameIndexRef.current = 0;
+          }
+        }
+      }, 150); // Speed of animation - adjust as needed
+      
+      return () => {
+        // Clean up timer when component unmounts or visibility changes
+        if (animationTimerRef.current) {
+          clearInterval(animationTimerRef.current);
+        }
+      };
+    }
+  }, [isVisible, isFadingOut, animationPhase]);
+  
   // Handle mounting/unmounting based on showActionOverlay state
   useEffect(() => {
     if (showActionOverlay) {
+      // Reset animation state
+      setAnimationPhase('wiggle');
+      wiggleCyclesRef.current = 0;
+      wiggleFrameIndexRef.current = 0;
+      blinkFrameIndexRef.current = 0;
+      setCurrentFrame(WIGGLE_FRAMES[0]);
+      
       // Mount the component
       setIsMounted(true);
       setIsFadingOut(false);
@@ -112,29 +172,32 @@ const ActionOverlay = () => {
     
     // Call the action handler
     handleAction();
-    
-    // No need to unmount here as the showActionOverlay state will change
-    // causing the useEffect to handle unmounting
   };
   
-  // Render different buttons based on action type and direction
-  const renderActionButton = () => {
+  // Render animated action based on action type and direction
+  const renderAnimatedAction = () => {
     if (actionType === 'move') {
       if (actionDirection === 'forward') {
         return (
-          <ActionButton onClick={handleActionButtonClick}>
-            <ActionIcon>
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M12 5V19M5 12l7-7 7 7" />
-              </svg>
-            </ActionIcon>
-            <ActionText>Move Forward</ActionText>
-          </ActionButton>
+          <AnimatedAction onClick={handleActionButtonClick}>
+            <AnimationContainer>
+              {/* Render all frames and use CSS to show only the active one */}
+              {[...WIGGLE_FRAMES, ...BLINK_FRAMES].map(frameNum => {
+                const paddedFrame = frameNum.toString().padStart(4, '0');
+                return (
+                  <img 
+                    key={`point${paddedFrame}`}
+                    src={`/point/point${paddedFrame}.png`}
+                    alt={`Animation frame ${frameNum}`}
+                    className={frameNum === currentFrame ? 'active' : ''}
+                  />
+                );
+              })}
+            </AnimationContainer>
+          </AnimatedAction>
         );
       }
-      // Add more directions as needed
     }
-    // Add more action types as needed
     
     return null;
   };
@@ -144,7 +207,7 @@ const ActionOverlay = () => {
   
   return (
     <OverlayContainer visible={isVisible} className="action-overlay">
-      {renderActionButton()}
+      {renderAnimatedAction()}
     </OverlayContainer>
   );
 };
