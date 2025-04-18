@@ -92,7 +92,7 @@ const MessageService = {
    * Show an enemy encounter message
    */
   showEnemyMessage: () => {
-    MessageService.showMessage("Not all problems can be solved with words....", {
+    MessageService.showMessage("!!!", {
       forceSwordVisibility: true
     });
   },
@@ -101,7 +101,7 @@ const MessageService = {
    * Show a chest encounter message
    */
   showChestMessage: () => {
-    MessageService.showMessage("A reward for the hero...", {
+    MessageService.showMessage("Mine", {
       preserveItemVisibility: true
     });
   }
