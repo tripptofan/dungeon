@@ -59,9 +59,9 @@ const Torch = (props) => {
                 <pointLight
                   ref={lightRef}
                   color="#ff6600"
-                  intensity={1.5}
-                  distance={5}
-                  decay={2}
+                  intensity={20}
+                  distance={15}
+                  decay={1}
                   castShadow
                   shadow-bias={-0.0005}
                 />

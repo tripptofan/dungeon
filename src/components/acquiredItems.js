@@ -694,7 +694,7 @@ const AcquiredItem = ({ item }) => {
               <OutlinedLantern 
                 outlineThickness={0.05} 
                 emissiveIntensity={0.4}
-                lightIntensity={5}
+                lightIntensity={9}
                 renderOrder={renderOrder.ACQUIRED_ITEMS}
               />
             </group>

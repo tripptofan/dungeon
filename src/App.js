@@ -294,12 +294,12 @@ function App() {
         )}
 
         {/* Performance monitoring for development */}
-        {showPerformance && (
+        {/* {showPerformance && (
           <PerformanceInfo visible={true}>
             <div>FPS: {fps}</div>
             <div>Device: {isMobile ? 'Mobile' : 'Desktop'}</div>
           </PerformanceInfo>
-        )}
+        )} */}
       </StyledCanvasWrapper>
     </>
   );
