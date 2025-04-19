@@ -29,6 +29,15 @@ const AnimatedAction = styled.div`
   cursor: pointer;
   transition: transform 0.3s ease;
   
+  /* Remove outline/highlight on click for all browsers */
+  outline: none;
+  -webkit-tap-highlight-color: transparent; /* For iOS */
+  
+  /* Remove focus styles */
+  &:focus {
+    outline: none;
+  }
+  
   &:hover {
     transform: scale(1.1);
   }
@@ -43,6 +52,9 @@ const AnimationContainer = styled.div`
   height: 180px;
   position: relative;
   
+  /* Remove highlight on touch for container */
+  -webkit-tap-highlight-color: transparent;
+  
   img {
     position: absolute;
     top: 0;
@@ -54,6 +66,11 @@ const AnimationContainer = styled.div`
     transition: opacity 0.1s ease;
     /* Apply filter to make the black images white */
     filter: invert(100%) brightness(120%) drop-shadow(0 0 6px rgba(255, 255, 255, 0.5));
+    
+    /* Remove highlight on touch for images */
+    -webkit-user-select: none;
+    -webkit-touch-callout: none;
+    -webkit-tap-highlight-color: transparent;
   }
   
   img.active {

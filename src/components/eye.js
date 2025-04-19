@@ -3,7 +3,15 @@ import { useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 import useGameStore from '../store';
 
-const Eye = ({ position = [0, 0, 0], scale = [.5, .5], rotation = [0, Math.PI, 0], emissiveIntensity = 1, randomize = true }) => {
+const Eye = ({ 
+  position = [0, 0, 0], 
+  scale = [.5, .5], 
+  rotation = [0, Math.PI, 0], 
+  emissiveIntensity = 1, 
+  randomize = true,
+  float = true, // New prop for floating animation
+  opacity = 1 // Keep opacity prop
+}) => {
   const eyeRef = useRef();
   const materialRef = useRef();
   const { camera } = useThree();
@@ -35,6 +43,18 @@ const Eye = ({ position = [0, 0, 0], scale = [.5, .5], rotation = [0, Math.PI, 0
   
   // Get player position from store
   const playerPosition = useGameStore(state => state.playerPosition);
+  
+  // Enhanced floating animation refs with more randomization
+  const floatPhaseRef = useRef(Math.random() * Math.PI * 2); // Random starting phase
+  const floatAmplitudeRef = useRef(randomize ? 0.02 + Math.random() * 0.03 : 0.04); // Increased amplitude, randomized if enabled
+  const floatSpeedRef = useRef(randomize ? 0.8 + Math.random() * 1.4 : 1.5); // Randomized speed between 0.8 and 2.2
+  const [floatOffset, setFloatOffset] = useState(0);
+  
+  // Add horizontal floating for more organic movement
+  const horizPhaseRef = useRef(Math.random() * Math.PI * 2); // Different phase for horizontal
+  const horizAmplitudeRef = useRef(randomize ? 0.01 + Math.random() * 0.02 : 0.02); // Smaller horizontal amplitude
+  const horizSpeedRef = useRef(randomize ? 0.5 + Math.random() * 0.8 : 0.8); // Slower horizontal movement
+  const [horizOffset, setHorizOffset] = useState(0);
   
   // Set initial position in front of player
   useEffect(() => {
@@ -204,7 +224,36 @@ const Eye = ({ position = [0, 0, 0], scale = [.5, .5], rotation = [0, Math.PI, 0
   
   // Handle animation frames
   useFrame((state, delta) => {
-    if (!eyeRef.current || !framesLoadedRef.current) return;
+    if (!eyeRef.current) return;
+    
+    // Handle enhanced floating animation if enabled
+    if (float && eyeRef.current) {
+      // Update vertical float phase
+      floatPhaseRef.current += delta * floatSpeedRef.current; // Use randomized speed
+      
+      // Update horizontal float phase at different speed
+      horizPhaseRef.current += delta * horizSpeedRef.current;
+      
+      // Calculate new offsets using sine wave
+      const newVertOffset = Math.sin(floatPhaseRef.current) * floatAmplitudeRef.current;
+      const newHorizOffset = Math.sin(horizPhaseRef.current) * horizAmplitudeRef.current;
+      
+      setFloatOffset(newVertOffset);
+      setHorizOffset(newHorizOffset);
+      
+      // Apply floating movement to the eye's position
+      eyeRef.current.position.y = newVertOffset;
+      eyeRef.current.position.x = newHorizOffset;
+      
+      // Add a subtle rotation based on the position for more organic movement
+      if (randomize) {
+        eyeRef.current.rotation.z = newVertOffset * 0.2; // Slight tilt based on vertical position
+        eyeRef.current.rotation.x = newHorizOffset * 0.1; // Slight forward/back tilt based on horizontal
+      }
+    }
+    
+    // Skip frame animation if frames aren't loaded
+    if (!framesLoadedRef.current) return;
     
     // Accumulate time since last frame
     frameTimeRef.current += delta;
@@ -293,6 +342,7 @@ const Eye = ({ position = [0, 0, 0], scale = [.5, .5], rotation = [0, Math.PI, 0
           side={THREE.DoubleSide}
           emissive={emissiveColor} // Using the random color
           emissiveIntensity={emissiveIntensity}
+          opacity={opacity} // Use the opacity prop for fading
           map={isBlinkingRef.current 
             ? blinkTexturesRef.current[currentFrame] 
             : wiggleTexturesRef.current[currentFrame]

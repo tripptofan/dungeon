@@ -24,7 +24,7 @@ const Enemy = () => {
   
   // Hit counter state - NEW
   const hitCountRef = useRef(0);
-  const totalHitsRequired = 10; // NEW - Number of hits required to defeat enemy
+  const totalHitsRequired = 3; // NEW - Number of hits required to defeat enemy
   const [hitFlashActive, setHitFlashActive] = useState(false); // NEW - For visual feedback
   
   // Get render order constants from store
@@ -166,7 +166,7 @@ const Enemy = () => {
       const newPosition = {
         x: playerPosition.x,
         y: -5, // Start below the floor
-        z: playerPosition.z + 6 // 6 units in front of the player
+        z: playerPosition.z + 4 // 6 units in front of the player
       };
       
       console.log("Setting enemy position to:", newPosition);

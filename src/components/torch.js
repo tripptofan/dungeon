@@ -57,6 +57,7 @@ const Torch = (props) => {
                 
                 {/* Add a point light inside the fire */}
                 <pointLight
+                    position={[0, 0, -.5]}
                   ref={lightRef}
                   color="#ff6600"
                   intensity={20}
@@ -86,26 +87,6 @@ const Torch = (props) => {
                   material={materials.lambert1}
                 />
               </group>
-              {/* <group position={[1298.303, 0, -301.482]}>
-                <mesh
-                  castShadow
-                  receiveShadow
-                  geometry={nodes.pCylinder50_dark_metal_0.geometry}
-                  material={materials.dark_metal}
-                />
-                <mesh
-                  castShadow
-                  receiveShadow
-                  geometry={nodes.pCylinder50_wood_2_0.geometry}
-                  material={materials.wood_2}
-                />
-                <mesh
-                  castShadow
-                  receiveShadow
-                  geometry={nodes.pCylinder50_lambert1_0.geometry}
-                  material={materials.lambert1}
-                />
-              </group> */}
             </group>
           </group>
         </group>
