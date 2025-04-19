@@ -719,27 +719,28 @@ const useGameStore = create((set, get) => ({
   
   // Update the sword swing animation progress (called in animation loop)
   updateSwordSwing: (delta) => {
-    const state = get();
-    
-    if (state.swordSwinging) {
-      // Adjusted swing progression speed for a more dramatic effect
-      // This makes the initial part of the swing faster and the follow-through slower
-      let speedMultiplier = 3.0;
+    set((state) => {
+      if (!state.swordSwinging) return state;
       
-      // Slow down in the second half of the animation for better follow-through
-      if (state.swingProgress > 0.5) {
-        speedMultiplier = 1.5;
-      }
+      // Slow down the overall animation by using a smaller increment
+      // Reduce this value to make the animation even slower
+      const progressIncrement = delta * 0.5; // Reduced from 1.0 to 0.5 for 50% slower animation
       
-      const newProgress = state.swingProgress + (delta * state.swingSpeed * speedMultiplier);
+      const newProgress = state.swingProgress + progressIncrement;
       
+      // If the animation is complete, reset
       if (newProgress >= 1) {
-        // Animation complete
-        get().completeSwordSwing();
-      } else {
-        set({ swingProgress: newProgress });
+        return {
+          swordSwinging: false,
+          swingProgress: 0
+        };
       }
-    }
+      
+      // Otherwise continue the animation
+      return {
+        swingProgress: newProgress
+      };
+    });
   },
   
   // Complete the sword swing animation

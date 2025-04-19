@@ -22,6 +22,9 @@ const TreasureChest = () => {
   const fadeStartRef = useRef(null);
   const prizeState = useGameStore(state => state.prizeState);
   
+  // Add state for lid rotation
+  const [lidRotation, setLidRotation] = useState(0);
+
   useEffect(() => {
     // Start fading when prize is acquired (removed from scene)
     if (prizeState === 'acquired' && !isFading) {
@@ -158,7 +161,7 @@ const TreasureChest = () => {
   };
   
   // Simplified useFrame - just ensure chest position is correct and handle fade animation
-  useFrame(() => {
+  useFrame((state, delta) => {
     if (!chestRef.current) return;
     
     if (chestRef.current && chestRef.current.position.y !== 0.5) {
@@ -191,6 +194,13 @@ const TreasureChest = () => {
         console.log("Chest faded out, door is now clickable!");
       }
     }
+
+    // Handle chest lid opening animation
+    if (chestOpened && lidRotation < Math.PI / 2) {
+      // Animate lid opening up to 90 degrees
+      const newRotation = Math.min(lidRotation + delta * 2, Math.PI / 2);
+      setLidRotation(newRotation);
+    }
   });
   
   // Determine if chest is currently interactive - computed value
@@ -207,7 +217,7 @@ const TreasureChest = () => {
       ref={chestRef}
       position={[chestPositionRef.current.x, 0.5, chestPositionRef.current.z]}
       onClick={handleChestClick}
-      rotation={[0, Math.PI, 0]}
+      rotation={[0, 0, 0]}
     >
       {/* Main chest body */}
       <mesh renderOrder={renderOrder.TREASURE_CHEST}>
@@ -225,35 +235,38 @@ const TreasureChest = () => {
         />
       </mesh>
       
-      {/* Chest lid */}
-      <mesh position={[0, 0.5, 0]} renderOrder={renderOrder.TREASURE_CHEST + 1}>
-        <boxGeometry args={[2, 0.3, 1.2]} />
-        <meshStandardMaterial 
-          color="#A0522D" // Slightly different brown for contrast
-          roughness={0.6}
-          metalness={0.4}
-          transparent={true}
-          opacity={opacity}
-          depthTest={true}
-          depthWrite={true} // Enable depth writing
-        />
-      </mesh>
-      
-      {/* Metal details/lock */}
-      <mesh position={[0, 0.3, 0.6]} renderOrder={renderOrder.TREASURE_CHEST + 2}>
-        <boxGeometry args={[0.4, 0.4, 0.1]} />
-        <meshStandardMaterial 
-          color="#FFD700" // Gold color
-          roughness={0.3}
-          metalness={0.8}
-          emissive="#FFD700"
-          emissiveIntensity={glowIntensity}
-          transparent={true}
-          opacity={opacity}
-          depthTest={true}
-          depthWrite={true} // Enable depth writing
-        />
-      </mesh>
+      {/* Chest lid and lock group with pivot point at the back of the lid, lowered by 0.15 on y-axis */}
+      <group position={[0, -0.15, 0.6]} rotation={[lidRotation, 0, 0]}>
+        {/* Chest lid - position adjusted relative to new pivot point */}
+        <mesh position={[0, .65, -0.6]} renderOrder={renderOrder.TREASURE_CHEST + 1}>
+          <boxGeometry args={[2, 0.3, 1.2]} />
+          <meshStandardMaterial 
+            color="#A0522D" // Slightly different brown for contrast
+            roughness={0.6}
+            metalness={0.4}
+            transparent={true}
+            opacity={opacity}
+            depthTest={true}
+            depthWrite={true}
+          />
+        </mesh>
+        
+        {/* Metal lock - position adjusted relative to new pivot point */}
+        <mesh position={[0, .45, -1.2]} renderOrder={renderOrder.TREASURE_CHEST + 2}>
+          <boxGeometry args={[0.4, 0.4, 0.1]} />
+          <meshStandardMaterial 
+            color="#FFD700" // Gold color
+            roughness={0.3}
+            metalness={0.8}
+            emissive="#FFD700"
+            emissiveIntensity={glowIntensity}
+            transparent={true}
+            opacity={opacity}
+            depthTest={true}
+            depthWrite={true}
+          />
+        </mesh>
+      </group>
     </group>
   );
 };

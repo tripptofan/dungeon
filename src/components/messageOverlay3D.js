@@ -453,14 +453,16 @@ const MessageOverlay3D = () => {
           scale={[.2, .2]} // Reduced from .25 to .2 (20% smaller)
           rotation={[0, 0, 0]}
           opacity={opacity} // Already tied to the overlay opacity
-          randomize={false}
+          randomize={true} // Enable randomization for more natural movement
+          float={false}
         />
         <Eye 
           position={[-.2, .06, 0]} // Increased Y offset from .03 to .06 to raise further
           scale={[.2, .2]} // Reduced from .25 to .2 (20% smaller)
           rotation={[0, 0, 0]}
           opacity={opacity} // Already tied to the overlay opacity
-          randomize={false}
+          randomize={true} // Enable randomization for more natural movement
+          float={false}
         />
       </group>
     </group>

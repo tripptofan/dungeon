@@ -13,7 +13,7 @@ export const acquiredItemRefs = [];
 const ACQUIRED_ITEMS_CONFIG = {
   "Lantern": {
     // These are base values that will be modified based on viewport
-    position: new THREE.Vector3(-0.3, -0.45, -1.1), // Updated resting position
+    position: new THREE.Vector3(-0.3, -0.45, -1.1), // Keep this as the main source of truth
     rotation: new THREE.Euler(0, (-Math.PI / 2) * 0.7, 0),
     scale: 0.15,
     bobAmount: 0.02,
@@ -38,22 +38,21 @@ const ACQUIRED_ITEMS_CONFIG = {
 
 // Define all sword and lantern animation positions/rotations
 const SWORD_POSITIONS = {
-  // resting: new THREE.Vector3(0.4, 5, 2),
   resting: new THREE.Vector3(0.4, -0.5, -1.1),
-  raised: new THREE.Vector3(0.4, 5, 2),  // Increased Y value to 1.0 for higher raise
-  swung: new THREE.Vector3(-0.4, -0.9, -1.1)
+  raised: new THREE.Vector3(0.4, 5, 2),
+  swung:new THREE.Vector3(-3, -2, -2.1)
 };
 
 const SWORD_ROTATIONS = {
-  // resting: new THREE.Euler(-Math.PI / 50 * -3, 0, (Math.PI / 4) * -.2),
   resting: new THREE.Euler(-Math.PI / 80, 0, (Math.PI / 4) * -.1),
   raised: new THREE.Euler(-Math.PI / 50 * -3, 0, (Math.PI / 4) * -.2),
-  swung: new THREE.Euler(-Math.PI / 2, 0.6, (Math.PI / 4) * 0.1)
+  swung:  new THREE.Euler(Math.PI * -.4, .6, (Math.PI / 4) * -.1)
 };
 
+// Synchronize LANTERN_POSITIONS.resting with the initial position from ACQUIRED_ITEMS_CONFIG
 const LANTERN_POSITIONS = {
-  resting: new THREE.Vector3(-0.3, -0.45, -1.1), // Updated resting position
-  active: new THREE.Vector3(-0.6, -0.75, -1.1)   // Updated position during sword swing
+  resting: ACQUIRED_ITEMS_CONFIG["Lantern"].position.clone(), // Use the same position as the config
+  active: new THREE.Vector3(-0.6, -0.45, -1.1)  // Keep same active position
 };
 
 // Individual acquired item component that renders regardless of overlay state
@@ -500,21 +499,21 @@ const AcquiredItem = ({ item }) => {
       ];
     }
     
-    // Animation timing configuration - FURTHER SLOWED DOWN raise phase
-    const raisePhaseEnd = 0.4;       // 0-40% of animation is raising the sword (was 0.35)
-    const swingPhaseEnd = 0.75;      // 40-75% is the swing
-    const returnPhaseStart = 0.75;   // 75-100% is returning to resting
+    // Animation timing configuration - REBALANCED
+    const raisePhaseEnd = 0.25;       // 0-25% of animation is raising the sword (reduced from 35%)
+    const swingPhaseEnd = 0.65;       // 25-85% is the swing (same endpoint, longer duration)
+    const returnPhaseStart = 0.85;    // 85-100% is returning to resting (unchanged)
     
-    // Animation speed factors - REDUCED for slower animation
-    const raiseSpeed = 0.6;          // Speed multiplier for raise phase (was 0.8)
-    const swingSpeed = 0.9;          // Speed multiplier for swing phase
-    const returnSpeed = 0.6;         // Speed multiplier for return phase
+    // Animation speed factors - FASTER RAISE, SAME SWING SPEED
+    const raiseSpeed = 0.7;           // Speed multiplier for raise phase (increased from 0.4 to 0.7)
+    const swingSpeed = 0.6;           // Speed multiplier for swing phase (unchanged)
+    const returnSpeed = 0.5;          // Speed multiplier for return phase (unchanged)
     
     // Calculate current position
     let currentPosition = new THREE.Vector3();
     
     if (progress < raisePhaseEnd) {
-      // Phase 1: Raising the sword (0% to 40%)
+      // Phase 1: Raising the sword (0% to 25%)
       // Normalize progress for this phase
       const phaseProgress = Math.min(1, (progress / raisePhaseEnd) * raiseSpeed);
       
@@ -530,7 +529,7 @@ const AcquiredItem = ({ item }) => {
       );
     } 
     else if (progress < swingPhaseEnd) {
-      // Phase 2: Swinging the sword (40% to 75%)
+      // Phase 2: Swinging the sword (25% to 85%)
       // Normalize progress for this phase
       const phaseProgress = Math.min(1, ((progress - raisePhaseEnd) / (swingPhaseEnd - raisePhaseEnd)) * swingSpeed);
       const easedProgress = easeOutQuint(phaseProgress);
@@ -543,7 +542,7 @@ const AcquiredItem = ({ item }) => {
       );
     }
     else {
-      // Phase 3: Return to resting position (75% to 100%)
+      // Phase 3: Return to resting position (85% to 100%)
       // Normalize progress for this phase
       const phaseProgress = Math.min(1, ((progress - returnPhaseStart) / (1 - returnPhaseStart)) * returnSpeed);
       const easedProgress = easeInOutCubic(phaseProgress);
@@ -571,20 +570,20 @@ const AcquiredItem = ({ item }) => {
     }
     
     // Use the same animation phases as the position calculation
-    const raisePhaseEnd = 0.4;      // Increased to 40%
-    const swingPhaseEnd = 0.75;     
-    const returnPhaseStart = 0.75;  
+    const raisePhaseEnd = 0.25;      // Reduced to 25% to match position calculation
+    const swingPhaseEnd = 0.85;      // 85% matches position calculation
+    const returnPhaseStart = 0.85;   // 85% matches position calculation
     
-    // Animation speed factors - REDUCED for slower animation
-    const raiseSpeed = 0.6;        // Reduced from 0.8
-    const swingSpeed = 0.9;        
-    const returnSpeed = 0.6;       
+    // Animation speed factors - FASTER RISE
+    const raiseSpeed = 0.7;         // Increased from 0.4 to 0.7
+    const swingSpeed = 0.6;         // Unchanged
+    const returnSpeed = 0.5;        // Unchanged
     
     // Calculate current rotation
     let x, y, z;
     
     if (progress < raisePhaseEnd) {
-      // Phase 1: Raising the sword (0% to 40%)
+      // Phase 1: Raising the sword (0% to 25%)
       const phaseProgress = Math.min(1, (progress / raisePhaseEnd) * raiseSpeed);
       const easedProgress = easeOutBack(phaseProgress);
       
@@ -594,7 +593,7 @@ const AcquiredItem = ({ item }) => {
       z = THREE.MathUtils.lerp(SWORD_ROTATIONS.resting.z, SWORD_ROTATIONS.raised.z, easedProgress);
     } 
     else if (progress < swingPhaseEnd) {
-      // Phase 2: Swinging the sword (40% to 75%)
+      // Phase 2: Swinging the sword (25% to 85%)
       const phaseProgress = Math.min(1, ((progress - raisePhaseEnd) / (swingPhaseEnd - raisePhaseEnd)) * swingSpeed);
       const easedProgress = easeOutQuint(phaseProgress);
       
@@ -604,7 +603,7 @@ const AcquiredItem = ({ item }) => {
       z = THREE.MathUtils.lerp(SWORD_ROTATIONS.raised.z, SWORD_ROTATIONS.swung.z, easedProgress);
     }
     else {
-      // Phase 3: Return to resting position (75% to 100%)
+      // Phase 3: Return to resting position (85% to 100%)
       const phaseProgress = Math.min(1, ((progress - returnPhaseStart) / (1 - returnPhaseStart)) * returnSpeed);
       const easedProgress = easeInOutCubic(phaseProgress);
       
@@ -617,36 +616,10 @@ const AcquiredItem = ({ item }) => {
     return [x, y, z];
   };
 
-  // Calculate lantern movement during sword swing
+  // Calculate lantern movement during sword swing - UPDATED to keep lantern still
   const calculateLanternPosition = (progress) => {
-    if (item.name !== "Lantern" || !swordSwinging) {
-      return null; // Only apply to lantern and only during sword swing
-    }
-    
-    // Animation timing configuration
-    const affectLanternStart = 0.25;  // Start moving lantern when sword starts swinging
-    const affectLanternEnd = 0.75;    // Return lantern to normal position
-    
-    // Only move lantern during the actual swing phase
-    if (progress < affectLanternStart || progress > affectLanternEnd) {
-      return null; // Use default positioning outside of swing phase
-    }
-    
-    // Normalize progress for lantern movement
-    const lanternPhaseLength = affectLanternEnd - affectLanternStart;
-    const normalizedProgress = (progress - affectLanternStart) / lanternPhaseLength;
-    
-    // Create a bell curve effect: lantern moves away during middle of swing
-    const bellCurve = Math.sin(normalizedProgress * Math.PI);
-    
-    // Lerp between resting and active position based on bell curve
-    const currentPosition = new THREE.Vector3(
-      THREE.MathUtils.lerp(LANTERN_POSITIONS.resting.x, LANTERN_POSITIONS.active.x, bellCurve),
-      THREE.MathUtils.lerp(LANTERN_POSITIONS.resting.y, LANTERN_POSITIONS.active.y, bellCurve),
-      THREE.MathUtils.lerp(LANTERN_POSITIONS.resting.z, LANTERN_POSITIONS.active.z, bellCurve)
-    );
-    
-    return [currentPosition.x, currentPosition.y, currentPosition.z];
+    // Return null to use the default position regardless of sword swinging state
+    return null;
   };
 
   // Easing functions for more natural animation
@@ -676,6 +649,11 @@ const AcquiredItem = ({ item }) => {
     const c1 = 1.70158;
     const c3 = c1 + 1;
     return c3 * x * x * x - c1 * x * x;
+  };
+
+  // Add this easing function if it doesn't already exist in your code
+  const easeInCubic = (x) => {
+    return x * x * x;
   };
 
   // Render the appropriate model based on item type

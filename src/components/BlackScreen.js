@@ -48,6 +48,9 @@ const Letter = styled.span`
 const BlackScreen = () => {
   const blackScreenOpacity = useGameStore(state => state.blackScreenOpacity);
   const portalEntered = useGameStore(state => state.portalEntered);
+  
+  // Keeping the useState and useRef declarations to make it easy to re-enable later
+  // But we won't use them for now
   const [showText, setShowText] = useState(false);
   const [letterOffsets, setLetterOffsets] = useState([]);
   const animationFrameRef = useRef(null);
@@ -55,6 +58,8 @@ const BlackScreen = () => {
   
   const text = "see you there";
   
+  // Comment out the text-related effects and animations
+  /*
   // Initialize random offsets for each letter
   useEffect(() => {
     if (text) {
@@ -121,12 +126,14 @@ const BlackScreen = () => {
       };
     }
   }, [showText, letterOffsets.length]);
+  */
   
   return (
     <Overlay 
       opacity={blackScreenOpacity} 
       isPortalEntered={portalEntered} 
     >
+      {/* Text display temporarily hidden 
       {portalEntered && (
         <FarewellTextContainer visible={showText}>
           {text.split('').map((letter, index) => (
@@ -140,6 +147,7 @@ const BlackScreen = () => {
           ))}
         </FarewellTextContainer>
       )}
+      */}
     </Overlay>
   );
 };
