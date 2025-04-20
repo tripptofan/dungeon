@@ -9,8 +9,8 @@ const Eye = ({
   rotation = [0, Math.PI, 0], 
   emissiveIntensity = 1, 
   randomize = true,
-  float = true, // New prop for floating animation
-  opacity = 1 // Keep opacity prop
+  float = true,
+  opacity = 1
 }) => {
   const eyeRef = useRef();
   const materialRef = useRef();
@@ -30,9 +30,9 @@ const Eye = ({
   // Random color for the eye
   const [emissiveColor, setEmissiveColor] = useState('#ffffff'); // Default white
   
-  // Animation sequence tracking - UPDATED for 2 wiggle frames
-  const WIGGLE_FRAME_COUNT = 2; // CHANGED from 3 to 2 frames: wiggle1.png to wiggle2.png
-  const BLINK_FRAME_COUNT = 5;  // 5 frames: blink1.png to blink5.png
+  // Animation sequence tracking
+  const WIGGLE_FRAME_COUNT = 2;
+  const BLINK_FRAME_COUNT = 5;
   
   // Store loaded textures
   const wiggleTexturesRef = useRef([]);
@@ -45,28 +45,27 @@ const Eye = ({
   const playerPosition = useGameStore(state => state.playerPosition);
   
   // Enhanced floating animation refs with more randomization
-  const floatPhaseRef = useRef(Math.random() * Math.PI * 2); // Random starting phase
-  const floatAmplitudeRef = useRef(randomize ? 0.02 + Math.random() * 0.03 : 0.04); // Increased amplitude, randomized if enabled
-  const floatSpeedRef = useRef(randomize ? 0.8 + Math.random() * 1.4 : 1.5); // Randomized speed between 0.8 and 2.2
+  const floatPhaseRef = useRef(Math.random() * Math.PI * 2);
+  const floatAmplitudeRef = useRef(randomize ? 0.02 + Math.random() * 0.03 : 0.04);
+  const floatSpeedRef = useRef(randomize ? 0.8 + Math.random() * 1.4 : 1.5);
   const [floatOffset, setFloatOffset] = useState(0);
   
   // Add horizontal floating for more organic movement
-  const horizPhaseRef = useRef(Math.random() * Math.PI * 2); // Different phase for horizontal
-  const horizAmplitudeRef = useRef(randomize ? 0.01 + Math.random() * 0.02 : 0.02); // Smaller horizontal amplitude
-  const horizSpeedRef = useRef(randomize ? 0.5 + Math.random() * 0.8 : 0.8); // Slower horizontal movement
+  const horizPhaseRef = useRef(Math.random() * Math.PI * 2);
+  const horizAmplitudeRef = useRef(randomize ? 0.01 + Math.random() * 0.02 : 0.02);
+  const horizSpeedRef = useRef(randomize ? 0.5 + Math.random() * 0.8 : 0.8);
   const [horizOffset, setHorizOffset] = useState(0);
   
   // Set initial position in front of player
   useEffect(() => {
-    // Position the eye 5 units in front of the player with a slight offset to avoid blocking
     setEyePosition({
       x: playerPosition.x,
       y: playerPosition.y, 
-      z: playerPosition.z + 5 // Assuming player is facing negative Z
+      z: playerPosition.z + 5
     });
   }, [playerPosition]);
   
-  const wiggleCycleTargetRef = useRef(0); // Target number of wiggle cycles before blinking
+  const wiggleCycleTargetRef = useRef(0);
 
   useEffect(() => {
       // Available colors for the eye
@@ -83,7 +82,7 @@ const Eye = ({
         const randomColorIndex = Math.floor(Math.random() * availableColors.length);
         setEmissiveColor(availableColors[randomColorIndex]);
       } else {
-        setEmissiveColor('#ffffff'); // Default to white when not randomizing
+        setEmissiveColor('#ffffff');
       }
       
       const textureLoader = new THREE.TextureLoader();
@@ -93,7 +92,7 @@ const Eye = ({
       // Create promise arrays for loading
       const loadPromises = [];
       
-      // Load wiggle frames (wiggle1.png through wiggle2.png)
+      // Load wiggle frames
       for (let i = 1; i <= WIGGLE_FRAME_COUNT; i++) {
         const framePath = `/eye/wiggle/wiggle${i}.png`;
         
@@ -112,10 +111,9 @@ const Eye = ({
               wiggleTextures[i-1] = texture;
               resolve();
             },
-            undefined, // onProgress callback not needed
+            undefined,
             (error) => {
-              console.error(`Error loading wiggle frame ${framePath}:`, error);
-              resolve(); // Resolve anyway to avoid blocking other frames
+              resolve();
             }
           );
         });
@@ -123,7 +121,7 @@ const Eye = ({
         loadPromises.push(loadPromise);
       }
       
-      // Load blink frames (blink1.png through blink5.png)
+      // Load blink frames
       for (let i = 1; i <= BLINK_FRAME_COUNT; i++) {
         const framePath = `/eye/blink/blink${i}.png`;
         
@@ -142,10 +140,9 @@ const Eye = ({
               blinkTextures[i-1] = texture;
               resolve();
             },
-            undefined, // onProgress callback not needed
+            undefined,
             (error) => {
-              console.error(`Error loading blink frame ${framePath}:`, error);
-              resolve(); // Resolve anyway to avoid blocking other frames
+              resolve();
             }
           );
         });
@@ -176,12 +173,7 @@ const Eye = ({
           }
           
           // Set a random wiggle cycle target between 7 and 10
-          wiggleCycleTargetRef.current = Math.floor(Math.random() * 4) + 7; // Random number between 7 and 10
-          
-          console.log(`Loaded ${wiggleTextures.length} wiggle frames and ${blinkTextures.length} blink frames for eye`);
-          console.log(`Starting with ${isBlinkFrame ? 'blink' : 'wiggle'} frame ${randomFrameIndex}`);
-          console.log(`Random wiggle cycle target set to ${wiggleCycleTargetRef.current}`);
-          console.log(`Eye color set to ${emissiveColor}`);
+          wiggleCycleTargetRef.current = Math.floor(Math.random() * 4) + 7;
         } else {
           // Use deterministic starting state when not randomizing
           setCurrentFrame(0);
@@ -193,12 +185,7 @@ const Eye = ({
           }
           
           // Use a fixed wiggle cycle target
-          wiggleCycleTargetRef.current = 8; // Default to 8 cycles when not randomizing
-          
-          console.log(`Loaded ${wiggleTextures.length} wiggle frames and ${blinkTextures.length} blink frames for eye`);
-          console.log(`Starting with wiggle frame 0 (non-randomized)`);
-          console.log(`Fixed wiggle cycle target set to ${wiggleCycleTargetRef.current}`);
-          console.log(`Eye color set to white (non-randomized)`);
+          wiggleCycleTargetRef.current = 8;
         }
       });
       
@@ -212,7 +199,7 @@ const Eye = ({
           if (texture) texture.dispose();
         });
       };
-    }, [randomize]); // Add randomize to dependency array to re-run when it changes
+    }, [randomize]);
     
   // Add effect to update emissive intensity when the prop changes
   useEffect(() => {
@@ -229,7 +216,7 @@ const Eye = ({
     // Handle enhanced floating animation if enabled
     if (float && eyeRef.current) {
       // Update vertical float phase
-      floatPhaseRef.current += delta * floatSpeedRef.current; // Use randomized speed
+      floatPhaseRef.current += delta * floatSpeedRef.current;
       
       // Update horizontal float phase at different speed
       horizPhaseRef.current += delta * horizSpeedRef.current;
@@ -247,8 +234,8 @@ const Eye = ({
       
       // Add a subtle rotation based on the position for more organic movement
       if (randomize) {
-        eyeRef.current.rotation.z = newVertOffset * 0.2; // Slight tilt based on vertical position
-        eyeRef.current.rotation.x = newHorizOffset * 0.1; // Slight forward/back tilt based on horizontal
+        eyeRef.current.rotation.z = newVertOffset * 0.2;
+        eyeRef.current.rotation.x = newHorizOffset * 0.1;
       }
     }
     
@@ -322,33 +309,29 @@ const Eye = ({
   // Don't render if position isn't set yet
   if (!eyePosition) return null;
   
-  // Fix: modify renderOrder to ensure eyes don't render on top of treasure chest
-  // Use a lower renderOrder value than the TREASURE_CHEST value
   const effectiveRenderOrder = renderOrder.EYES;
   
-  // Add a light to ensure the eye is visible
   return (
     <group position={position}>
-      {/* Main eye mesh */}
       <mesh 
         ref={eyeRef}
-        rotation={rotation} // Ensure the eye faces the correct direction
+        rotation={rotation}
         renderOrder={effectiveRenderOrder}
       >
-        <planeGeometry args={scale} /> {/* Adjust size as needed */}
+        <planeGeometry args={scale} />
         <meshStandardMaterial 
           ref={materialRef}
           transparent={true}
           side={THREE.DoubleSide}
-          emissive={emissiveColor} // Using the random color
+          emissive={emissiveColor}
           emissiveIntensity={emissiveIntensity}
-          opacity={opacity} // Use the opacity prop for fading
+          opacity={opacity}
           map={isBlinkingRef.current 
             ? blinkTexturesRef.current[currentFrame] 
             : wiggleTexturesRef.current[currentFrame]
           }
-          depthTest={true}  // Enable depth test to properly handle occlusion
-          depthWrite={false}  // Disable depth write to prevent occluding other objects
+          depthTest={true}
+          depthWrite={false}
         />
       </mesh>
     </group>

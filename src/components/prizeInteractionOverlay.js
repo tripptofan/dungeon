@@ -2,6 +2,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import styled from 'styled-components';
 import useGameStore from '../store';
+import { trackCalendarButton, trackDownloadButton } from '../utils/GoogleAnalytics';
+
 
 // Styled components for the overlay
 const OverlayContainer = styled.div`
@@ -278,6 +280,20 @@ const PrizeInteractionOverlay = () => {
   const handleCalendarClick = () => {
     console.log("Calendar button clicked - generating calendar event");
     const originalInnerHTML = document.activeElement.innerHTML;
+    
+    // Track this event in Google Analytics - IMPORTANT: call directly with gtag
+    if (window.gtag) {
+      window.gtag('event', 'button_click', {
+        'event_category': 'interaction', 
+        'button_name': 'calendar',
+        'transport_type': 'beacon', // More reliable tracking
+        'non_interaction': false // Ensure it counts as an interaction
+      });
+      console.log("Calendar button event tracked directly via gtag");
+    } else {
+      console.warn("gtag not available for calendar tracking");
+    }
+    
     try {
       // Show some visual feedback that the calendar file is being generated
       if (document.activeElement.tagName === 'BUTTON') {
@@ -324,10 +340,25 @@ const PrizeInteractionOverlay = () => {
       }
     }
   };
-
+  
+  // Update the handleDownloadClick function
   const handleDownloadClick = async () => {
     console.log("Download button clicked - generating image for prize");
     const originalInnerHTML = document.activeElement.innerHTML;
+    
+    // Track this event in Google Analytics - IMPORTANT: call directly with gtag
+    if (window.gtag) {
+      window.gtag('event', 'button_click', {
+        'event_category': 'interaction', 
+        'button_name': 'download',
+        'transport_type': 'beacon', // More reliable tracking
+        'non_interaction': false // Ensure it counts as an interaction
+      });
+      console.log("Download button event tracked directly via gtag");
+    } else {
+      console.warn("gtag not available for download tracking");
+    }
+    
     try {
       // Show some visual feedback that the download is being prepared
       if (document.activeElement.tagName === 'BUTTON') {

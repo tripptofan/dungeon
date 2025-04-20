@@ -19,6 +19,7 @@ import CameraShake from './components/cameraShake';
 import DeviceDetection from './DeviceDetection';
 import Enemy from './components/enemy';
 import SimpleFpsLimiter from './components/SimpleFpsLimiter';
+import { initializeGA } from './utils/GoogleAnalytics';
 
 // Commenting out LookAroundControl to disable it
 // import LookAroundControl from './components/lookAroundControl';
@@ -65,7 +66,9 @@ const LoadingProgressBar = styled.div`
 `;
 
 // Black overlay that fades out with CSS
-const BlackOverlay = styled.div`
+const BlackOverlay = styled.div.withConfig({
+  shouldForwardProp: (prop) => !['isVisible'].includes(prop)
+})`
   position: fixed;
   top: 0;
   left: 0;
@@ -158,6 +161,7 @@ function App() {
 
   // Initialize scene loading sequence
   useEffect(() => {
+    initializeGA();
     // Show loading indicator initially
     setSceneLoaded(false);
     setLoadingFade(true);

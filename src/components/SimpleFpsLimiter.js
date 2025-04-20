@@ -5,8 +5,7 @@ const SimpleFpsLimiter = ({ targetFps = 60 }) => {
   useEffect(() => {
     // Only patch in browser environments
     if (typeof window === 'undefined') return;
-    
-    console.log(`Setting up FPS limiter to ${targetFps} FPS`);
+  
     
     // Get original methods we need to patch
     const originalRAF = window.requestAnimationFrame;
@@ -67,7 +66,7 @@ const SimpleFpsLimiter = ({ targetFps = 60 }) => {
     
     // Clean up when the component unmounts
     return () => {
-      console.log('Cleaning up FPS limiter');
+
       window.requestAnimationFrame = originalRAF;
       window.cancelAnimationFrame = originalCAF;
       

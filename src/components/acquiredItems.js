@@ -12,13 +12,11 @@ export const acquiredItemRefs = [];
 // Base position configuration for acquired items (will be adjusted based on aspect ratio)
 const ACQUIRED_ITEMS_CONFIG = {
   "Lantern": {
-    // These are base values that will be modified based on viewport
-    position: new THREE.Vector3(-0.3, -0.45, -1.1), // Keep this as the main source of truth
+    position: new THREE.Vector3(-0.3, -0.45, -1.1),
     rotation: new THREE.Euler(0, (-Math.PI / 2) * 0.7, 0),
     scale: 0.15,
     bobAmount: 0.02,
     bobSpeed: 1.5,
-    // Position adjustment factors
     minXPos: -0.3,    // For very narrow viewport
     maxXPos: -0.5,    // For wide viewport
     viewportFactor: 0.15  // How much to adjust based on aspect ratio
@@ -29,7 +27,6 @@ const ACQUIRED_ITEMS_CONFIG = {
     scale: 0.2,
     bobAmount: 0.015,
     bobSpeed: 1.2,
-    // Position adjustment factors
     minXPos: 0.4,     // For very narrow viewport
     maxXPos: 0.6,     // For wide viewport
     viewportFactor: 0.18  // How much to adjust based on aspect ratio
@@ -40,19 +37,19 @@ const ACQUIRED_ITEMS_CONFIG = {
 const SWORD_POSITIONS = {
   resting: new THREE.Vector3(0.4, -0.5, -1.1),
   raised: new THREE.Vector3(0.4, 5, 2),
-  swung:new THREE.Vector3(-3, -2, -2.1)
+  swung: new THREE.Vector3(-3, -2, -2.1)
 };
 
 const SWORD_ROTATIONS = {
   resting: new THREE.Euler(-Math.PI / 80, 0, (Math.PI / 4) * -.1),
   raised: new THREE.Euler(-Math.PI / 50 * -3, 0, (Math.PI / 4) * -.2),
-  swung:  new THREE.Euler(Math.PI * -.4, .6, (Math.PI / 4) * -.1)
+  swung: new THREE.Euler(Math.PI * -.4, .6, (Math.PI / 4) * -.1)
 };
 
 // Synchronize LANTERN_POSITIONS.resting with the initial position from ACQUIRED_ITEMS_CONFIG
 const LANTERN_POSITIONS = {
-  resting: ACQUIRED_ITEMS_CONFIG["Lantern"].position.clone(), // Use the same position as the config
-  active: new THREE.Vector3(-0.6, -0.45, -1.1)  // Keep same active position
+  resting: ACQUIRED_ITEMS_CONFIG["Lantern"].position.clone(),
+  active: new THREE.Vector3(-0.6, -0.45, -1.1)
 };
 
 // Individual acquired item component that renders regardless of overlay state
@@ -88,11 +85,9 @@ const AcquiredItem = ({ item }) => {
   
   // Track exit animation when chest is opened
   useEffect(() => {
-    // Only make the sword exit when the chest is opened
     if (chestOpened && !isExiting && item.name === "Toy Wooden Sword") {
       setIsExiting(true);
       exitAnimRef.current.progress = 0;
-      console.log(`Starting exit animation for ${item.name}`);
     }
   }, [chestOpened, isExiting, item.name]);
   
@@ -100,14 +95,12 @@ const AcquiredItem = ({ item }) => {
   useEffect(() => {
     if (groupRef.current && !isRemoved) {
       acquiredItemRefs.push(groupRef.current);
-      console.log(`Added acquired ${item.name} to outline list, total: ${acquiredItemRefs.length}`);
     }
     
     return () => {
       const index = acquiredItemRefs.indexOf(groupRef.current);
       if (index !== -1) {
         acquiredItemRefs.splice(index, 1);
-        console.log(`Removed acquired ${item.name} from outline list, remaining: ${acquiredItemRefs.length}`);
       }
     };
   }, [item.name, isRemoved]);
@@ -148,10 +141,6 @@ const AcquiredItem = ({ item }) => {
       baseConfig.rotation.z
     );
     
-    // Adjust X position based on aspect ratio
-    // We want items to move further from center as the screen gets wider
-    // and closer to center as the screen gets narrower
-    
     // Standard aspect ratio around 16:9 (1.78)
     const standardAspect = 1.78;
     
@@ -164,7 +153,6 @@ const AcquiredItem = ({ item }) => {
     // Calculate adjusted X position based on whether this is a left or right item
     if (baseXPosition < 0) {
       // Left-side item (like lantern)
-      // Adjust between position.x and maxXPos based on aspect ratio
       newConfig.position.x = THREE.MathUtils.lerp(
         baseXPosition,
         baseConfig.maxXPos,
@@ -172,7 +160,6 @@ const AcquiredItem = ({ item }) => {
       );
     } else {
       // Right-side item (like sword)
-      // Adjust between position.x and maxXPos based on aspect ratio
       newConfig.position.x = THREE.MathUtils.lerp(
         baseXPosition,
         baseConfig.maxXPos,
@@ -191,18 +178,17 @@ const AcquiredItem = ({ item }) => {
     // Process exit animation when sword is exiting
     if (isExiting) {
       // Increase exit animation progress
-      exitAnimRef.current.progress += delta * 0.5; // Adjust speed as needed
+      exitAnimRef.current.progress += delta * 0.5;
       
       // If animation is complete, remove from scene
       if (exitAnimRef.current.progress >= 1) {
         setIsRemoved(true);
-        console.log(`Completed exit animation for ${item.name}`);
         return;
       }
     }
   });
 
-  // useFrame must NOT be called conditionally - this is a React hooks rule
+  // useFrame for rendering and animation
   useFrame((state, delta) => {
     if (!groupRef.current || !adjustedConfig || isRemoved) return;
     
@@ -220,16 +206,13 @@ const AcquiredItem = ({ item }) => {
         if (child.isMesh) {
           child.renderOrder = currentRenderOrder;
           
-          // Ensure proper material settings for acquired items
           if (child.material) {
             const updateMaterial = (material) => {
-              // For opaque materials, ensure proper settings
               if (!material.transparent) {
                 material.depthTest = true;
                 material.depthWrite = true;
                 material.opacity = 1.0;
               } 
-              // For transparent materials, increase opacity but maintain transparency
               else if (material.transparent) {
                 material.depthTest = true;
                 material.depthWrite = true;
@@ -248,7 +231,7 @@ const AcquiredItem = ({ item }) => {
       groupRef.current.userData.orderApplied = true;
     }
     
-    // IMPORTANT: Ensure visibility during message overlay and when forceVisible is true
+    // Ensure visibility during message overlay and when forceVisible is true
     if ((forceVisible || overlayVisible) && !groupRef.current.visible) {
       groupRef.current.visible = true;
     }
@@ -263,7 +246,6 @@ const AcquiredItem = ({ item }) => {
         if (child.isMesh) {
           child.renderOrder = renderOrder.ACQUIRED_ITEMS;
           
-          // For meshes, also ensure their materials have proper depth settings
           if (child.material) {
             // Make a copy of the material if we haven't done so already
             if (!child.userData.originalMaterial) {
@@ -318,12 +300,11 @@ const AcquiredItem = ({ item }) => {
       groupRef.current.userData.overlayMode = false;
     }
 
-    // Ensure the item stays relative to the camera - this must happen regardless of shake or bob state
+    // Ensure the item stays relative to the camera
     groupRef.current.position.copy(camera.position);
     groupRef.current.rotation.copy(camera.rotation);
     
     // Apply the configured position offset (in camera space)
-    // Use adjustedConfig if available, otherwise use defaults
     const config = adjustedConfig || baseConfig;
     const posOffset = config.position.clone();
     
@@ -333,14 +314,14 @@ const AcquiredItem = ({ item }) => {
       const eased = easeInBack(exitProgress);
       
       // Move sword down and behind the player during exit
-      const exitOffsetY = -1.5 * eased; // Move down
-      const exitOffsetZ = 2 * eased;    // Move behind
+      const exitOffsetY = -1.5 * eased;
+      const exitOffsetZ = 2 * eased;
       
       posOffset.y += exitOffsetY;
       posOffset.z += exitOffsetZ;
       
       // Optionally rotate the sword as it exits
-      const exitRotX = Math.PI * 0.5 * eased; // Rotate forward
+      const exitRotX = Math.PI * 0.5 * eased;
       
       // Apply rotation in the next rotation application section
       config.rotation.x = exitRotX;
@@ -361,25 +342,18 @@ const AcquiredItem = ({ item }) => {
       });
     }
 
-    // IMPORTANT: Always process shake effect even if head bob is paused
     // Apply shake effect if camera shake is active
     if (cameraShaking) {
-      // Generate random shake offsets - scale down for acquired items compared to camera
-      // Get actual intensity from the shake state and apply a multiplier for items
       const intensityValue = cameraShakingState.intensity || 0.5;
-      const shakeIntensity = intensityValue * 1.0; // Use full camera shake intensity for items for more visible effect
+      const shakeIntensity = intensityValue * 1.0;
       
-      // Apply more dramatic shake for visibility
       const offsetX = (Math.random() * 2 - 1) * shakeIntensity * 0.08;
       const offsetY = (Math.random() * 2 - 1) * shakeIntensity * 0.08;
       const offsetZ = (Math.random() * 2 - 1) * shakeIntensity * 0.04;
       
-      // Add shake offsets to the position offset
       posOffset.x += offsetX;
       posOffset.y += offsetY;
       posOffset.z += offsetZ;
-      
-      // We'll apply rotation shake separately below
     }
 
     // Handle head bobbing (but not during shake or exit)
@@ -390,7 +364,7 @@ const AcquiredItem = ({ item }) => {
     else if (!cameraShaking && !isExiting && headBobRef.current.bobPaused) {
       // Add a pause timer to gradually resume bobbing after shake
       headBobRef.current.pauseTimer += delta;
-      if (headBobRef.current.pauseTimer > 1.0) { // 1 second delay
+      if (headBobRef.current.pauseTimer > 1.0) {
         headBobRef.current.bobPaused = false;
       }
     }
@@ -404,7 +378,7 @@ const AcquiredItem = ({ item }) => {
     
     // Check if player is moving by comparing current and last position
     const distanceMovedSq = headBobRef.current.lastPosition.distanceToSquared(playerPosition);
-    const isMoving = distanceMovedSq > 0.0001; // Small threshold to detect movement
+    const isMoving = distanceMovedSq > 0.0001;
     
     // Update movement detection
     headBobRef.current.isMoving = isMoving;
@@ -454,9 +428,8 @@ const AcquiredItem = ({ item }) => {
     // Add rotation shake if camera is shaking and not exiting
     if (cameraShaking && !isExiting) {
       const intensityValue = cameraShakingState.intensity || 0.5;
-      const shakeIntensity = intensityValue * 1.2; // Exaggerate rotation shake for more visible effect
+      const shakeIntensity = intensityValue * 1.2;
       
-      // Add random rotation shake - more dramatic for visibility
       rotX += (Math.random() * 2 - 1) * shakeIntensity * 0.08;
       rotZ += (Math.random() * 2 - 1) * shakeIntensity * 0.08;
     } 
@@ -491,7 +464,6 @@ const AcquiredItem = ({ item }) => {
   // Calculate sword position based on swing progress
   const calculateSwordSwingPosition = (progress) => {
     if (!swordSwinging) {
-      // Return resting position when not swinging
       return [
         SWORD_POSITIONS.resting.x,
         SWORD_POSITIONS.resting.y,
@@ -499,29 +471,24 @@ const AcquiredItem = ({ item }) => {
       ];
     }
     
-    // Animation timing configuration - REBALANCED
-    const raisePhaseEnd = 0.25;       // 0-25% of animation is raising the sword (reduced from 35%)
-    const swingPhaseEnd = 0.65;       // 25-85% is the swing (same endpoint, longer duration)
-    const returnPhaseStart = 0.85;    // 85-100% is returning to resting (unchanged)
+    // Animation timing configuration
+    const raisePhaseEnd = 0.25;
+    const swingPhaseEnd = 0.65;
+    const returnPhaseStart = 0.85;
     
-    // Animation speed factors - FASTER RAISE, SAME SWING SPEED
-    const raiseSpeed = 0.7;           // Speed multiplier for raise phase (increased from 0.4 to 0.7)
-    const swingSpeed = 0.6;           // Speed multiplier for swing phase (unchanged)
-    const returnSpeed = 0.5;          // Speed multiplier for return phase (unchanged)
+    // Animation speed factors
+    const raiseSpeed = 0.7;
+    const swingSpeed = 0.6;
+    const returnSpeed = 0.5;
     
     // Calculate current position
     let currentPosition = new THREE.Vector3();
     
     if (progress < raisePhaseEnd) {
       // Phase 1: Raising the sword (0% to 25%)
-      // Normalize progress for this phase
       const phaseProgress = Math.min(1, (progress / raisePhaseEnd) * raiseSpeed);
-      
-      // Use easeOutBack to ensure the sword clearly reaches the raised position
-      // with a slight overshoot for visual emphasis
       const easedProgress = easeOutBack(phaseProgress);
       
-      // Lerp from resting to raised position
       currentPosition.lerpVectors(
         SWORD_POSITIONS.resting,
         SWORD_POSITIONS.raised,
@@ -530,11 +497,9 @@ const AcquiredItem = ({ item }) => {
     } 
     else if (progress < swingPhaseEnd) {
       // Phase 2: Swinging the sword (25% to 85%)
-      // Normalize progress for this phase
       const phaseProgress = Math.min(1, ((progress - raisePhaseEnd) / (swingPhaseEnd - raisePhaseEnd)) * swingSpeed);
       const easedProgress = easeOutQuint(phaseProgress);
       
-      // Lerp from raised to swung position
       currentPosition.lerpVectors(
         SWORD_POSITIONS.raised,
         SWORD_POSITIONS.swung,
@@ -543,11 +508,9 @@ const AcquiredItem = ({ item }) => {
     }
     else {
       // Phase 3: Return to resting position (85% to 100%)
-      // Normalize progress for this phase
       const phaseProgress = Math.min(1, ((progress - returnPhaseStart) / (1 - returnPhaseStart)) * returnSpeed);
       const easedProgress = easeInOutCubic(phaseProgress);
       
-      // Lerp from swung back to resting position
       currentPosition.lerpVectors(
         SWORD_POSITIONS.swung,
         SWORD_POSITIONS.resting,
@@ -558,10 +521,9 @@ const AcquiredItem = ({ item }) => {
     return [currentPosition.x, currentPosition.y, currentPosition.z];
   };
 
-  // Calculate sword rotation based on swing progress - match the timing changes from position function
+  // Calculate sword rotation based on swing progress
   const calculateSwordSwingRotation = (progress) => {
     if (!swordSwinging) {
-      // Return resting rotation when not swinging
       return [
         SWORD_ROTATIONS.resting.x,
         SWORD_ROTATIONS.resting.y,
@@ -570,14 +532,14 @@ const AcquiredItem = ({ item }) => {
     }
     
     // Use the same animation phases as the position calculation
-    const raisePhaseEnd = 0.25;      // Reduced to 25% to match position calculation
-    const swingPhaseEnd = 0.85;      // 85% matches position calculation
-    const returnPhaseStart = 0.85;   // 85% matches position calculation
+    const raisePhaseEnd = 0.25;
+    const swingPhaseEnd = 0.85;
+    const returnPhaseStart = 0.85;
     
-    // Animation speed factors - FASTER RISE
-    const raiseSpeed = 0.7;         // Increased from 0.4 to 0.7
-    const swingSpeed = 0.6;         // Unchanged
-    const returnSpeed = 0.5;        // Unchanged
+    // Animation speed factors
+    const raiseSpeed = 0.7;
+    const swingSpeed = 0.6;
+    const returnSpeed = 0.5;
     
     // Calculate current rotation
     let x, y, z;
@@ -616,7 +578,7 @@ const AcquiredItem = ({ item }) => {
     return [x, y, z];
   };
 
-  // Calculate lantern movement during sword swing - UPDATED to keep lantern still
+  // Calculate lantern movement during sword swing
   const calculateLanternPosition = (progress) => {
     // Return null to use the default position regardless of sword swinging state
     return null;
@@ -661,7 +623,6 @@ const AcquiredItem = ({ item }) => {
     // Use adjustedConfig if available, otherwise fall back to baseConfig
     const config = adjustedConfig || baseConfig;
   
-    // IMPORTANT: Item-specific rendering with outlines
     switch(item.name) {
       case 'Lantern':
         // Calculate lantern position during sword swing
@@ -669,7 +630,6 @@ const AcquiredItem = ({ item }) => {
         
         return (
           <group scale={[config.scale, config.scale, config.scale]}>
-            {/* Apply position adjustment during sword swing if needed */}
             <group position={lanternPosition || [0, 0, 0]}>
               <OutlinedLantern 
                 outlineThickness={0.05} 
@@ -683,27 +643,22 @@ const AcquiredItem = ({ item }) => {
       case 'Toy Wooden Sword':
         return (
           <group scale={[config.scale, config.scale, config.scale]}>
-            {/* Wrap in an extra group for swing animation */}
             <group
               rotation={calculateSwordSwingRotation(swingProgress)}
               position={calculateSwordSwingPosition(swingProgress)}
             >
-              {/* Add an additional offset to improve sword swing pivot point */}
               <group position={[0, -0.2, 0]}>
-                {/* Use outlined sword with white outline */}
                 <OutlinedSword 
                   outlineThickness={0.05} 
-                  renderOrder={renderOrder.ACQUIRED_ITEMS} // Use the consistent render order
+                  renderOrder={renderOrder.ACQUIRED_ITEMS}
                 />
               </group>
             </group>
           </group>
         );
       default:
-        // Fallback to a box with white outline for unknown items
         return (
           <group scale={[0.2, 0.2, 0.2]}>
-            {/* Outline - slightly larger white box */}
             <mesh scale={[1.1, 1.1, 1.1]} renderOrder={1}>
               <boxGeometry />
               <meshBasicMaterial 
@@ -713,7 +668,6 @@ const AcquiredItem = ({ item }) => {
               />
             </mesh>
             
-            {/* Main box */}
             <mesh renderOrder={2}>
               <boxGeometry />
               <meshStandardMaterial color={item.color || 'white'} />
@@ -729,8 +683,6 @@ const AcquiredItem = ({ item }) => {
   // Don't render if the item has been removed
   if (isRemoved) return null;
 
-  // Make items render at a very high renderOrder to ensure they're drawn last
-  // This helps with overlay issues
   return (
     <group 
       ref={groupRef} 
@@ -750,30 +702,28 @@ const AcquiredItems = () => {
   const showMessageOverlay = useGameStore(state => state.showMessageOverlay);
   const { size } = useThree();
   const updateViewportSize = useGameStore.getState().updateViewportSize;
-// Update viewport size in store if needed
-useEffect(() => {
-  if (updateViewportSize) {
-    updateViewportSize({
-      width: size.width,
-      height: size.height,
-      aspectRatio: size.width / size.height
-    });
-  }
-}, [size, updateViewportSize]);
 
-// Always render items if they're in inventory, regardless of other flags
-// This ensures consistent visibility across all scenarios
-return (
-  <>
-    {/* Render all items in inventory */}
-    {inventory.map((item, index) => (
-      <AcquiredItem 
-        key={`acquired-${item.name}-${index}`} 
-        item={item}
-      />
-    ))}
-  </>
-);
+  // Update viewport size in store if needed
+  useEffect(() => {
+    if (updateViewportSize) {
+      updateViewportSize({
+        width: size.width,
+        height: size.height,
+        aspectRatio: size.width / size.height
+      });
+    }
+  }, [size, updateViewportSize]);
+
+  return (
+    <>
+      {inventory.map((item, index) => (
+        <AcquiredItem 
+          key={`acquired-${item.name}-${index}`} 
+          item={item}
+        />
+      ))}
+    </>
+  );
 };
 
 export default React.memo(AcquiredItems);
