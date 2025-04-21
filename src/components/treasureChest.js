@@ -9,7 +9,6 @@ export const treasureChestRefs = [];
 // Component that renders a treasure chest as the final reward
 const TreasureChest = () => {
   const chestRef = useRef();
-  // Removed hover state
   const messageSentRef = useRef(false);
   const initializedRef = useRef(false);
   const chestPositionRef = useRef({ x: 5, z: 86 });
@@ -28,7 +27,6 @@ const TreasureChest = () => {
   useEffect(() => {
     // Start fading when prize is acquired (removed from scene)
     if (prizeState === 'acquired' && !isFading) {
-      console.log("Prize acquired, starting chest fade animation");
       setIsFading(true);
       fadeStartRef.current = performance.now();
     }
@@ -58,7 +56,7 @@ const TreasureChest = () => {
       if (chestExp) {
         chestPositionRef.current = {
           x: chestExp.position.x,
-          z: chestExp.position.z + 4 // 3 units in front of where player will stop
+          z: chestExp.position.z + 4 // 4 units in front of where player will stop
         };
       }
       
@@ -70,23 +68,20 @@ const TreasureChest = () => {
   useEffect(() => {
     if (chestRef.current) {
       treasureChestRefs.push(chestRef.current);
-      console.log(`Added treasure chest to outline list, total: ${treasureChestRefs.length}`);
     }
     
     return () => {
       const index = treasureChestRefs.indexOf(chestRef.current);
       if (index !== -1) {
         treasureChestRefs.splice(index, 1);
-        console.log(`Removed treasure chest from outline list, remaining: ${treasureChestRefs.length}`);
       }
     };
   }, []);
 
-  // FIX: Track overlay state changes to detect dismissal
+  // Track overlay state changes to detect dismissal
   useEffect(() => {
     // If overlay was showing, and now it's not, mark as just dismissed
     if (lastOverlayState && !showMessageOverlay) {
-      console.log("Overlay just dismissed, marking chest as ready for interaction");
       setOverlayJustDismissed(true);
       
       // Reset after a short delay
@@ -110,7 +105,6 @@ const TreasureChest = () => {
       
     if (isChestExperience && !chestOpened && !messageSentRef.current && !isMovingCamera) {
       // Wait a short delay after the player stops to show the message
-      // This ensures player has come to a complete stop
       const timer = setTimeout(() => {
         // Double-check that we're still in the chest experience and not moving
         if (currentExperienceIndex === 5 && !isMovingCamera) {
@@ -131,7 +125,7 @@ const TreasureChest = () => {
     isMovingCamera
   ]);
   
-  // FIX: Improved chest click handling to properly sequence with message
+  // Improved chest click handling to properly sequence with message
   const handleChestClick = (e) => {
     e.stopPropagation();
     
@@ -139,7 +133,7 @@ const TreasureChest = () => {
     const isChestExperience = currentExperienceIndex === 5 && 
       experiences[currentExperienceIndex]?.type === 'chest';
     
-    // FIX: Only make chest interactive if:
+    // Only make chest interactive if:
     // 1. It's the chest experience
     // 2. The chest hasn't been opened yet
     // 3. The welcome message has been shown (messageSentRef.current is true)
@@ -148,15 +142,8 @@ const TreasureChest = () => {
     const isInteractive = isChestExperience && !chestOpened && isMessageShown &&
                         (!showMessageOverlay || overlayJustDismissed);
     
-    console.log("Chest clicked, interactive:", isInteractive, 
-                "Message shown:", isMessageShown,
-                "Overlay dismissed:", overlayJustDismissed);
-    
     if (isInteractive) {
-      console.log("Chest click is valid! Opening...");
       setChestOpened(true);
-    } else if (isChestExperience && !isMessageShown) {
-      console.log("Chest clicked too early! Wait for the welcome message.");
     }
   };
   
@@ -191,7 +178,6 @@ const TreasureChest = () => {
         
         // Set door as clickable after chest fades out
         useGameStore.getState().setDoorClickable(true);
-        console.log("Chest faded out, door is now clickable!");
       }
     }
 
@@ -231,13 +217,13 @@ const TreasureChest = () => {
           transparent={true}
           opacity={opacity}
           depthTest={true}
-          depthWrite={true} // Enable depth writing to ensure proper occlusion
+          depthWrite={true}
         />
       </mesh>
       
-      {/* Chest lid and lock group with pivot point at the back of the lid, lowered by 0.15 on y-axis */}
+      {/* Chest lid and lock group with pivot point at the back of the lid */}
       <group position={[0, -0.15, 0.6]} rotation={[lidRotation, 0, 0]}>
-        {/* Chest lid - position adjusted relative to new pivot point */}
+        {/* Chest lid - position adjusted relative to pivot point */}
         <mesh position={[0, .65, -0.6]} renderOrder={renderOrder.TREASURE_CHEST + 1}>
           <boxGeometry args={[2, 0.3, 1.2]} />
           <meshStandardMaterial 
@@ -251,7 +237,7 @@ const TreasureChest = () => {
           />
         </mesh>
         
-        {/* Metal lock - position adjusted relative to new pivot point */}
+        {/* Metal lock */}
         <mesh position={[0, .45, -1.2]} renderOrder={renderOrder.TREASURE_CHEST + 2}>
           <boxGeometry args={[0.4, 0.4, 0.1]} />
           <meshStandardMaterial 

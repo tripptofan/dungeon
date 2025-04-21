@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useState, useMemo } from 'react';
+import React, { useRef, useEffect, useState } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 import useGameStore from '../store';
@@ -16,21 +16,21 @@ const Enemy = () => {
   // PNG sequence animation state
   const [currentFrame, setCurrentFrame] = useState(0);
   const frameTimeRef = useRef(0);
-  const frameRateRef = useRef(1/12); // 12 frames per second (adjust as needed)
+  const frameRateRef = useRef(1/12); // 12 frames per second
   const framesLoadedRef = useRef(false);
   const textureArrayRef = useRef([]);
   const frameTextureRef = useRef(null);
   const totalFrames = 16; // Total number of frames in the sequence
   
-  // Hit counter state - NEW
+  // Hit counter state
   const hitCountRef = useRef(0);
-  const totalHitsRequired = 3; // NEW - Number of hits required to defeat enemy
-  const [hitFlashActive, setHitFlashActive] = useState(false); // NEW - For visual feedback
+  const totalHitsRequired = 3; // Number of hits required to defeat enemy
+  const [hitFlashActive, setHitFlashActive] = useState(false); // For visual feedback
   
   // Get render order constants from store
   const renderOrder = useGameStore(state => state.renderOrder);
   
-  // FIX: Track overlay state for improved click handling
+  // Track overlay state for improved click handling
   const [lastOverlayState, setLastOverlayState] = useState(false);
   const [overlayJustDismissed, setOverlayJustDismissed] = useState(false);
   
@@ -64,7 +64,6 @@ const Enemy = () => {
           },
           undefined, // onProgress callback not needed
           (error) => {
-            console.error(`Error loading frame ${framePath}:`, error);
             resolve(); // Resolve anyway to avoid blocking other frames
           }
         );
@@ -78,7 +77,6 @@ const Enemy = () => {
       textureArrayRef.current = textures;
       frameTextureRef.current = textures[0];
       framesLoadedRef.current = true;
-      console.log(`Loaded ${textures.length} animation frames for enemy`);
     });
     
     // Cleanup function
@@ -99,14 +97,12 @@ const Enemy = () => {
   const playerPosition = useGameStore(state => state.playerPosition);
   const handleEnemyClick = useGameStore(state => state.handleEnemyClick);
   const swordSwinging = useGameStore(state => state.swordSwinging);
-  const debugMode = useGameStore(state => state.debugMode);
   const showMessageOverlay = useGameStore(state => state.showMessageOverlay);
   
-  // FIX: Track overlay state changes to detect dismissal
+  // Track overlay state changes to detect dismissal
   useEffect(() => {
     // If overlay was showing, and now it's not, mark as just dismissed
     if (lastOverlayState && !showMessageOverlay) {
-      console.log("Overlay just dismissed, marking enemy as ready for interaction");
       setOverlayJustDismissed(true);
       
       // Reset after a short delay
@@ -121,32 +117,6 @@ const Enemy = () => {
     setLastOverlayState(showMessageOverlay);
   }, [showMessageOverlay, lastOverlayState]);
   
-  // For debug mode, force enemy to be visible
-  useEffect(() => {
-    if (debugMode) {
-      console.log("Debug mode enabled - forcing enemy visibility");
-      
-      // Position the enemy directly in front of the camera
-      const cameraDir = new THREE.Vector3(0, 0, -1);
-      cameraDir.applyQuaternion(camera.quaternion);
-      cameraDir.multiplyScalar(5); // 5 units in front of camera
-      
-      const debugPosition = {
-        x: camera.position.x + cameraDir.x,
-        y: camera.position.y, // Same height as camera
-        z: camera.position.z + cameraDir.z
-      };
-      
-      console.log("Debug enemy position:", debugPosition);
-      
-      setEnemyPosition(debugPosition);
-      setIsVisible(true);
-      
-      // Set enemy as clickable
-      useGameStore.getState().setEnemyClickable(true);
-    }
-  }, [camera, debugMode]);
-  
   // Determine if this is the enemy encounter experience
   const isEnemyExperience = currentExperienceIndex >= 0 && 
     currentExperienceIndex < experiences.length && 
@@ -155,36 +125,22 @@ const Enemy = () => {
   // Calculate enemy position based on player position and experience data
   useEffect(() => {
     if (isEnemyExperience && !isMovingCamera) {
-      const experience = experiences[currentExperienceIndex];
-      
-      // Debug output
-      console.log("Enemy experience triggered!");
-      console.log("Current experience index:", currentExperienceIndex);
-      console.log("Player position:", playerPosition);
-      
       // Position the enemy directly in front of player
       const newPosition = {
         x: playerPosition.x,
         y: -5, // Start below the floor
-        z: playerPosition.z + 4 // 6 units in front of the player
+        z: playerPosition.z + 4 // 4 units in front of the player
       };
-      
-      console.log("Setting enemy position to:", newPosition);
       
       setEnemyPosition(newPosition);
       setIsVisible(true);
       
       // Start the rising animation after a short delay
       setTimeout(() => {
-        console.log("Starting enemy rising animation");
         setIsRising(true);
         setAnimationStarted(true);
       }, 500);
     } else {
-      if (isEnemyExperience) {
-        console.log("Enemy experience active but camera is moving - waiting");
-      }
-      
       setIsVisible(false);
       setIsRising(false);
       setAnimationStarted(false);
@@ -207,7 +163,6 @@ const Enemy = () => {
       if (enemyRef.current.position.y < targetY) {
         // Move upward
         enemyRef.current.position.y += riseSpeed;
-        console.log("Enemy rising, current Y:", enemyRef.current.position.y);
       } else {
         // Reached target height, stop rising
         setIsRising(false);
@@ -215,10 +170,6 @@ const Enemy = () => {
         // Show the message overlay once the enemy has risen
         if (animationStarted) {
           setAnimationStarted(false);
-          
-          // DO NOT set enemy clickable here
-          // Instead, let MessageService handle this after the message is dismissed
-          console.log("Enemy appearance complete, showing message...");
           
           // Wait a moment before showing the message
           setTimeout(() => {
@@ -229,7 +180,7 @@ const Enemy = () => {
       }
     }
     
-    // Handle hit flash effect timing - NEW
+    // Handle hit flash effect timing
     if (hitFlashActive) {
       // Turn off flash after a short duration (250ms)
       setTimeout(() => {
@@ -264,7 +215,7 @@ const Enemy = () => {
       }
     }
     
-    // Handle sword swing animation hit detection - MODIFIED
+    // Handle sword swing animation hit detection
     if (swordSwinging) {
       const swingProgress = useGameStore.getState().swingProgress;
       
@@ -275,7 +226,6 @@ const Enemy = () => {
         
         // Increment hit counter
         hitCountRef.current += 1;
-        console.log(`Enemy hit! Current hits: ${hitCountRef.current}/${totalHitsRequired}`);
         
         // Apply hit flash effect
         if (materialRef.current) {
@@ -285,8 +235,6 @@ const Enemy = () => {
         
         // Check if we've reached the required number of hits
         if (hitCountRef.current >= totalHitsRequired) {
-          console.log("Enemy defeated after reaching hit threshold!");
-          
           // Slowly fade out after final hit
           setTimeout(() => {
             if (enemyRef.current && enemyRef.current.visible) {
@@ -327,26 +275,20 @@ const Enemy = () => {
     }
   });
   
-  // FIX: Improved enemy click handling to prevent double-click issues
+  // Improved enemy click handling to prevent double-click issues
   const handleEnemyMeshClick = (e) => {
     e.stopPropagation();
     
-    console.log("Enemy clicked!");
-    
-    // FIX: Calculate if enemy is clickable with improved conditions
+    // Calculate if enemy is clickable with improved conditions
     const enemyClickable = useGameStore.getState().enemyClickable;
     const enemyHit = useGameStore.getState().enemyHit;
     
-    // FIX: Enemy is clickable if: regular conditions OR overlay just dismissed
+    // Enemy is clickable if: regular conditions OR overlay just dismissed
     const isClickable = (enemyClickable && !showMessageOverlay && !enemyHit) || 
                         (enemyClickable && overlayJustDismissed && !enemyHit);
       
     if (isClickable) {
-      console.log("Triggering enemy click handler");
       handleEnemyClick();
-    } else {
-      console.log("Enemy not clickable or already hit:", 
-        {clickable: enemyClickable, dismissed: overlayJustDismissed, hit: enemyHit});
     }
   };
   
@@ -357,13 +299,13 @@ const Enemy = () => {
   const enemyClickable = useGameStore.getState().enemyClickable && 
                         (!showMessageOverlay || overlayJustDismissed);
 
-  // Create health display in units of 10% - NEW
+  // Create health display in units of 10%
   const healthPercentage = Math.max(0, 100 - (hitCountRef.current * 10));
                         
   // Create a more visible animated enemy with fixed depth handling
   return (
     <group>
-      {/* Health bar above enemy - NEW */}
+      {/* Health bar above enemy */}
       <mesh 
         position={[enemyPosition.x, enemyPosition.y + 2.5, enemyPosition.z]}
         renderOrder={renderOrder.ENEMY + 10}
@@ -377,7 +319,7 @@ const Enemy = () => {
         />
       </mesh>
       
-      {/* Health bar fill - NEW */}
+      {/* Health bar fill */}
       {healthPercentage > 0 && (
         <mesh 
           position={[
@@ -417,9 +359,9 @@ const Enemy = () => {
           map={framesLoadedRef.current ? textureArrayRef.current[currentFrame] : null}
           opacity={1.0}
           color="#ffffff"
-          depthTest={true}  // Important: Keep depth test enabled
-          depthWrite={true} // Important: Enable depth writing for proper occlusion
-          alphaTest={0.01}  // Added alpha test to help with transparency issues
+          depthTest={true}  // Keep depth test enabled
+          depthWrite={true} // Enable depth writing for proper occlusion
+          alphaTest={0.01}  // Alpha test to help with transparency issues
         />
       </mesh>
       
@@ -439,24 +381,6 @@ const Enemy = () => {
           alphaTest={0.01}
         />
       </mesh>
-      
-      {/* Hit counter text (debug) - NEW */}
-      {debugMode && (
-        <mesh
-          position={[enemyPosition.x, enemyPosition.y - 2.5, enemyPosition.z]}
-          renderOrder={renderOrder.ENEMY + 12}
-        >
-          <planeGeometry args={[2, 0.5]} />
-          <meshBasicMaterial
-            color="#ffffff"
-            transparent={true}
-            opacity={0.9}
-            depthTest={false}
-          />
-          {/* We can't actually render text in Three.js without a custom approach,
-              but this would be where we'd display the hit counter if we could */}
-        </mesh>
-      )}
     </group>
   );
 };

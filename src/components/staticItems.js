@@ -12,7 +12,6 @@ export const staticItemRefs = [];
 const ItemObject = ({ experience, isActive }) => {
   const { camera } = useThree();
   const groupRef = useRef();
-  // Removed hovered state
   const clickedRef = useRef(false);
   const [dismissCooldown, setDismissCooldown] = useState(false);
   
@@ -32,7 +31,7 @@ const ItemObject = ({ experience, isActive }) => {
       case 'Lantern':
         return 0.2;
       case 'Toy Wooden Sword':
-        return 0.16; // Reduced
+        return 0.16;
       default:
         return 1.0;
     }
@@ -44,14 +43,12 @@ const ItemObject = ({ experience, isActive }) => {
   useEffect(() => {
     if (groupRef.current) {
       staticItemRefs.push(groupRef.current);
-      console.log(`Added ${itemType} to outline list, total: ${staticItemRefs.length}`);
     }
     
     return () => {
       const index = staticItemRefs.indexOf(groupRef.current);
       if (index !== -1) {
         staticItemRefs.splice(index, 1);
-        console.log(`Removed ${itemType} from outline list, remaining: ${staticItemRefs.length}`);
       }
     };
   }, [itemType]);
@@ -69,13 +66,11 @@ const ItemObject = ({ experience, isActive }) => {
   useEffect(() => {
     // If overlay was showing, and now it's not, set dismissal cooldown
     if (lastOverlayState && !showMessageOverlay) {
-      console.log(`Overlay dismissed, setting cooldown for ${itemType}`);
       setDismissCooldown(true);
       
       // Reset cooldown after a delay to allow overlay to fully transition out
       const timer = setTimeout(() => {
         setDismissCooldown(false);
-        console.log(`Cooldown complete, ${itemType} now clickable`);
       }, 600); // Slightly longer than overlay transition (500ms)
       
       return () => clearTimeout(timer);
@@ -148,7 +143,7 @@ const ItemObject = ({ experience, isActive }) => {
   // Constant glow intensity
   const glowIntensity = 0.3;
   
-  // MODIFIED: Improved item click handling with cooldown period
+  // Improved item click handling with cooldown period
   const handleItemObjectClick = (e) => {
     e.stopPropagation();
     
@@ -169,19 +164,14 @@ const ItemObject = ({ experience, isActive }) => {
       currentExperience?.type === 'item' && 
       currentExperience?.item?.name === itemType;
     
-    // UPDATED: Added dismissCooldown check to prevent immediate clicks after overlay dismissal
     const isClickable = 
       isCurrentItemExperience && 
       !isMessageVisible && 
       !dismissCooldown && 
       (animationPhase === 'clickable' || animationPhase === 'hidden');
     
-    console.log(`Item ${itemType} clicked - Clickable: ${isClickable}, Phase: ${animationPhase}, Cooldown: ${dismissCooldown}`);
-    
     // Only process if item is determined to be clickable
     if (isClickable && !clickedRef.current) {
-      console.log(`Item ${itemType} clicked - starting acquisition!`);
-      
       // Mark as clicked to prevent multiple acquisition attempts
       clickedRef.current = true;
       
@@ -190,29 +180,24 @@ const ItemObject = ({ experience, isActive }) => {
       store.setItemAnimationPhase('acquiring');
       store.setShowMessageOverlay(false);
       store.setMessageBoxVisible(false);
-      
-      console.log(`Item ${itemType} acquisition started!`);
     }
   };
-  
   
   const renderItemModel = () => {
     switch(itemType) {
       case 'Lantern':
         return (
           <group position={[0, .2, 0]} scale={[modelScale, modelScale, modelScale]}>
-            {/* Use outlined lantern with reduced brightness */}
             <OutlinedLantern 
               outlineThickness={0.05} 
-              emissiveIntensity={0.4}  // Reduced emissive materials brightness
-              lightIntensity={4}     // Significantly reduce light intensity to 30%
+              emissiveIntensity={0.4}
+              lightIntensity={4}
             />
           </group>
         );
       case 'Toy Wooden Sword':
         return (
           <group scale={[modelScale, modelScale, modelScale]} rotation={[0, 0, Math.PI / 4]}>
-            {/* Use outlined sword with white outline */}
             <OutlinedSword outlineThickness={0.05} />
           </group>
         );
@@ -220,7 +205,6 @@ const ItemObject = ({ experience, isActive }) => {
         // Fallback to a box with white outline for unknown items
         return (
           <group>
-            {/* Outline - slightly larger white box */}
             <mesh scale={[0.52, 0.52, 0.52]} renderOrder={1}>
               <boxGeometry />
               <meshBasicMaterial 
@@ -230,7 +214,6 @@ const ItemObject = ({ experience, isActive }) => {
               />
             </mesh>
             
-            {/* Main box */}
             <mesh scale={[0.5, 0.5, 0.5]} renderOrder={2}>
               <boxGeometry />
               <meshStandardMaterial 
@@ -255,7 +238,6 @@ const ItemObject = ({ experience, isActive }) => {
       ]}
       visible={isVisible}
       onClick={handleItemObjectClick}
-      // Removed hover handlers
       scale={[glowScale, glowScale, glowScale]}
     >
       {renderItemModel()}
@@ -289,7 +271,6 @@ const StaticItems = () => {
   
   return (
     <>
-      {/* Render all items for experiences of type 'item' */}
       {experiences.map((experience, index) => {
         // Skip if not an item experience type
         if (experience.type !== 'item') return null;

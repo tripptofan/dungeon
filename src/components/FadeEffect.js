@@ -40,7 +40,6 @@ const FadeEffect = () => {
   }, []);
 
   // Set opacity to 0 when not in use, but don't skip the render
-  // This avoids the React hooks conditional rendering issue
   useEffect(() => {
     if (!loadingFade && !fadeInProgress.current && effectRef.current) {
       effectRef.current.setOpacity(0);
@@ -55,12 +54,10 @@ const FadeEffect = () => {
       
       // Only consider the scene stable after multiple frames have been rendered
       if (frameCountRef.current >= requiredFramesForStableRender) {
-        console.log(`Rendered ${requiredFramesForStableRender} frames, scene is stable and ready for fade effect`);
         firstRenderCompletedRef.current = true;
         
         // If fade was supposed to start, we can now safely initialize it
         if (loadingFade && !hasSetupFade.current && !fadeInProgress.current) {
-          console.log("Scene rendering stable, initializing fade effect");
           hasSetupFade.current = true;
           
           // Set initial opacity to fully black (1.0)
@@ -70,7 +67,6 @@ const FadeEffect = () => {
           
           // Start the fade after a short delay
           setTimeout(() => {
-            console.log("Starting fade animation");
             startTimeRef.current = Date.now();
             fadeInProgress.current = true;
           }, fadeDelay * 1000);
@@ -98,11 +94,9 @@ const FadeEffect = () => {
     }
   });
 
-  // We no longer need the old approach as we handle everything in the useFrame hook
-  // This useEffect is now mainly for cleanup
+  // Cleanup on unmount
   useEffect(() => {
     return () => {
-      // Cleanup function for component unmounting
       fadeInProgress.current = false;
       hasSetupFade.current = false;
       startTimeRef.current = null;
@@ -112,15 +106,12 @@ const FadeEffect = () => {
   }, []);
 
   // Only render the EffectComposer when needed to avoid performance impact
-  // But we've moved the conditional logic to inside a useEffect to avoid hook rule violations
   const shouldRender = loadingFade || fadeInProgress.current;
   
   return (
     <>
       {shouldRender && (
-        <EffectComposer ref={fadeRef}>
-          {/* No need to add child effects here as we're adding them programmatically */}
-        </EffectComposer>
+        <EffectComposer ref={fadeRef} />
       )}
     </>
   );
