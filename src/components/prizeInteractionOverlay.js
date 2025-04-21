@@ -2,8 +2,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import styled from 'styled-components';
 import useGameStore from '../store';
-import { trackCalendarButton, trackDownloadButton } from '../utils/GoogleAnalytics';
-
 
 // Styled components for the overlay
 const OverlayContainer = styled.div`
@@ -62,48 +60,34 @@ const CloseButton = styled(InteractionButton)`
 
 // Helper function to generate a downloadable image from the prize text
 const generatePrizeImage = async (prizeText) => {
-  // Create a canvas for rendering the prize text
   const canvas = document.createElement('canvas');
-  // Make it taller than wide to match the 3D prize's aspect ratio
   canvas.width = 600;
   canvas.height = 900;
   const ctx = canvas.getContext('2d');
   
-  // Load the paper texture that we use for the prize in the 3D world
   const loadTexture = () => {
     return new Promise((resolve, reject) => {
       const paperImg = new Image();
       paperImg.crossOrigin = 'anonymous';
       paperImg.onload = () => resolve(paperImg);
       paperImg.onerror = (err) => reject(err);
-      // Use the same paper texture from the 3D world
       paperImg.src = '/paper.webp';
     });
   };
   
   try {
-    // Load the paper texture
     const paperTexture = await loadTexture();
-    
-    // Draw the paper texture as background, filling the entire canvas
     ctx.drawImage(paperTexture, 0, 0, canvas.width, canvas.height);
     
-    // No border - removed as requested
-    
-    // Configure text rendering
     ctx.font = 'bold 36px Georgia, serif';
     ctx.fillStyle = '#333';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     
-    // No title - just leave space for the centered text
-    
-    // Wrap and draw the main text
     const wrapText = (text, x, y, maxWidth, lineHeight) => {
       if (!text) return;
       
       const lines = [];
-      // Fix: Replace escaped newlines with actual newlines, then split by newline
       const cleanText = text.replace(/\\n/g, '\n');
       const paragraphs = cleanText.split('\n');
       
@@ -127,47 +111,36 @@ const generatePrizeImage = async (prizeText) => {
         lines.push(''); // Add an empty line between paragraphs
       });
       
-      // Calculate the total height of the text to center it vertically
       const totalTextHeight = lines.length * lineHeight;
-      // Calculate the starting Y position to center the text vertically
       const startY = (canvas.height - totalTextHeight) / 2;
       
-      // Draw each line
-      ctx.font = '36px Georgia, serif'; // Increased font size
+      ctx.font = '36px Georgia, serif';
       lines.forEach((line, index) => {
         ctx.fillText(line, x, startY + index * lineHeight);
       });
       
-      return lines.length; // Return line count for reference
+      return lines.length;
     };
     
-    // Draw the prize text properly centered in the canvas
     wrapText(prizeText, canvas.width / 2, canvas.height / 2, canvas.width - 160, 60);
     
-    // Add a subtle glow effect to enhance the magical artifact feel
-    ctx.shadowColor = '#f0e68c'; // Golden glow
+    ctx.shadowColor = '#f0e68c';
     ctx.shadowBlur = 15;
     ctx.font = 'bold 18px Georgia, serif';
     ctx.fillText('✧ ✦ ✧', canvas.width / 2, canvas.height - 80);
     
-    // Convert canvas to data URL
     return canvas.toDataURL('image/png');
   } catch (error) {
-    console.error("Error loading paper texture:", error);
-    
-    // Fallback to a simple gradient background if texture fails to load
     const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
     gradient.addColorStop(0, '#f8f5e6');
     gradient.addColorStop(1, '#e8e0c0');
     ctx.fillStyle = gradient;
     ctx.fillRect(0, 0, canvas.width, canvas.height);
     
-    // Continue with text rendering - no title, just centered prize text
     ctx.font = '36px Georgia, serif';
     ctx.fillStyle = '#333';
     ctx.textAlign = 'center';
     
-    // Fix: Replace escaped newlines with actual newlines
     const cleanText = prizeText.replace(/\\n/g, '\n');
     const lines = cleanText.split('\n');
     const lineHeight = 60;
@@ -184,22 +157,18 @@ const generatePrizeImage = async (prizeText) => {
 
 // Function to generate an iCalendar (.ics) file for the event
 const generateCalendarFile = () => {
-  // Parse the event details from the prize text - using a more generic title
   const eventTitle = "Art Gallery Event";
   const eventLocation = "French Fried Vintage, 7 Emory Pl, Knoxville, TN 37917";
   
-  // Set the event date and time (May 2, 2025 at 6:00 PM Eastern Time)
-  const eventDate = new Date(2025, 4, 2, 18, 0, 0); // Month is 0-indexed, so 4 = May
-  const eventEndDate = new Date(eventDate.getTime() + 2 * 60 * 60 * 1000); // Event lasts 2 hours
+  const eventDate = new Date(2025, 4, 2, 18, 0, 0);
+  const eventEndDate = new Date(eventDate.getTime() + 2 * 60 * 60 * 1000);
   
-  // Format dates for iCalendar format (YYYYMMDDTHHMMSSZ)
   const formatDateForCalendar = (date) => {
     return date.toISOString().replace(/-|:|\.\d+/g, '');
   };
   
   const now = new Date();
   
-  // Create the iCalendar content
   const icsContent = [
     'BEGIN:VCALENDAR',
     'VERSION:2.0',
@@ -230,16 +199,12 @@ const PrizeInteractionOverlay = () => {
   const prizeState = useGameStore(state => state.prizeState);
   const setPrizeState = useGameStore(state => state.setPrizeState);
   
-  // Reference to store prize text
   const prizeTextRef = useRef('');
   
-  // Get the prize text from the experience
   useEffect(() => {
     if (prizeState === 'inspecting') {
-      // Set the updated event details without "Unreal Together"
       prizeTextRef.current = "May 2, 2025 6:00 P.M.\\nFrench Fried Vintage\\n7 Emory Pl, Knoxville, TN 37917";
       
-      // Also update the text in the original game state if needed
       const experiences = useGameStore.getState().experienceScript.experiences;
       const chestExperience = experiences.find(exp => exp.type === 'chest');
       if (chestExperience?.reward) {
@@ -248,139 +213,148 @@ const PrizeInteractionOverlay = () => {
     }
   }, [prizeState]);
 
-  // Handle component mounting/unmounting based on prize state
   useEffect(() => {
     if (prizeState === 'inspecting') {
-      // Mount the component when prize is being inspected
       setIsMounted(true);
       setIsFadingOut(false);
       
-      // Delay the appearance of buttons slightly
       const timer = setTimeout(() => {
         setIsVisible(true);
       }, 3000);
 
       return () => clearTimeout(timer);
     } else if (isMounted) {
-      // Start fade out when prize state changes from 'inspecting' to something else
       setIsVisible(false);
       setIsFadingOut(true);
       
-      // Unmount after fade out animation completes
       const timer = setTimeout(() => {
         setIsMounted(false);
         setIsFadingOut(false);
-      }, 300); // Match transition duration
+      }, 300);
       
       return () => clearTimeout(timer);
     }
   }, [prizeState, isMounted]);
 
-  // Handle calendar button click
   const handleCalendarClick = () => {
-    console.log("Calendar button clicked - generating calendar event");
-    const originalInnerHTML = document.activeElement.innerHTML;
-    
-    // Track this event in Google Analytics - IMPORTANT: call directly with gtag
     if (window.gtag) {
       window.gtag('event', 'button_click', {
         'event_category': 'interaction', 
         'button_name': 'calendar',
-        'transport_type': 'beacon', // More reliable tracking
-        'non_interaction': false // Ensure it counts as an interaction
+        'transport_type': 'beacon',
+        'non_interaction': false
       });
-      console.log("Calendar button event tracked directly via gtag");
-    } else {
-      console.warn("gtag not available for calendar tracking");
     }
     
-    try {
-      // Show some visual feedback that the calendar file is being generated
-      if (document.activeElement.tagName === 'BUTTON') {
-        document.activeElement.innerHTML = '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" stroke="white" stroke-width="2" fill="none" stroke-dasharray="40" stroke-dashoffset="0"><animateTransform attributeName="transform" type="rotate" from="0 12 12" to="360 12 12" dur="1s" repeatCount="indefinite" /></circle></svg>';
-      }
-      
-      // Generate the iCalendar file content
-      const icsContent = generateCalendarFile();
-      
-      // Create a Blob containing the calendar data
-      const blob = new Blob([icsContent], { type: 'text/calendar;charset=utf-8' });
-      
-      // Create a URL for the Blob
-      const url = URL.createObjectURL(blob);
-      
-      // Create a temporary anchor element for downloading
-      const downloadLink = document.createElement('a');
-      downloadLink.href = url;
-      downloadLink.download = 'art-gallery-event.ics'; // Updated filename
-      
-      // Append to the body, click to trigger download, then remove
-      document.body.appendChild(downloadLink);
-      downloadLink.click();
-      document.body.removeChild(downloadLink);
-      
-      // Clean up the URL object
-      setTimeout(() => URL.revokeObjectURL(url), 100);
-      
-      console.log("Calendar event download initiated");
-      
-      // Restore original button content after a short delay
-      setTimeout(() => {
-        if (document.activeElement.tagName === 'BUTTON') {
-          document.activeElement.innerHTML = originalInnerHTML;
-        }
-      }, 500);
-      
-    } catch (error) {
-      console.error("Error generating calendar event:", error);
-      
-      // Restore original button content if there was an error
-      if (document.activeElement.tagName === 'BUTTON') {
-        document.activeElement.innerHTML = originalInnerHTML;
-      }
+    const eventTitle = "Art Gallery Event";
+    const eventLocation = "French Fried Vintage, 7 Emory Pl, Knoxville, TN 37917";
+    const eventDescription = "Join us for an art gallery event at French Fried Vintage!";
+    
+    const googleStart = "20250502T220000Z";
+    const googleEnd = "20250503T000000Z";
+    
+    const eventDate = "2025-05-02";
+    const startTime = "18:00";
+    const endTime = "20:00";
+    
+    const googleCalendarUrl = `https://www.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(eventTitle)}&dates=${googleStart}/${googleEnd}&details=${encodeURIComponent(eventDescription)}&location=${encodeURIComponent(eventLocation)}&sf=true`;
+    
+    const outlookCalendarUrl = `https://outlook.live.com/calendar/0/deeplink/compose?subject=${encodeURIComponent(eventTitle)}&startdt=${eventDate}T${startTime}&enddt=${eventDate}T${endTime}&body=${encodeURIComponent(eventDescription)}&location=${encodeURIComponent(eventLocation)}`;
+    
+    const yahooCalendarUrl = `https://calendar.yahoo.com/?v=60&title=${encodeURIComponent(eventTitle)}&st=${googleStart}&et=${googleEnd}&desc=${encodeURIComponent(eventDescription)}&in_loc=${encodeURIComponent(eventLocation)}`;
+    
+    const appleCalendarUrl = `data:text/calendar;charset=utf8,${encodeURIComponent(generateCalendarFile())}`;
+    
+    const modal = document.createElement('div');
+    modal.id = 'calendar-modal';
+    modal.style.cssText = `
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: white;
+      padding: 20px;
+      border-radius: 8px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+      z-index: 10000;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      min-width: 300px;
+      color: #333;
+    `;
+    
+    modal.innerHTML = `
+      <h3 style="margin: 0 0 10px; text-align: center;">Add to Calendar</h3>
+      <a href="${googleCalendarUrl}" target="_blank" rel="noopener noreferrer" style="padding: 10px; background: #4285F4; color: white; text-decoration: none; border-radius: 4px; text-align: center;">Google Calendar</a>
+      <a href="${outlookCalendarUrl}" target="_blank" rel="noopener noreferrer" style="padding: 10px; background: #0078D4; color: white; text-decoration: none; border-radius: 4px; text-align: center;">Outlook</a>
+      <a href="${yahooCalendarUrl}" target="_blank" rel="noopener noreferrer" style="padding: 10px; background: #6001D2; color: white; text-decoration: none; border-radius: 4px; text-align: center;">Yahoo Calendar</a>
+      <a href="${appleCalendarUrl}" download="art-gallery-event.ics" style="padding: 10px; background: #333; color: white; text-decoration: none; border-radius: 4px; text-align: center;">Apple Calendar / .ics</a>
+      <button id="close-modal" style="padding: 10px; background: #ddd; color: #333; border: none; border-radius: 4px; margin-top: 10px; cursor: pointer;">Close</button>
+    `;
+    
+    const existingModal = document.getElementById('calendar-modal');
+    if (existingModal) {
+      existingModal.remove();
     }
+    
+    document.body.appendChild(modal);
+    
+    const removeModal = () => {
+      const modalToRemove = document.getElementById('calendar-modal');
+      if (modalToRemove && modalToRemove.parentNode) {
+        modalToRemove.parentNode.removeChild(modalToRemove);
+      }
+      document.removeEventListener('click', handleOutsideClick);
+    };
+    
+    const closeButton = document.getElementById('close-modal');
+    if (closeButton) {
+      closeButton.addEventListener('click', (e) => {
+        e.stopPropagation();
+        removeModal();
+      });
+    }
+    
+    const handleOutsideClick = (e) => {
+      const modalElem = document.getElementById('calendar-modal');
+      if (modalElem && (!modalElem.contains(e.target) || e.target === modalElem)) {
+        removeModal();
+      }
+    };
+    
+    setTimeout(() => {
+      document.addEventListener('click', handleOutsideClick);
+    }, 100);
   };
-  
-  // Update the handleDownloadClick function
+
   const handleDownloadClick = async () => {
-    console.log("Download button clicked - generating image for prize");
     const originalInnerHTML = document.activeElement.innerHTML;
     
-    // Track this event in Google Analytics - IMPORTANT: call directly with gtag
     if (window.gtag) {
       window.gtag('event', 'button_click', {
         'event_category': 'interaction', 
         'button_name': 'download',
-        'transport_type': 'beacon', // More reliable tracking
-        'non_interaction': false // Ensure it counts as an interaction
+        'transport_type': 'beacon',
+        'non_interaction': false
       });
-      console.log("Download button event tracked directly via gtag");
-    } else {
-      console.warn("gtag not available for download tracking");
     }
     
     try {
-      // Show some visual feedback that the download is being prepared
       if (document.activeElement.tagName === 'BUTTON') {
         document.activeElement.innerHTML = '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" stroke="white" stroke-width="2" fill="none" stroke-dasharray="40" stroke-dashoffset="0"><animateTransform attributeName="transform" type="rotate" from="0 12 12" to="360 12 12" dur="1s" repeatCount="indefinite" /></circle></svg>';
       }
       
-      // Generate the image data URL from the prize text (now async)
       const imageDataUrl = await generatePrizeImage(prizeTextRef.current);
       
-      // Create a temporary anchor element for downloading
       const downloadLink = document.createElement('a');
       downloadLink.href = imageDataUrl;
       downloadLink.download = 'SeeYouThere.png';
       
-      // Append to the body, click to trigger download, then remove
       document.body.appendChild(downloadLink);
       downloadLink.click();
       document.body.removeChild(downloadLink);
       
-      console.log("Prize image download initiated");
-      
-      // Restore original button content after a short delay
       setTimeout(() => {
         if (document.activeElement.tagName === 'BUTTON') {
           document.activeElement.innerHTML = originalInnerHTML;
@@ -388,34 +362,23 @@ const PrizeInteractionOverlay = () => {
       }, 500);
       
     } catch (error) {
-      console.error("Error generating prize image:", error);
-      
-      // Restore original button content if there was an error
       if (document.activeElement.tagName === 'BUTTON') {
         document.activeElement.innerHTML = originalInnerHTML;
       }
     }
   };
 
-  // Handle close button click - transition to acquiring state
   const handleCloseClick = () => {
-    console.log("Close button clicked - transitioning prize to acquiring state");
-    
-    // Start fade out
     setIsVisible(false);
     setIsFadingOut(true);
-    
-    // Change prize state to acquiring so it will animate towards the player
     setPrizeState('acquiring');
     
-    // Unmount after fade out animation completes
     setTimeout(() => {
       setIsMounted(false);
       setIsFadingOut(false);
-    }, 300); // Match transition duration
+    }, 300);
   };
 
-  // Only render if component should be mounted
   if (!isMounted && !isFadingOut) {
     return null;
   }

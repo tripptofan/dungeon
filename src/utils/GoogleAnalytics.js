@@ -1,48 +1,20 @@
 // src/utils/GoogleAnalytics.js
 
-// Initialize Google Analytics with error handling
+// No need for initialization anymore as it's in index.html
 export const initializeGA = () => {
-  try {
-    // Add the Google tag script dynamically
-    const script1 = document.createElement('script');
-    script1.async = true;
-    script1.src = "https://www.googletagmanager.com/gtag/js?id=G-G03YMC497R";
-    document.head.appendChild(script1);
-
-    // Add the configuration script
-    window.dataLayer = window.dataLayer || [];
-    function gtag() { window.dataLayer.push(arguments); }
-    window.gtag = gtag; // Make gtag available globally
-
-    // Initialize the tag with the correct configuration
-    gtag('js', new Date());
-    
-    // Add config
-    gtag('config', 'G-G03YMC497R', {
-      'send_page_view': true,
-      'transport_type': 'beacon' // More reliable especially on page unload
-    });
-    
-    // Track the page view as a unique visitor
-    trackEvent('page_view', 'visitor');
-    
-  } catch (error) {
-    // Silent fail in production
-  }
+  // This is kept for backward compatibility but no longer needed
+  // Will just verify that GA is available
+  return verifyGAFunctionality();
 };
 
 // Track custom events with error handling
 export const trackEvent = (event_name, category, additional_data = {}) => {
   try {
     if (window.gtag) {
-      // Use setTimeout to ensure event is sent asynchronously
-      setTimeout(() => {
-        window.gtag('event', event_name, {
-          'event_category': category,
-          ...additional_data
-        });
-      }, 0);
-      
+      window.gtag('event', event_name, {
+        'event_category': category,
+        ...additional_data
+      });
       return true;
     } else {
       return false;
@@ -52,9 +24,9 @@ export const trackEvent = (event_name, category, additional_data = {}) => {
   }
 };
 
-// Export specific event tracking functions
+// Track calendar button clicks
 export const trackCalendarButton = () => {
-  // Force synchronous execution to ensure tracking before page navigation
+  // Track calendar button clicks
   window.gtag && window.gtag('event', 'button_click', {
     'event_category': 'interaction',
     'button_name': 'calendar',
@@ -66,6 +38,7 @@ export const trackCalendarButton = () => {
   return true;
 };
 
+// Track download button clicks
 export const trackDownloadButton = () => {
   // Force synchronous execution to ensure tracking before page navigation
   window.gtag && window.gtag('event', 'button_click', {

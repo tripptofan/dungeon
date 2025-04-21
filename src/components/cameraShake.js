@@ -29,12 +29,6 @@ const CameraShake = () => {
       originalPosition.current.copy(camera.position);
       originalRotation.current.copy(camera.rotation);
       
-      console.log("Starting camera shake, stored original rotation:", 
-        originalRotation.current.x, 
-        originalRotation.current.y, 
-        originalRotation.current.z
-      );
-      
       // Set shake configuration
       shakeConfig.current = {
         intensity: cameraShaking.intensity || 0.5,
@@ -101,12 +95,6 @@ const CameraShake = () => {
         
         // Reset camera to the exact original rotation
         camera.rotation.copy(originalRotation.current);
-        
-        console.log("Shake complete, restored original rotation:", 
-          originalRotation.current.x, 
-          originalRotation.current.y, 
-          originalRotation.current.z
-        );
         
         invalidate();
         
